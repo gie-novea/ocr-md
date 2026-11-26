@@ -115,3 +115,10 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 - **Windows (image Windows Server 2025 de GitHub)** : seul `en-US` était présent ; `Add-WindowsCapability` a installé le module OCR français (environ 15 minutes à chaque passage). Les tests du moteur réel n'ont pas pu s'exécuter, car `ocr-md verifier` a échoué avant : `platform.release()` y vaut « 2025Server ». Défaut corrigé (détection par le numéro de build).
 - **Linux** : `ocr-md verifier` renvoie 3 (système non pris en charge pour l'usage), comme prévu ; l'étape est désormais tolérée sous Linux.
 - **tkinter (PV-11, macOS)** : présent, mais le test attendait Tcl 8 ; le Python géré par uv embarque une autre version. Test assoupli (8.6 ou 9) ; la version sera affichée au prochain passage.
+
+### Décision du commanditaire sur PV-08 (b) (26/11/2026)
+
+- Version figée sur toutes les plateformes : PyMuPDF, pymupdf4llm et pymupdf-layout **1.28.2** (au lieu de 2.2). En 1.28.2, pymupdf4llm et pymupdf-layout sont de vrais paquets (non vides), sous double licence AGPL-3.0 ou commerciale ; pymupdf4llm dépend de pymupdf-layout, qui dépend d'onnxruntime, numpy, networkx et pyyaml.
+- onnxruntime : la résolution universelle de uv retient **1.23.2 sur toutes les plateformes** (dernière version publiée pour macOS Intel), ce qui garde une seule version partout. sympy et pyreadline3 s'ajoutent comme dépendances transitives.
+- Conséquence sur PV-05 : les constats faits en 2.2 restent valables en 1.28.2 (essai rejoué : même point d'entrée `pymupdf4llm.to_markdown`, même contrat de `ocr_function`, texte invisible repris, 1 seul appel pour la page sans calque). La remarque « paquets vides » ne vaut que pour la branche 2.x.
+- Sous Windows : 61 tests réussis avec la 1.28.2. À confirmer par la CI sur macOS Apple Silicon et Intel.

@@ -80,3 +80,9 @@ Reste à faire :
 - PV-02 : générateur `essais/pv02/generer_lot200.py` (200 fichiers vides aux noms longs, ligne de commande estimée à 30 800 caractères, sous la limite de 32 767) ; le lot produit (`essais/pv02/lot200/`) n'est pas versionné. Le journal du premier essai, qui contenait des chemins réels, a été supprimé par le commanditaire.
 - Audit de l'historique avant le premier envoi : aucun nom, chemin ni référence issu du journal PV-02 ; mentions de kDrive uniquement génériques. L'auteur et le committer des trois premiers commits ont été remplacés par l'adresse noreply GitHub du commanditaire (historique local réécrit avant tout envoi) ; `user.email` réglé localement dans ce dépôt.
 - Décision pour le jalon 9 : le guide utilisateur recommandera d'envoyer un dossier plutôt qu'une sélection de fichiers. Si une sélection approche la limite de longueur de la ligne de commande Windows, l'outil le signalera dans la fenêtre de fin et dans le rapport, plutôt que de traiter une liste éventuellement tronquée.
+
+## Premier passage de la CI et décision Mac Intel (26/11/2026)
+
+- Résultats détaillés : `docs/verifications.md`, rubrique « Premier passage de la CI GitHub Actions ». PV-06 (b) et PV-08 (a) levés sur macOS Apple Silicon ; défaut de détection de Windows Server corrigé.
+- Écart au cahier des charges (décision du commanditaire) : PyMuPDF, pymupdf4llm et pymupdf-layout figés en 1.28.2 sur toutes les plateformes, et onnxruntime en 1.23.2, pour conserver la prise en charge du Mac Intel (PyMuPDF 2.x n'y est plus publié). Le « README version 1.28.x » cité en préparation correspond donc à la version retenue. Toute montée de version future devra vérifier la publication pour macOS Intel.
+- Coût constaté : l'installation du module OCR français sur l'image Windows de GitHub prend environ 15 minutes par passage.

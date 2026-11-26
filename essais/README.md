@@ -6,7 +6,7 @@ Environnement (depuis ce dossier, sous Windows) :
 
 ```
 uv venv --python 3.12 .venv
-uv pip install --python .venv pymupdf==2.2 pymupdf4llm==2.2 pymupdf-fonts pillow numpy winrt-Windows.Media.Ocr winrt-Windows.Globalization winrt-Windows.Graphics.Imaging winrt-Windows.Storage.Streams
+uv pip install --python .venv pymupdf==2.2 pymupdf4llm==2.2 (essais du jalon 0 ; le paquet est figé en 1.28.2, voir docs/verifications.md) pymupdf-fonts pillow numpy winrt-Windows.Media.Ocr winrt-Windows.Globalization winrt-Windows.Graphics.Imaging winrt-Windows.Storage.Streams
 ```
 
 | Dossier | Point | Commande |

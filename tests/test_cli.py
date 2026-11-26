@@ -25,7 +25,7 @@ def test_aide_en_francais(capsys):
 def test_version_affiche_versions_licence_et_source(capsys):
     code, out, _ = lancer(capsys, "--version")
     assert code == cli.SUCCES
-    for attendu in ("ocr-md ", "PyMuPDF 2.2", "PyMuPDF4LLM 2.2", "Moteur OCR :", "AGPL-3.0", "Code source :"):
+    for attendu in ("ocr-md ", "PyMuPDF 1.28.2", "PyMuPDF4LLM 1.28.2", "Moteur OCR :", "AGPL-3.0", "Code source :"):
         assert attendu in out
 
 
