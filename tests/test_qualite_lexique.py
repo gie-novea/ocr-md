@@ -34,6 +34,7 @@ def test_complement_par_configuration():
 def test_forme_comparable():
     assert qualite.forme_comparable("maître d’œuvre, ÆON, ex æquo") == "maître d'oeuvre, AEON, ex aequo"
     assert qualite.forme_comparable("été") == "été"  # NFD -> NFC
+    assert qualite.forme_comparable("ingénieur ﬂuides, ﬁche, eﬀectif") == "ingénieur fluides, fiche, effectif"
 
 
 @pytest.mark.exigence("EX-37", "EX-78")

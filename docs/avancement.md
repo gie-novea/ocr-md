@@ -86,3 +86,19 @@ Reste à faire :
 - Résultats détaillés : `docs/verifications.md`, rubrique « Premier passage de la CI GitHub Actions ». PV-06 (b) et PV-08 (a) levés sur macOS Apple Silicon ; défaut de détection de Windows Server corrigé.
 - Écart au cahier des charges (décision du commanditaire) : PyMuPDF, pymupdf4llm et pymupdf-layout figés en 1.28.2 sur toutes les plateformes, et onnxruntime en 1.23.2, pour conserver la prise en charge du Mac Intel (PyMuPDF 2.x n'y est plus publié). Le « README version 1.28.x » cité en préparation correspond donc à la version retenue. Toute montée de version future devra vérifier la publication pour macOS Intel.
 - Coût constaté : l'installation du module OCR français sur l'image Windows de GitHub prend environ 15 minutes par passage.
+
+## Jalon 2 : jeu de test synthétique et moteur factice (26/11/2026)
+
+Fait :
+- `tests/donnees/generer.py` (EX-74) : jeu reproductible (graine 2026), 30 fichiers décrits, 30 images, environ 23 Mo, généré en 14 s, non versionné (`tests/donnees/jeu/`). Contenu : fichiers 1 à 15 du cahier, 6b (tableaux scannés), 18 (ligatures), plus deux fichiers ajoutés : 19 (PDF scanné portant une mention de dépôt en texte natif, EX-22) et 20 (couche OCR d'expéditeur saine, statut `couche_expediteur`) ; les sept statuts sont représentés. Le fichier 6 comporte un tableau simple, un tableau fusionné à double en-tête, une DPGF et un cadre de décomposition des honoraires. Fichiers 16 (chemin long) et 17 (1 000 pages) générés à la demande (`--chemin-long`, `--volumineux`).
+- `manifeste.json` : vérité terrain par fichier (type, pages, catégorie de chaque page, texte de référence, mots uniques, pied de page attendu, pages douteuses, statut, origine, valeurs des tableaux, rendu attendu, phrases sentinelles, messages attendus) et, pour chaque image, le résultat attendu du moteur factice (mots, boîtes, confiance).
+- `ocr/factice.py` : moteur factice déterministe. Chaque image du jeu porte un marqueur de 18 cases dans sa marge supérieure ; le moteur le lit (à toute résolution, vérifié à 72, 150 et 300 dpi, après redressement EXIF et pour chaque trame d'un TIFF) et renvoie les données du manifeste ; compteur d'appels ; mode sans confiance qui imite Windows ; activable par la variable `OCR_MD_MOTEUR_FACTICE` pour les tests en sous-processus.
+- Fonctions de fabrication communes (`tests/donnees/fabrication.py`), reprises des essais.
+- Tests : 83 réussis, 4 sautés sous Windows. Sur les fichiers 2, 3, 10 et 18 générés, `Windows.Media.Ocr` retrouve 97,8 % à 100 % des mots de référence par page (avec les équivalences) ; page illisible du fichier 5 : 8,9 %.
+
+Constats :
+- le rendu HTML de PyMuPDF produit des ligatures typographiques (« ﬂuides ») ; elles existent aussi dans des PDF réels. `forme_comparable` développe désormais ﬀ, ﬁ, ﬂ, ﬃ, ﬄ, ﬅ et ﬆ (même principe que œ et æ) ;
+- la police Noto Sans n'a pas de glyphe pour U+FFFD ni pour la zone d'usage privé : la couche dégradée du fichier 4 utilise des lettres cyrilliques comme caractères aberrants (catégorie prévue par EX-36) ;
+- openpyxl n'écrit pas de valeurs calculées en cache : le classeur du fichier 8 ne contient que des valeurs saisies ; le cas « formule avec valeur en cache » sera couvert au jalon 8 par un fichier construit autrement, si nécessaire.
+
+Écarts : fichiers 19 et 20 ajoutés au tableau de 7.1 (non prévus au cahier, nécessaires à EX-22 et EX-23) ; la PDF « faux PDF » (fichier texte renommé, CA de EX-18) est rangée avec les erreurs.

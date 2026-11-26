@@ -35,9 +35,19 @@ def profil_isole(monkeypatch, tmp_path):
     monkeypatch.setattr(plateforme, "fichier_configuration", lambda: tmp_path / "profil" / "config.toml")
 
 
+@pytest.fixture(scope="session")
+def jeu_de_test(tmp_path_factory):
+    """Jeu de test synthétique généré une fois par session : (racine, manifeste)."""
+    from tests.donnees import generer
+    racine = tmp_path_factory.mktemp("jeu")
+    manifeste = generer.generer(racine)
+    return racine, manifeste
+
+
 def pytest_collection_modifyitems(config, items):
     plateformes = {"windows": "win32", "macos": "darwin"}
     for item in items:
-        for marqueur, valeur in plateformes.items():
-            if item.get_closest_marker(marqueur) and sys.platform != valeur:
-                item.add_marker(pytest.mark.skip(reason=f"test propre à {marqueur}"))
+        # Un test marqué pour une ou plusieurs plateformes ne s'exécute que sur l'une d'elles.
+        marques = [m for m in plateformes if item.get_closest_marker(m)]
+        if marques and sys.platform not in {plateformes[m] for m in marques}:
+            item.add_marker(pytest.mark.skip(reason=f"test propre à {' ou '.join(marques)}"))

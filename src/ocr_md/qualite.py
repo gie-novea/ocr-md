@@ -13,12 +13,15 @@ import unicodedata
 # Windows.Media.Ocr produit « oe », « ae » et l'apostrophe droite. Elles servent aux
 # comparaisons et à la recherche dans le lexique ; le texte reconnu n'est jamais modifié.
 _EQUIVALENCES = str.maketrans({"’": "'", "ʼ": "'", "‘": "'"})
-_LIGATURES = (("œ", "oe"), ("Œ", "OE"), ("æ", "ae"), ("Æ", "AE"))
+# Ligatures linguistiques (œ, æ) et ligatures typographiques (ﬁ, ﬂ...) que produisent
+# certains PDF à l'extraction du texte.
+_LIGATURES = (("œ", "oe"), ("Œ", "OE"), ("æ", "ae"), ("Æ", "AE"), ("ﬀ", "ff"), ("ﬁ", "fi"),
+              ("ﬂ", "fl"), ("ﬃ", "ffi"), ("ﬄ", "ffl"), ("ﬅ", "st"), ("ﬆ", "st"))
 
 
 def forme_comparable(texte: str) -> str:
     """Forme normalisée pour comparer deux textes : NFC, apostrophes droites, ligatures
-    développées (œ -> oe, æ -> ae)."""
+    développées (œ -> oe, æ -> ae, ﬁ -> fi)."""
     t = unicodedata.normalize("NFC", texte).translate(_EQUIVALENCES)
     for lig, dev in _LIGATURES:
         t = t.replace(lig, dev)

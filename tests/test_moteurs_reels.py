@@ -131,3 +131,63 @@ def test_apple_vision_convention_des_boites():
 @pytest.mark.exigence("EX-36")
 def test_apple_vision_ligatures_restent_dans_le_lexique():
     verifier_ligatures_reconnues(moteur_ou_saut())
+
+
+# --------------------------------------------------------------------------------------
+# Reconnaissance des fichiers 2, 3, 10 et 18 du jeu de test (EX-75, niveau 2)
+# --------------------------------------------------------------------------------------
+def images_du_jeu(racine, f):
+    """Images à reconnaître d'un fichier du jeu : (rang de page, image)."""
+    from PIL import ImageOps
+    chemin = racine / f["chemin"]
+    if f["type"] == "pdf":
+        doc = pymupdf.open(chemin)
+        for n, cat in enumerate(f["categories"]):
+            if cat == "image":
+                pix = doc[n].get_pixmap(dpi=DPI, colorspace=pymupdf.csGRAY)
+                yield n, Image.frombytes("L", (pix.width, pix.height), pix.samples)
+    else:
+        img = Image.open(chemin)
+        for n in range(getattr(img, "n_frames", 1)):
+            img.seek(n)
+            yield n, ImageOps.exif_transpose(img).convert("L")
+
+
+def verifier_jeu(jeu_de_test, numeros):
+    racine, m = jeu_de_test
+    moteur = moteur_ou_saut()
+    for f in m["fichiers"]:
+        if f["numero"] not in numeros:
+            continue
+        for n, image in images_du_jeu(racine, f):
+            resultat = moteur.reconnaitre(image)
+            taux = taux_retrouves([f["texte_reference"][n]], resultat.texte)
+            print(f"{moteur.nom} : {f['chemin']} page {n + 1} : {taux:.1%}")
+            assert taux >= 0.95, (f["chemin"], n + 1, taux)
+
+
+@pytest.mark.windows
+@pytest.mark.exigence("EX-27", "EX-75")
+def test_windows_fichiers_2_3_10_18(jeu_de_test):
+    verifier_jeu(jeu_de_test, {"2", "3", "10", "18"})
+
+
+@pytest.mark.macos
+@pytest.mark.exigence("EX-26", "EX-75")
+def test_vision_fichiers_2_3_10_18(jeu_de_test):
+    verifier_jeu(jeu_de_test, {"2", "3", "10", "18"})
+
+
+@pytest.mark.windows
+@pytest.mark.macos
+def test_page_illisible_du_fichier_5_mal_reconnue(jeu_de_test):
+    """Fichier 5, page 2 (flou et bruit forts) : la reconnaissance doit être nettement
+    dégradée ; le verdict « douteuse » sera vérifié au jalon 7."""
+    racine, m = jeu_de_test
+    moteur = moteur_ou_saut()
+    (f,) = [x for x in m["fichiers"] if x["numero"] == "5"]
+    pages = dict(images_du_jeu(racine, f))
+    bonne = taux_retrouves([f["texte_reference"][0]], moteur.reconnaitre(pages[0]).texte)
+    mauvaise = taux_retrouves([f["texte_reference"][1]], moteur.reconnaitre(pages[1]).texte)
+    print(f"{moteur.nom} : fichier 5, page 1 {bonne:.1%}, page 2 {mauvaise:.1%}")
+    assert bonne >= 0.95 and mauvaise < 0.80

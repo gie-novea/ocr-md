@@ -4,6 +4,7 @@
 
 ### Ajouts
 - Jalon 1 : squelette du paquet (`pyproject.toml`, Python 3.12, lanceur sans console `ocr-mdw`), paramètres réglables par fichier TOML, ligne de commande en français avec codes de retour, interface des moteurs OCR et moteurs Windows (`Windows.Media.Ocr`) et macOS (Apple Vision), lexique français embarqué (Grammalecte 7.7, MPL 2.0), tests automatisés, intégration continue GitHub Actions (Windows, macOS Apple Silicon et Intel, Linux).
+- Jalon 2 : générateur du jeu de test synthétique et de son manifeste (`tests/donnees/generer.py`), moteur OCR factice instrumenté (`ocr/factice.py`), tests des moteurs réels sur le jeu généré ; équivalence des ligatures typographiques (ﬁ, ﬂ...) dans les comparaisons.
 
 ### Reprise de l'existant
 - Le code de l'outil existant (« Convertisseur MD », PC) a été fourni et lu. Aucun fichier n'en est copié et l'outil livré n'en dépend pas. Éléments de logique repris :
@@ -15,6 +16,7 @@
 - Les mesures de sécurité de l'outil existant qui concernent un lanceur `.bat` (injection par nom de fichier) sont sans objet : les raccourcis d'ocr-md ciblent directement le lanceur `ocr-mdw.exe`, sans interpréteur de commandes.
 
 ### Écarts au cahier des charges
+- PyMuPDF, pymupdf4llm et pymupdf-layout figés en 1.28.2 (au lieu de 2.x), onnxruntime en 1.23.2, pour conserver le Mac Intel.
 - Voir `docs/avancement.md`, rubriques « Écarts au cahier des charges » de chaque jalon.
 
 ### Recommandations non suivies
