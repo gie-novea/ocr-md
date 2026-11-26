@@ -1,0 +1,226 @@
+{
+ "versions": {
+  "pymupdf": "2.2",
+  "pymupdf4llm": "2.2",
+  "pymupdf_layout": "2.2"
+ },
+ "python": "3.12.10",
+ "document_to_markdown": true,
+ "essais": [
+  {
+   "options": {
+    "ocr_function": "ocr_instrumentee"
+   },
+   "appels_ocr": [
+    {
+     "page": 3,
+     "dpi": 150,
+     "language": "eng",
+     "keep_ocr_text": false,
+     "pixmap": false,
+     "autres": []
+    }
+   ],
+   "pages": {
+    "1": {
+     "ALPHAMOT": true,
+     "BETAMOT": false,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "2": {
+     "ALPHAMOT": false,
+     "BETAMOT": true,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "3": {
+     "ALPHAMOT": false,
+     "BETAMOT": false,
+     "GAMMAMOT": true,
+     "accents_ok": true
+    }
+   },
+   "cles_morceau": [
+    "metadata",
+    "page_boxes",
+    "text",
+    "toc_items"
+   ],
+   "mention_tesseract": false,
+   "mention_rapidocr": false,
+   "messages": []
+  },
+  {
+   "options": {
+    "ocr_function": "ocr_instrumentee",
+    "force_text": false
+   },
+   "appels_ocr": [
+    {
+     "page": 3,
+     "dpi": 150,
+     "language": "eng",
+     "keep_ocr_text": false,
+     "pixmap": false,
+     "autres": []
+    }
+   ],
+   "pages": {
+    "1": {
+     "ALPHAMOT": true,
+     "BETAMOT": false,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "2": {
+     "ALPHAMOT": false,
+     "BETAMOT": true,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "3": {
+     "ALPHAMOT": false,
+     "BETAMOT": false,
+     "GAMMAMOT": true,
+     "accents_ok": true
+    }
+   },
+   "cles_morceau": [
+    "metadata",
+    "page_boxes",
+    "text",
+    "toc_items"
+   ],
+   "mention_tesseract": false,
+   "mention_rapidocr": false,
+   "messages": []
+  },
+  {
+   "options": {
+    "ocr_function": "ocr_instrumentee",
+    "ignore_alpha": true
+   },
+   "appels_ocr": [
+    {
+     "page": 3,
+     "dpi": 150,
+     "language": "eng",
+     "keep_ocr_text": false,
+     "pixmap": false,
+     "autres": []
+    }
+   ],
+   "pages": {
+    "1": {
+     "ALPHAMOT": true,
+     "BETAMOT": false,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "2": {
+     "ALPHAMOT": false,
+     "BETAMOT": true,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "3": {
+     "ALPHAMOT": false,
+     "BETAMOT": false,
+     "GAMMAMOT": true,
+     "accents_ok": true
+    }
+   },
+   "cles_morceau": [
+    "metadata",
+    "page_boxes",
+    "text",
+    "toc_items"
+   ],
+   "mention_tesseract": false,
+   "mention_rapidocr": false,
+   "messages": []
+  },
+  {
+   "options": {
+    "use_ocr": false
+   },
+   "appels_ocr": [],
+   "pages": {
+    "1": {
+     "ALPHAMOT": true,
+     "BETAMOT": false,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "2": {
+     "ALPHAMOT": false,
+     "BETAMOT": true,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "3": {
+     "ALPHAMOT": false,
+     "BETAMOT": false,
+     "GAMMAMOT": false,
+     "accents_ok": false
+    }
+   },
+   "cles_morceau": [
+    "metadata",
+    "page_boxes",
+    "text",
+    "toc_items"
+   ],
+   "mention_tesseract": false,
+   "mention_rapidocr": false,
+   "messages": []
+  },
+  {
+   "options": {
+    "ocr_function": "ocr_instrumentee",
+    "force_ocr": true
+   },
+   "appels_ocr": [
+    {
+     "page": 3,
+     "dpi": 150,
+     "language": "eng",
+     "keep_ocr_text": false,
+     "pixmap": false,
+     "autres": []
+    }
+   ],
+   "pages": {
+    "1": {
+     "ALPHAMOT": true,
+     "BETAMOT": false,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "2": {
+     "ALPHAMOT": false,
+     "BETAMOT": true,
+     "GAMMAMOT": false,
+     "accents_ok": true
+    },
+    "3": {
+     "ALPHAMOT": false,
+     "BETAMOT": false,
+     "GAMMAMOT": true,
+     "accents_ok": true
+    }
+   },
+   "cles_morceau": [
+    "metadata",
+    "page_boxes",
+    "text",
+    "toc_items"
+   ],
+   "mention_tesseract": false,
+   "mention_rapidocr": false,
+   "messages": []
+  }
+ ],
+ "source_inchangee": true
+}

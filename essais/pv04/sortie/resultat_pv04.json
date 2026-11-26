@@ -1,0 +1,164 @@
+{
+ "versions": {
+  "winrt-runtime": "4.2.1",
+  "winrt-Windows.Media.Ocr": "4!10.0.28000.2957",
+  "pymupdf": "2.2"
+ },
+ "langues": [
+  "en-US",
+  "fr-FR"
+ ],
+ "max_image_dimension": 10000,
+ "langue_moteur": "fr-FR",
+ "pages": [
+  {
+   "cas": "droite",
+   "duree_s": 0.104,
+   "text_angle": -0.0,
+   "retrouves": 0.867,
+   "absents": [
+    "d’œuvre",
+    "l’opération",
+    "l’étude",
+    "l’ambiguïté",
+    "cœur",
+    "Lætitia",
+    "æquo",
+    "ÆON",
+    "DC1",
+    "d’exécution",
+    "l’ordre"
+   ],
+   "caracteres_exiges_absents": "œæÆ’",
+   "rapport_hauteur_ligne_sur_taille": [
+    0.94,
+    1.02,
+    1.02,
+    0.92,
+    1.02,
+    1.02,
+    1.2,
+    0.92,
+    1.02,
+    1.2
+   ]
+  },
+  {
+   "cas": "inclinee",
+   "duree_s": 0.219,
+   "text_angle": -1.5000000000000338,
+   "retrouves": 0.867,
+   "absents": [
+    "d’œuvre",
+    "l’opération",
+    "l’étude",
+    "l’ambiguïté",
+    "cœur",
+    "Lætitia",
+    "æquo",
+    "ÆON",
+    "DC1",
+    "d’exécution",
+    "l’ordre"
+   ],
+   "caracteres_exiges_absents": "œæÆ’",
+   "rapport_hauteur_ligne_sur_taille": [
+    0.94,
+    1.04,
+    1.02,
+    0.92,
+    1.04,
+    1.04,
+    1.2,
+    0.92,
+    1.02,
+    1.22
+   ]
+  },
+  {
+   "cas": "floue",
+   "duree_s": 0.242,
+   "text_angle": -0.0,
+   "retrouves": 0.663,
+   "absents": [
+    "maîtrise",
+    "d’œuvre",
+    "l’opération",
+    "l’étude",
+    "maîtrisé",
+    "450,00",
+    "€",
+    "clé",
+    "l’ambiguïté",
+    "naïve",
+    "lever",
+    "aïeul",
+    "Lætitia",
+    "æquo",
+    "fenêtre",
+    "ÔTÉ",
+    "ÆON",
+    "ÎLE",
+    "OÙ",
+    "DC1",
+    "DC2",
+    "d’exécution",
+    "l’ordre",
+    "MAÏS",
+    "NOËL",
+    "FÛT",
+    "il",
+    "pèse-lettre"
+   ],
+   "caracteres_exiges_absents": "êîïæËÙÛÎÏÔÆ«»’",
+   "rapport_hauteur_ligne_sur_taille": [
+    1.04,
+    1.2,
+    1.18,
+    1.0,
+    1.16,
+    1.18,
+    1.38,
+    1.1,
+    1.06,
+    1.32
+   ]
+  }
+ ],
+ "chaine_complete": {
+  "appels_ocr_pendant_markdown": [],
+  "pages": [
+   {
+    "cas": "droite",
+    "retrouves_pdftotext": 0.867,
+    "retrouves_markdown": 0.867,
+    "recouvrement_md_vs_pdftotext": 1.0,
+    "recouvrement_pdftotext_vs_md": 1.0
+   },
+   {
+    "cas": "inclinee",
+    "retrouves_pdftotext": 0.867,
+    "retrouves_markdown": 0.867,
+    "recouvrement_md_vs_pdftotext": 1.0,
+    "recouvrement_pdftotext_vs_md": 1.0
+   }
+  ],
+  "poids_pdf": 2886348
+ },
+ "a0": {
+  "dpi_retenu": 213,
+  "taille_px": [
+   7053,
+   9970
+  ],
+  "erreur_a_300_dpi": "ValueError: image 9934x14042 au-delà de MaxImageDimension=10000",
+  "retrouves": 0.855,
+  "duree_s": 0.5
+ },
+ "pythonw": {
+  "code_retour": 0,
+  "resultat": {
+   "lignes": 9
+  }
+ }
+}

@@ -1,0 +1,184 @@
+{
+ "pymupdf": "2.2",
+ "police": "Noto Sans Regular",
+ "resultats": [
+  {
+   "cas": "A_droite",
+   "strategie": "ligne",
+   "params": {},
+   "ecart_affichage_scan_vs_natif": 1.93,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 291921,
+    "police_complete": 550988,
+    "sous_ensemble": 321847
+   }
+  },
+  {
+   "cas": "B_inclinee",
+   "strategie": "ligne",
+   "params": {
+    "angle": 1.5,
+    "bruit": 12
+   },
+   "ecart_affichage_scan_vs_natif": 9.47,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 2015999,
+    "police_complete": 2275085,
+    "sous_ensemble": 2045944
+   }
+  },
+  {
+   "cas": "C_rot90",
+   "strategie": "ligne",
+   "params": {
+    "rotation": 90
+   },
+   "ecart_affichage_scan_vs_natif": 1.94,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 291954,
+    "police_complete": 551124,
+    "sous_ensemble": 322124
+   }
+  },
+  {
+   "cas": "D_rot270",
+   "strategie": "ligne",
+   "params": {
+    "rotation": 270
+   },
+   "ecart_affichage_scan_vs_natif": 1.94,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 292332,
+    "police_complete": 551503,
+    "sous_ensemble": 322417
+   }
+  },
+  {
+   "cas": "E_rognage",
+   "strategie": "ligne",
+   "params": {
+    "rognage": true
+   },
+   "ecart_affichage_scan_vs_natif": 1.95,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 293021,
+    "police_complete": 552096,
+    "sous_ensemble": 322955
+   }
+  },
+  {
+   "cas": "A_droite",
+   "strategie": "mot",
+   "params": {},
+   "ecart_affichage_scan_vs_natif": 1.93,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 291921,
+    "police_complete": 568318,
+    "sous_ensemble": 339172
+   }
+  },
+  {
+   "cas": "B_inclinee",
+   "strategie": "mot",
+   "params": {
+    "angle": 1.5,
+    "bruit": 12
+   },
+   "ecart_affichage_scan_vs_natif": 9.47,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 2015999,
+    "police_complete": 2292519,
+    "sous_ensemble": 2063373
+   }
+  },
+  {
+   "cas": "C_rot90",
+   "strategie": "mot",
+   "params": {
+    "rotation": 90
+   },
+   "ecart_affichage_scan_vs_natif": 1.94,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 291954,
+    "police_complete": 569106,
+    "sous_ensemble": 340103
+   }
+  },
+  {
+   "cas": "D_rot270",
+   "strategie": "mot",
+   "params": {
+    "rotation": 270
+   },
+   "ecart_affichage_scan_vs_natif": 1.94,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 292332,
+    "police_complete": 569464,
+    "sous_ensemble": 340375
+   }
+  },
+  {
+   "cas": "E_rognage",
+   "strategie": "mot",
+   "params": {
+    "rognage": true
+   },
+   "ecart_affichage_scan_vs_natif": 1.95,
+   "ecart_rendu_avant_apres": 0.0,
+   "flux_images_identiques": true,
+   "caracteres_manquants_pdftotext": [],
+   "rappel_mots_pdftotext": 1.0,
+   "search_for": "16/16 bien placés sur 16 cherchés",
+   "poids_octets": {
+    "sans_calque": 293021,
+    "police_complete": 569441,
+    "sous_ensemble": 340295
+   }
+  }
+ ]
+}

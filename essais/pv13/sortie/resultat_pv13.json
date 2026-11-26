@@ -1,0 +1,221 @@
+{
+ "natif": {
+  "find_tables": [
+   [
+    {
+     "lignes": 3,
+     "colonnes": 3,
+     "cellules_none": 0,
+     "en_tete_externe": false,
+     "en_tete": [
+      "Intervenant",
+      "Fonction",
+      "Jours"
+     ],
+     "extrait": [
+      [
+       "Intervenant",
+       "Fonction",
+       "Jours"
+      ],
+      [
+       "Mme Durand",
+       "Architecte",
+       "42"
+      ],
+      [
+       "M. Martin",
+       "Ingénieur fluides",
+       "18"
+      ]
+     ]
+    }
+   ],
+   [
+    {
+     "lignes": 4,
+     "colonnes": 4,
+     "cellules_none": 5,
+     "en_tete_externe": false,
+     "en_tete": [
+      "Lot",
+      "Montants",
+      null,
+      "Délai"
+     ],
+     "extrait": [
+      [
+       "Lot",
+       "Montants",
+       null,
+       "Délai"
+      ],
+      [
+       null,
+       "Tranche ferme",
+       "Tranche optionnelle",
+       null
+      ],
+      [
+       "Gros œuvre",
+       "125 000 €",
+       "30 000 €",
+       "12 mois"
+      ],
+      [
+       "Charpente",
+       "48 500 € forfait global",
+       null,
+       null
+      ]
+     ]
+    }
+   ]
+  ],
+  "markdown": [
+   {
+    "lignes_pipe": 4,
+    "table_html": false,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": null
+   },
+   {
+    "lignes_pipe": 5,
+    "table_html": false,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": [
+     "Montants",
+     "48 500 € forfait global"
+    ]
+   }
+  ],
+  "html": [
+   {
+    "lignes_pipe": 0,
+    "table_html": true,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": null
+   },
+   {
+    "lignes_pipe": 0,
+    "table_html": true,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": [
+     "48 500 € forfait global"
+    ]
+   }
+  ]
+ },
+ "scanne": {
+  "find_tables": [
+   [
+    {
+     "lignes": 3,
+     "colonnes": 3,
+     "cellules_none": 0,
+     "en_tete_externe": false,
+     "en_tete": [
+      "Intervenant",
+      "Fonction",
+      "Jours"
+     ],
+     "extrait": [
+      [
+       "Intervenant",
+       "Fonction",
+       "Jours"
+      ],
+      [
+       "Mme Durand",
+       "Architecte",
+       "42"
+      ],
+      [
+       "M. Martin",
+       "Ingénieur fluides",
+       "18"
+      ]
+     ]
+    }
+   ],
+   [
+    {
+     "lignes": 4,
+     "colonnes": 3,
+     "cellules_none": 0,
+     "en_tete_externe": false,
+     "en_tete": [
+      "Lot",
+      "Montants",
+      "Délai"
+     ],
+     "extrait": [
+      [
+       "Lot",
+       "Montants",
+       "Délai"
+      ],
+      [
+       "",
+       "Tranche ferme Tranche optionnelle",
+       ""
+      ],
+      [
+       "Gros oeuvre",
+       "125 000 € 30 000 €",
+       "12 mois"
+      ],
+      [
+       "Charpente",
+       "48 500 € forfait global",
+       ""
+      ]
+     ]
+    }
+   ]
+  ],
+  "markdown": [
+   {
+    "lignes_pipe": 4,
+    "table_html": false,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": null
+   },
+   {
+    "lignes_pipe": 5,
+    "table_html": false,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": [
+     "Montants",
+     "Gros œuvre",
+     "48 500 € forfait global"
+    ]
+   }
+  ],
+  "html": [
+   {
+    "lignes_pipe": 0,
+    "table_html": true,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": null
+   },
+   {
+    "lignes_pipe": 0,
+    "table_html": true,
+    "colspan": false,
+    "rowspan": false,
+    "valeurs_absentes": [
+     "Gros œuvre",
+     "48 500 € forfait global"
+    ]
+   }
+  ]
+ }
+}
