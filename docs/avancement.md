@@ -102,3 +102,25 @@ Constats :
 - openpyxl n'écrit pas de valeurs calculées en cache : le classeur du fichier 8 ne contient que des valeurs saisies ; le cas « formule avec valeur en cache » sera couvert au jalon 8 par un fichier construit autrement, si nécessaire.
 
 Écarts : fichiers 19 et 20 ajoutés au tableau de 7.1 (non prévus au cahier, nécessaires à EX-22 et EX-23) ; la PDF « faux PDF » (fichier texte renommé, CA de EX-18) est rangée avec les erreurs.
+
+## Jalon 3 : inventaire, dossier miroir, rapport, relance, robustesse (26/11/2026)
+
+Fait :
+- `inventaire` : parcours récursif trié, exclusions (dossiers `_OCR`, fichiers cachés y compris par attribut Windows, `~$`, `.DS_Store`, `Thumbs.db`, `desktop.ini`), dédoublonnage des fichiers atteints deux fois, regroupement par dossier parent, type par extension (insensible à la casse) confirmé par la signature (PDF, JPEG, PNG, TIFF, conteneur Office avec son dossier `word/`, `xl/` ou `ppt/`), messages des formats non pris en charge (EX-14, EX-18, EX-19) ; détection des fichiers en ligne uniquement (attributs Windows, `SF_DATALESS` et blocs alloués sous macOS) et lecture avec délai (EX-64) ;
+- `sorties` : dossier miroir, nommage, règle de relance, écritures atomiques groupées par fichier (aucune sortie d'un fichier n'est publiée tant que toutes ne sont pas prêtes), nettoyage des temporaires au lancement, nouvelles tentatives sur verrou, forme étendue `\?\` des chemins longs sous Windows (EX-50 à EX-53, EX-63, EX-65) ;
+- `rapport` : `ocr_rapport.csv` au format de EX-82, fusion avec le rapport existant, réécriture atomique après chaque fichier ; journal avec rotation à 5 Mo, sans texte de document (EX-61, EX-66, EX-82) ; calcul des nombres de la fenêtre de fin (EX-16) ;
+- `traitement` : orchestration du lot, fichier Office avec `--sortie pdf` (EX-20), erreurs isolées (EX-60), annulation (EX-17), parent non inscriptible (EX-50) ;
+- `traiteurs` : interface commune ; contrôles d'ouverture des PDF (protégé, endommagé, signé : EX-21, le point « À VÉRIFIER » sur la détection de signature est levé par `get_sigflags`) ; les conversions renvoient « fonction réalisée au jalon N » d'ici leur jalon ;
+- tests : 112 réussis, 4 sautés sous Windows (dont le chemin de sortie de 300 caractères, EX-63) ; les exigences du jalon sont vérifiées avec un traiteur d'essai qui recopie la source.
+
+Interprétations et écarts (à valider) :
+- EX-05 et EX-50 : pour un fichier sélectionné isolément, le dossier `_OCR` est créé dans son dossier, qui est un dossier source. Je lis EX-05 comme « aucun fichier nouveau dans les dossiers sources, hormis le dossier `_OCR` prévu par EX-50 ». Le test d'intégrité vérifie cela ;
+- PDF endommagé (EX-21) : PyMuPDF répare sans erreur un fichier tronqué. Règle retenue : endommagé si l'ouverture échoue, s'il n'y a aucune page, si une page est illisible, ou si le document a été réparé et qu'aucune page ne contient plus ni texte, ni image, ni dessin. Une réparation qui laisse un contenu lisible est admise ;
+- un fichier passé en erreur lors d'une relance perd ses anciennes sorties, pour qu'aucune sortie périmée ne subsiste à côté d'une ligne « erreur » ;
+- fichier annulé (EX-17) : sa ligne garde les informations de la ligne précédente, s'il y en a une, avec `action` à `annule` ;
+- `chemin_relatif` est écrit en forme NFC (EX-62), y compris pour un fichier dont le nom est stocké en NFD ;
+- une ligne n'est marquée `ignore_a_jour` que si le rapport en contient déjà une pour ce fichier ; à défaut (rapport supprimé), le fichier est retraité ;
+- `--refaire-ocr` rend « concernés » les PDF et les images (portée `tout`) ;
+- question : EX-12 prévoit le code 3 quand le moteur OCR manque alors qu'un OCR est nécessaire, mais le CA de EX-71 attend le code 1 dans ce cas (les autres fichiers étant traités). Proposition : code 3 seulement si aucun fichier n'a pu être traité faute de moteur, code 1 sinon. À trancher avant le jalon 5.
+
+Constat : le guillemet droit est interdit dans les noms de fichiers sous Windows ; le CA de EX-82 (nom avec point-virgule et guillemet) est vérifié sur un vrai fichier pour le point-virgule et sur le format CSV pour le guillemet.

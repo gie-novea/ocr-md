@@ -5,6 +5,7 @@
 ### Ajouts
 - Jalon 1 : squelette du paquet (`pyproject.toml`, Python 3.12, lanceur sans console `ocr-mdw`), paramètres réglables par fichier TOML, ligne de commande en français avec codes de retour, interface des moteurs OCR et moteurs Windows (`Windows.Media.Ocr`) et macOS (Apple Vision), lexique français embarqué (Grammalecte 7.7, MPL 2.0), tests automatisés, intégration continue GitHub Actions (Windows, macOS Apple Silicon et Intel, Linux).
 - Jalon 2 : générateur du jeu de test synthétique et de son manifeste (`tests/donnees/generer.py`), moteur OCR factice instrumenté (`ocr/factice.py`), tests des moteurs réels sur le jeu généré ; équivalence des ligatures typographiques (ﬁ, ﬂ...) dans les comparaisons.
+- Jalon 3 : inventaire des entrées, contrôle des signatures, dossier miroir `_OCR`, nommage, règle de relance, écritures atomiques, rapport `ocr_rapport.csv`, journal, contrôles d'ouverture des PDF, annulation et robustesse du lot.
 
 ### Reprise de l'existant
 - Le code de l'outil existant (« Convertisseur MD », PC) a été fourni et lu. Aucun fichier n'en est copié et l'outil livré n'en dépend pas. Éléments de logique repris :
