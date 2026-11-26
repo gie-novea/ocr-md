@@ -74,3 +74,9 @@ Reste à faire :
 - la sous-commande `raccourcis` répond « fonction réalisée au jalon 9 » (code 2) d'ici là ; le traitement renvoie 1 avec un message d'ici le jalon 3 ;
 - paramètres ajoutés, marqués « proposition » dans le code : `page_blanche_ecart_type_max` (8), `intervalle_tentatives_s` (1 s) ; `processus` borné à 1 en v1 (REC-06) ;
 - sous macOS, Vision ne donnant que des lignes, les boîtes des mots sont estimées au prorata des caractères (écriture du calque par ligne, voir PV-06).
+
+## Entre les jalons 1 et 2 (26/11/2026)
+
+- PV-02 : générateur `essais/pv02/generer_lot200.py` (200 fichiers vides aux noms longs, ligne de commande estimée à 30 800 caractères, sous la limite de 32 767) ; le lot produit (`essais/pv02/lot200/`) n'est pas versionné. Le journal du premier essai, qui contenait des chemins réels, a été supprimé par le commanditaire.
+- Audit de l'historique avant le premier envoi : aucun nom, chemin ni référence issu du journal PV-02 ; mentions de kDrive uniquement génériques. L'auteur et le committer des trois premiers commits ont été remplacés par l'adresse noreply GitHub du commanditaire (historique local réécrit avant tout envoi) ; `user.email` réglé localement dans ce dépôt.
+- Décision pour le jalon 9 : le guide utilisateur recommandera d'envoyer un dossier plutôt qu'une sélection de fichiers. Si une sélection approche la limite de longueur de la ligne de commande Windows, l'outil le signalera dans la fenêtre de fin et dans le rapport, plutôt que de traiter une liste éventuellement tronquée.
