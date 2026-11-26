@@ -43,6 +43,9 @@ def ecrire_calque(page, resultat) -> int:
     echelle = pymupdf.Matrix(page.rect.width / resultat.largeur, page.rect.height / resultat.hauteur)
     derotation = page.derotation_matrix
     rotation = page.rotation
+    # Une seule forme par page : tout le calque tient dans un flux de contenu unique, au lieu
+    # d'un flux par mot (mémoire et poids du fichier, EX-59).
+    forme = page.new_shape()
     for texte, boite in elements:
         r = pymupdf.Rect(boite) * echelle  # repère affiché, en points
         if r.is_empty or r.height <= 0:
@@ -51,8 +54,9 @@ def ecrire_calque(page, resultat) -> int:
         longueur = f.text_length(texte, fontsize=taille)
         etirement = r.width / longueur if longueur else 1.0
         base = pymupdf.Point(r.x0, r.y1 - RELEVEMENT_LIGNE_DE_BASE * r.height) * derotation
-        page.insert_text(base, texte, fontname=NOM_POLICE, fontsize=taille, render_mode=3,
-                         morph=(base, pymupdf.Matrix(etirement, 1) * pymupdf.Matrix(rotation)))
+        forme.insert_text(base, texte, fontname=NOM_POLICE, fontsize=taille, render_mode=3,
+                          morph=(base, pymupdf.Matrix(etirement, 1) * pymupdf.Matrix(rotation)))
+    forme.commit()
     return len(elements)
 
 

@@ -505,11 +505,14 @@ class Generateur:
         src, _ = self.document_natif(1, "MOTVOLUME")
         pix = src[0].get_pixmap(dpi=100, colorspace=pymupdf.csGRAY)
         doc = pymupdf.open()
+        # Une seule image, de même identifiant, sur toutes les pages : la vérité terrain du
+        # moteur factice ne grossit pas avec le nombre de pages (mesure mémoire de EX-59).
+        ident = self.nouvel_id()
+        img = dessiner_marqueur(Image.frombytes("L", (pix.width, pix.height), pix.samples), ident)
+        self.ocr_factice[str(ident)] = fab.verite_ocr(src[0], 100, lambda x, y: (x, y), img.size)
+        tampon = io.BytesIO()
+        img.save(tampon, "JPEG", quality=50)
         for _i in range(nb_pages):
-            ident = self.nouvel_id()
-            img = dessiner_marqueur(Image.frombytes("L", (pix.width, pix.height), pix.samples), ident)
-            tampon = io.BytesIO()
-            img.save(tampon, "JPEG", quality=50)
             doc.new_page(width=595, height=842).insert_image(pymupdf.Rect(0, 0, 595, 842), stream=tampon.getvalue())
         rel = f"volumineux/17_{nb_pages}_pages.pdf"
         self.enregistrer_pdf(doc, self.chemin(rel))
