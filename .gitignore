@@ -1,0 +1,5 @@
+_reference/
+_OCR/
+.venv/
+__pycache__/
+*.log
