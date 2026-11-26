@@ -2,12 +2,22 @@
 # - Windows et macOS : niveaux 1 (moteur factice) et 2 (moteurs OCR réels du système).
 # - Linux : niveau 1 seulement (pas de moteur OCR du système).
 # Python 3.12 est installé et géré par uv, comme sur les postes (EX-09).
+#
+# Passe complète (« nocturne ») : chaque nuit, sur les étiquettes v* et à la demande.
+# - Windows : installation du module OCR français (environ 15 minutes) et tests réels en
+#   fr-FR ; aux autres envois, tests réels avec le moteur en-US présent sur l'image.
+# - Toutes plateformes : test mémoire sur un lot de 20 fichiers de 500 pages (10 fichiers
+#   de 200 pages aux autres envois).
 name: tests
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
 
 permissions:
   contents: read
@@ -27,6 +37,7 @@ jobs:
     env:
       UV_PYTHON_PREFERENCE: only-managed
       PYTHONIOENCODING: utf-8
+      PASSE_COMPLETE: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,12 +45,21 @@ jobs:
         with:
           version: "0.11.21"
 
-      # Le module OCR français n'est pas garanti sur les images Windows Server. Le runner
-      # étant administrateur, on tente de l'installer ; en cas d'échec, les tests du moteur
-      # réel sont sautés avec un motif explicite (visible dans le résumé pytest).
+      - name: Paramètres de la passe
+        shell: bash
+        run: |
+          if [ "$PASSE_COMPLETE" = "true" ]; then
+            echo "OCR_MD_ESSAI_LOT=complet" >> "$GITHUB_ENV"
+            echo "Passe complète : module fr-FR (Windows) et lot mémoire de 20 x 500 pages"
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            echo "OCR_MD_LANGUE_ESSAI=en-US" >> "$GITHUB_ENV"
+            echo "Passe courante : moteur Windows réel en en-US"
+          fi
+
+      # Passe complète seulement : le module OCR français n'est pas présent sur l'image
+      # Windows Server de GitHub ; le runner étant administrateur, on l'installe.
       - name: Module OCR français de Windows
-        if: runner.os == 'Windows'
-        continue-on-error: true
+        if: runner.os == 'Windows' && env.PASSE_COMPLETE == 'true'
         shell: powershell
         run: |
           [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime] | Out-Null
@@ -66,9 +86,10 @@ jobs:
       - name: Installation (environnement verrouillé)
         run: uv sync --locked --python 3.12
 
-      # Sous Linux, « verifier » renvoie 3 (système non pris en charge pour l'usage) : attendu.
+      # « verifier » renvoie 3 sous Linux (système non pris en charge pour l'usage) et sous
+      # Windows sans module français (passe courante) : attendu.
       - name: Version et diagnostic
-        continue-on-error: ${{ runner.os == 'Linux' }}
+        continue-on-error: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && env.PASSE_COMPLETE != 'true') }}
         run: |
           uv run ocr-md --version
           uv run ocr-md verifier

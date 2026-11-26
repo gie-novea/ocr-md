@@ -47,6 +47,8 @@ dev = [
     "pytest>=8",
     # Police Noto Sans pour fabriquer les PDF synthétiques des tests.
     "pymupdf-fonts>=1.0",
+    # Mesures de mémoire (EX-59).
+    "psutil>=5.9",
 ]
 
 [build-system]

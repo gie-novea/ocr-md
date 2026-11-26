@@ -6,6 +6,7 @@ coordonnées de Vision (PV-06 b). Le fichier 18 (ligatures) est simulé ici en a
 générateur du jalon 2.
 """
 
+import os
 import re
 
 import pymupdf
@@ -16,6 +17,12 @@ from ocr_md import ocr, qualite
 from tests.donnees import fabrication as fab
 
 DPI = 300
+# Langue du moteur réel. La CI Windows utilise « en-US » à chaque envoi (le module français
+# n'est installé que la nuit et sur les étiquettes v*) : on vérifie alors que le moteur
+# fonctionne, avec un seuil réduit ; la qualité en français n'est jugée qu'en « fr-FR ».
+LANGUE = os.environ.get("OCR_MD_LANGUE_ESSAI", "fr-FR")
+EN_FRANCAIS = LANGUE == "fr-FR"
+SEUIL = 0.95 if EN_FRANCAIS else 0.50
 
 
 def page_image(lignes, mot_unique="MOTUNIQUE"):
@@ -43,7 +50,7 @@ def centre_dans(boite, verite, marge=0.5):
 
 def moteur_ou_saut():
     try:
-        return ocr.moteur_systeme()
+        return ocr.moteur_systeme(LANGUE)
     except ocr.MoteurIndisponible as e:
         pytest.skip(f"moteur OCR du système indisponible sur ce poste : {e}")
 
@@ -53,7 +60,7 @@ def verifier_reconnaissance(moteur):
     resultat = moteur.reconnaitre(image)
     taux = taux_retrouves(fab.LIGNES_REFERENCE, resultat.texte)
     print(f"{moteur.description()} : {taux:.1%} des mots de référence retrouvés")
-    assert taux >= 0.95  # objectif 7.3, équivalences admises
+    assert taux >= SEUIL  # objectif 7.3 en français, équivalences admises
     verite = {m: b for m, b, _ in fab.verite_mots(page, DPI)}
     unique = [mt for l in resultat.lignes for mt in l.mots if mt.texte == "MOTUNIQUE"]
     assert unique, "mot unique non reconnu"
@@ -62,6 +69,8 @@ def verifier_reconnaissance(moteur):
 
 
 def verifier_ligatures_reconnues(moteur):
+    if not EN_FRANCAIS:
+        pytest.skip("qualité en français vérifiée par la passe nocturne (module fr-FR)")
     _, image = page_image(fab.LIGNES_LIGATURES, mot_unique="")
     resultat = moteur.reconnaitre(image)
     taux = taux_retrouves(fab.LIGNES_LIGATURES, resultat.texte)
@@ -80,7 +89,7 @@ def verifier_ligatures_reconnues(moteur):
 def test_windows_media_ocr_reel():
     moteur = moteur_ou_saut()
     assert moteur.nom == "windows-media-ocr"
-    assert "fr-FR" in moteur.langues_disponibles()
+    assert LANGUE in moteur.langues_disponibles()
     assert moteur.dimension_max() >= 4000
     resultat = verifier_reconnaissance(moteur)
     assert resultat.niveau_mots
@@ -163,7 +172,7 @@ def verifier_jeu(jeu_de_test, numeros):
             resultat = moteur.reconnaitre(image)
             taux = taux_retrouves([f["texte_reference"][n]], resultat.texte)
             print(f"{moteur.nom} : {f['chemin']} page {n + 1} : {taux:.1%}")
-            assert taux >= 0.95, (f["chemin"], n + 1, taux)
+            assert taux >= SEUIL, (f["chemin"], n + 1, taux)
 
 
 @pytest.mark.windows
@@ -190,4 +199,4 @@ def test_page_illisible_du_fichier_5_mal_reconnue(jeu_de_test):
     bonne = taux_retrouves([f["texte_reference"][0]], moteur.reconnaitre(pages[0]).texte)
     mauvaise = taux_retrouves([f["texte_reference"][1]], moteur.reconnaitre(pages[1]).texte)
     print(f"{moteur.nom} : fichier 5, page 1 {bonne:.1%}, page 2 {mauvaise:.1%}")
-    assert bonne >= 0.95 and mauvaise < 0.80
+    assert bonne >= SEUIL and mauvaise < min(0.80, bonne - 0.30)

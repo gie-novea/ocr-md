@@ -13,12 +13,12 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 | PV-03 | levé pour le poste de développement | `fr-FR` disponible, détection sans élévation |
 | PV-04 | levé | projection PyWinRT retenue ; œ, æ et ’ non restitués par le moteur (décision à prendre) |
 | PV-05 | levé | `pymupdf4llm.to_markdown`, texte invisible repris, `ocr_function` jamais appelée sur une page déjà dotée d'un calque |
-| PV-06 | levé (Windows) ; convention Vision à confirmer par la CI macOS | police Noto Sans, calque par mot, toutes rotations |
+| PV-06 | levé | police Noto Sans, calque par mot (Windows) ou par ligne (Vision), toutes rotations ; (b) convention de Vision confirmée par la CI (origine en bas à gauche) ; (d) recherche dans Aperçu et Acrobat en recette (TM-05) |
 | PV-07 | hors v1 | v1.1 |
-| PV-08 | à lever par la CI macOS et le référent | |
+| PV-08 | levé (a, b, c) ; (d) en recette | français en niveau « accurate » sur macOS 15.7.9 Intel et 26.7.2 Apple Silicon ; chaîne complète sur Mac Intel avec PyMuPDF 1.28.2 ; versions de macOS du parc à relever en recette |
 | PV-09 | script prêt, essai à faire sur le dossier kDrive de test | |
 | PV-10 | à lever par le référent | |
-| PV-11 | levé (Windows) | tkinter présent dans le Python géré par uv |
+| PV-11 | levé (Windows, présence sur macOS) | tkinter présent dans le Python géré par uv : Tk 8.6.12 (Windows), 9.0.3 (macOS) ; affichage sous macOS en recette |
 | PV-12 | levé | Grammalecte 7.7, MPL 2.0, 476 083 formes, chargement en 0,13 s |
 | PV-13 | levé avec repli | détection des fusions fiable sur tableau natif ; rendu HTML de PyMuPDF4LLM inutilisable pour les fusions ; HTML produit par l'outil |
 
@@ -134,3 +134,38 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 
 - **PV-08 (b), levé** : la chaîne (PyMuPDF 1.28.2, mise en page avec onnxruntime 1.23.2, Vision) fonctionne sur Mac Intel ; PV-08 (a) confirmé aussi sur macOS 15.
 - **PV-11 (macOS)** : le Python géré par uv embarque Tcl/Tk 9.0.3 sous macOS et 8.6.12 sous Windows ; présence confirmée, l'affichage d'une fenêtre (icône du Dock, haute densité) reste à vérifier en recette.
+
+## PV-06 (b) et PV-08 levés (26/11/2026)
+
+Résultats des passages de CI 45874712753, 45878421683, 45879565652 et 45886598176 (GitHub Actions) :
+
+| Point | macOS Intel (15.7.9, x86_64) | macOS Apple Silicon (26.7.2, arm64) |
+|---|---|---|
+| PV-08 (a) : `fr-FR` parmi les langues de Vision au niveau « accurate » | oui | oui |
+| Mots de référence retrouvés, page synthétique | 96,4 % | 98,8 % |
+| Fichiers 2, 3, 10, 18 du jeu de test, par page | 96,3 % à 99,3 % | 98,5 % à 100 % |
+| Page à ligatures | 98,6 % | 100 % |
+| PV-06 (b) : origine des boîtes de Vision | en bas à gauche (test `test_apple_vision_convention_des_boites`) | en bas à gauche |
+| PV-08 (b) : installation et chaîne complète | réussies (PyMuPDF 1.28.2, onnxruntime 1.23.2) | réussies |
+
+- PV-06 (b) : levé. Vision renvoie (x, y, largeur, hauteur) entre 0 et 1, origine en bas à gauche ; la conversion du module `ocr/macos.py` est vérifiée à chaque passage de la CI.
+- PV-08 (a) et (b) : levés pour macOS 15 et 26. (c) : convention des boîtes d'ocrmac, voir PV-06 (b). (d) : versions de macOS présentes à la SODEB, à relever en recette ; la version minimale supportée sera la plus ancienne constatée conforme.
+
+## EX-59 : mémoire sur les gros documents et sur un lot (26/11/2026)
+
+Constat de la CI du jalon 4 (pic mémoire, 100 puis 1 000 pages, moteur factice, 100 dpi) après les deux premières corrections (cache MuPDF vidé après chaque page ; calque d'une page en un seul flux compressé) : Windows 60 à 111 Mo, Mac Intel 62 à 118 Mo, Mac Apple Silicon 72 à 124 Mo, soit environ 55 Ko par page et un rapport de 1,7 à 1,9 (seuil de EX-59 : 2). Marge insuffisante.
+
+Recherche de la cause (poste de développement, mesures `psutil` et `tracemalloc`, documents de 100 et 500 pages, 143 mots par page) :
+- mémoire Python conservée pendant le traitement d'un document de 500 pages : 20 Mo, soit environ 40 Ko par page. Elle provient des résultats complets du moteur (mots, boîtes, confiances) conservés pour l'évaluation de la qualité ; ils étaient libérés à la fin du fichier ;
+- sous-ensembles de police : sans effet (la police n'est insérée qu'une fois par document, `subset_fonts` n'intervient qu'à l'enregistrement) ;
+- journal : écrit au fil de l'eau sur disque, sans tampon en mémoire ;
+- reste, côté MuPDF : environ 16 Ko par page (document modifié en mémoire), libérés à la fermeture du document.
+
+Correction : seul un résumé de chaque page reconnue est conservé (`ResumeOcr` : texte, nombre de caractères, confiance moyenne pondérée, part de texte peu sûr), ce qui suffit à EX-35 et EX-36.
+
+Mesures après correction (poste de développement, moteur factice, 72 dpi) :
+- lot de 4 fichiers de 500 pages : pic pendant chaque fichier de 82 à 84 Mo (100 Mo avant correction), mémoire après chaque fichier stable (75, 74, 75, 74 Mo) ;
+- lot de 10 fichiers de 200 pages (`tests/test_memoire_lot.py`) : mémoire après chaque fichier constante (75 Mo), pic pendant chaque fichier 79 à 80 Mo ;
+- le test passe à 20 fichiers de 500 pages lors de la passe complète de la CI (chaque nuit et sur les étiquettes v*).
+
+La croissance pendant un fichier est donc rendue à la fin de chaque fichier et ne s'accumule pas sur le lot. Le rapport 1 000 pages / 100 pages mesuré par la CI après correction est consigné ci-dessous.

@@ -130,13 +130,42 @@ def enregistrer(doc, chemin: str) -> None:
         f.write(octets)
 
 
+@dataclasses.dataclass(frozen=True)
+class ResumeOcr:
+    """Ce que l'évaluation de la qualité (EX-35, EX-36) retient d'une page reconnue. Le
+    résultat complet du moteur (mots, boîtes) n'est pas conservé : sur un document de 500
+    pages, il occupait environ 40 Ko par page jusqu'à la fin du fichier (EX-59)."""
+    texte: str
+    caracteres: int                          # caractères hors espaces
+    confiance_moyenne: float | None          # pondérée par la longueur du texte
+    part_confiance_basse: float | None       # part du texte sous le seuil confiance_basse
+    angle_texte: float | None = None
+
+
+def resumer(resultat, confiance_basse: float) -> ResumeOcr:
+    total = pondere = bas = 0
+    avec_confiance = False
+    for ligne in resultat.lignes:
+        for mot in ligne.mots:
+            n = sum(1 for c in mot.texte if not c.isspace())
+            total += n
+            confiance = mot.confiance if mot.confiance is not None else ligne.confiance
+            if confiance is not None:
+                avec_confiance = True
+                pondere += confiance * n
+                bas += n if confiance < confiance_basse else 0
+    if not avec_confiance or not total:
+        return ResumeOcr(resultat.texte, total, None, None, resultat.angle_texte)
+    return ResumeOcr(resultat.texte, total, pondere / total, bas / total, resultat.angle_texte)
+
+
 @dataclasses.dataclass
 class Traitement:
-    """Résultat détaillé, conservé pour l'évaluation de la qualité (jalon 7)."""
+    """Résultat d'un document, conservé pour l'évaluation de la qualité (jalon 7)."""
     analyses: list
     categories_finales: list
     pages_ocr: list
-    resultats_ocr: dict
+    resumes_ocr: dict  # numéro de page -> ResumeOcr
 
 
 def reconnaitre_pages(doc, ctx) -> Traitement:
@@ -161,7 +190,8 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
         # que la mémoire ne croisse pas avec le nombre de pages (EX-59).
         pymupdf.TOOLS.store_shrink(100)
         calque.ecrire_calque(page, resultat)
-        resultats[a.numero] = resultat
+        resultats[a.numero] = resumer(resultat, p.confiance_basse)
+        del resultat
         pages_ocr.append(a.numero)
         finales.append("ocr")
     ctx.journal.info(f"{ctx.element.relatif} : pages " + " ".join(f"{a.numero}={a.categorie}" for a in analyses))
