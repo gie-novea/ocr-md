@@ -221,7 +221,7 @@ Sous-commandes :
 
 - CA : `ocr-md --aide` affiche cette interface en français ; chaque option fait l'objet d'au moins un test automatisé ; une option inconnue ou une combinaison invalide (par exemple `--pages` avec deux fichiers) produit un message en français et un code de retour 2 sans rien traiter.
 
-**EX-12. Codes de retour.** La commande doit renvoyer : 0 si tous les fichiers pris en charge ont été traités sans erreur (y compris s'il existe des pièces signalées douteuses ou non prises en charge) ; 1 si au moins un fichier est en erreur ; 2 en cas d'erreur d'usage ; 3 si un prérequis bloquant manque (moteur OCR indisponible alors qu'un OCR est nécessaire).
+**EX-12. Codes de retour.** La commande doit renvoyer : 0 si tous les fichiers pris en charge ont été traités sans erreur (y compris s'il existe des pièces signalées douteuses ou non prises en charge) ; 1 si au moins un fichier est en erreur ; 2 en cas d'erreur d'usage ; 3 si un prérequis bloquant manque : le moteur OCR est indisponible et **aucun** fichier pris en charge n'a pu être traité faute de moteur ; si d'autres fichiers ont été traités, le code est 1 (voir EX-71) (décision du commanditaire du 26/11/2026).
 - CA : tests automatisés des quatre cas.
 
 **EX-13. Trois entrées de menu par plateforme.** L'installation doit créer trois entrées, qui appellent la commande unique avec `--sortie pdf`, `--sortie md` et `--sortie les-deux` :
@@ -271,7 +271,9 @@ Ces fichiers sont comptés dans les « signalés » de la fenêtre de fin et lis
 - CA : test automatisé.
 
 **EX-21. PDF protégés, endommagés ou signés.** Un PDF chiffré exigeant un mot de passe à l'ouverture, ou illisible, doit être mis en `erreur` avec un message clair (« PDF protégé par mot de passe », « PDF endommagé ») sans arrêter le lot. Un PDF portant une signature électronique est traité normalement ; le message du rapport précise « la copie produite dans _OCR ne conserve pas la validité de la signature ; l'original signé reste la référence ».
-- CA : tests automatisés avec un PDF chiffré et un PDF tronqué ; À VÉRIFIER par Claude Code : la détection d'une signature avec PyMuPDF (champs de signature) ; à défaut, le message est omis et la limite est documentée dans le guide.
+
+**PDF réparé à l'ouverture** (décision du commanditaire du 26/11/2026). Un PDF endommagé que la bibliothèque répare à l'ouverture est traité ainsi : si aucune page ne contient plus de contenu (texte, image ou dessin), le fichier est en `erreur` avec le message « PDF endommagé » ; si au moins une page est récupérée, le fichier est traité normalement mais signalé : statut `douteux`, toutes ses pages dans `pages_douteuses` (le contenu peut être incomplet partout), motif `pdf_repare`, champs `pages_recuperees` et `pages_totales` du front matter (section 11.1), paragraphe C du bloc d'avertissement (section 11.3), mention dans `_AVERTISSEMENTS.md`, et message du rapport : « PDF endommagé et réparé : N pages sur M récupérées, contenu possiblement incomplet » (N : pages ayant un contenu, M : pages du document réparé). Le jeu de test comporte un PDF tronqué partiellement récupérable (fichier 13b).
+- CA : tests automatisés avec un PDF chiffré, un PDF tronqué irrécupérable (`erreur`) et un PDF tronqué partiellement récupérable (`douteux`, motif `pdf_repare`, message du rapport conforme) ; À VÉRIFIER par Claude Code : la détection d'une signature avec PyMuPDF (champs de signature) ; à défaut, le message est omis et la limite est documentée dans le guide.
 
 ### 4.4 Analyse des PDF page par page
 
@@ -290,7 +292,7 @@ Une page `native` qui contient en outre une grande image (tampon, plan, photogra
 - CA complémentaire : sur ce PDF de test, chaque page est classée `image`, reconnue par l'outil, et la mention d'horodatage figure une seule fois dans le Markdown de la page.
 - CA : sur le jeu de test, la classification de chaque page est égale à la vérité terrain du manifeste (section 7.1) ; les trois seuils sont modifiables par le fichier de configuration et un test le démontre.
 
-**EX-23. Statut du document.** Le statut du fichier dans le rapport doit être déduit des pages : `natif` (aucune page reconnue par l'outil), `ocrise` (toutes les pages non vides ont été reconnues par l'outil), `mixte` (une partie seulement), `couche_expediteur` (au moins une page dont le texte provient d'une couche OCR fournie par l'expéditeur et conservée, quelles que soient les autres pages ; ce statut prime sur `natif`, `ocrise` et `mixte`), `douteux` (au moins une page douteuse, quel que soit le reste ; ce statut prime sur les quatre précédents). Justification (décision du commanditaire du 26/11/2026) : l'heuristique lexicale ne détecte pas les erreurs sur les chiffres, une couche OCR d'expéditeur n'a donc jamais la fiabilité d'un texte natif ; une telle couche jugée bonne ne donne pas lieu à bloc d'avertissement. Les fichiers Office convertis ont le statut `natif`.
+**EX-23. Statut du document.** Le statut du fichier dans le rapport doit être déduit des pages : `natif` (aucune page reconnue par l'outil), `ocrise` (toutes les pages non vides ont été reconnues par l'outil), `mixte` (une partie seulement), `couche_expediteur` (au moins une page dont le texte provient d'une couche OCR fournie par l'expéditeur et conservée, quelles que soient les autres pages ; ce statut prime sur `natif`, `ocrise` et `mixte`), `douteux` (au moins une page douteuse, quel que soit le reste, y compris un PDF réparé à l'ouverture, voir EX-21 ; ce statut prime sur les quatre précédents). Justification (décision du commanditaire du 26/11/2026) : l'heuristique lexicale ne détecte pas les erreurs sur les chiffres, une couche OCR d'expéditeur n'a donc jamais la fiabilité d'un texte natif ; une telle couche jugée bonne ne donne pas lieu à bloc d'avertissement. Les fichiers Office convertis ont le statut `natif`.
 - CA : tests automatisés sur les sept statuts (`natif`, `ocrise`, `mixte`, `couche_expediteur`, `douteux`, `non_pris_en_charge`, `erreur`).
 
 ### 4.5 OCR natif
@@ -431,6 +433,8 @@ Les éléments d'une même sélection qui ont des parents différents donnent ch
 - CA : un dossier de test contenant `A.pdf`, `A.docx`, `A.png` produit `A.pdf`, `A.pdf.md`, `A.docx.md`, `A.png.pdf`, `A.png.md` sans écrasement.
 
 **EX-52. Règle de relance.** Lors d'une relance, un fichier source doit être **ignoré** si toutes les sorties demandées existent et sont plus récentes que la source (date de modification), sauf si `--forcer` ou `--refaire-ocr` le concerne. Sinon, il est retraité et ses sorties sont écrasées. Justification : sur un lot de 50 à 100 plis, la relance après interruption ou après ajout de pièces ne doit retraiter que le nécessaire ; l'écrasement systématique gaspille le temps d'OCR, et le suffixage multiplie des versions concurrentes que les skills d'analyse ne sauraient départager. Un fichier ignoré conserve sa ligne dans le rapport, avec la colonne `action` à `ignore_a_jour`. Une sortie dont la source a disparu n'est pas supprimée ; elle est mentionnée dans le journal.
+
+**Relance d'un fichier qui passe en erreur** (décision du commanditaire du 26/11/2026). Si le retraitement d'un fichier échoue alors que des sorties d'un traitement précédent existent : elles sont supprimées si la source est plus récente qu'elles (elles ne correspondent plus à la source) ; sinon elles sont conservées, la ligne du rapport porte le statut `erreur`, la colonne `sorties` les énumère et le message se termine par « ; sorties précédentes conservées (traitement du AAAA-MM-JJ HH:MM:SS) ».
 - CA : deuxième lancement à l'identique : zéro appel au moteur OCR, toutes les lignes en `ignore_a_jour`, sorties inchangées (dates de modification identiques) ; après modification de la date d'une source, seule celle-ci est retraitée ; avec `--forcer`, tout est retraité.
 
 **EX-53. Écritures atomiques.** Chaque sortie doit être écrite sous un nom temporaire dans le dossier de destination, puis renommée en fin d'écriture. Une interruption (erreur, annulation, arrêt du poste) ne doit laisser aucune sortie tronquée portant un nom définitif.
@@ -469,7 +473,7 @@ Aucune mesure n'existe à ce jour. Les valeurs ci-dessous sont des **objectifs**
 ### 5.2 Robustesse
 
 **EX-60. Un fichier en erreur n'arrête jamais le lot.** Toute exception survenant pendant le traitement d'un fichier doit être interceptée, journalisée avec sa trace, traduite en une ligne `erreur` du rapport avec un message en français compréhensible, et le traitement doit passer au fichier suivant. Une erreur sur une page d'un PDF met le fichier entier en `erreur` (pas de sortie partielle présentée comme complète).
-- CA : le jeu de test contient un PDF corrompu placé au milieu du lot : tous les autres fichiers sont traités ; code de retour 1 ; la ligne `erreur` contient un message non vide ; aucune sortie n'existe pour le fichier en erreur.
+- CA : le jeu de test contient un PDF corrompu placé au milieu du lot : tous les autres fichiers sont traités ; code de retour 1 ; la ligne `erreur` contient un message non vide ; aucune sortie n'existe pour le fichier en erreur (pour une relance, voir la règle « Relance d'un fichier qui passe en erreur » de EX-52).
 
 **EX-61. Rapport toujours écrit.** Le rapport, `_AVERTISSEMENTS.md` et le journal doivent être mis à jour même si le lot se termine par une erreur générale ou une annulation ; le rapport est réécrit de façon atomique après chaque fichier, de sorte qu'un arrêt brutal laisse un rapport cohérent avec les sorties présentes.
 - CA : test d'arrêt brutal simulé après le troisième fichier : le rapport contient trois lignes à jour.
@@ -539,7 +543,7 @@ Chaque script, de façon idempotente : (1) installe `uv` dans le profil s'il est
 Sous Windows, la disponibilité du français est testée **sans droits d'administrateur** par l'API elle-même : `OcrEngine.IsLanguageSupported` ou `OcrEngine.AvailableRecognizerLanguages` (source : https://learn.microsoft.com/en-us/uwp/api/windows.media.ocr.ocrengine), et non par `Get-WindowsCapability -Online`, que la documentation de PowerToys fait exécuter dans un PowerShell administrateur (source : https://learn.microsoft.com/windows/powertoys/text-extractor). Le nom de la fonctionnalité à installer est `Language.OCR~~~fr-FR~0.0.1.0` (source : https://learn.microsoft.com/windows-hardware/manufacture/desktop/features-on-demand-language-fod).
 
 Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichiers qui ne nécessitent pas d'OCR, met en `erreur` ceux qui en nécessitent avec le message ci-dessus, et l'affiche dans la fenêtre de fin.
-- CA : test automatisé avec moteur simulé indisponible : PDF natifs et fichiers Office traités, PDF scannés en `erreur` avec le message, code de retour 1 ; TM-04 sur un PC réel.
+- CA : test automatisé avec moteur simulé indisponible : PDF natifs et fichiers Office traités, PDF scannés en `erreur` avec le message, code de retour 1 ; lot ne contenant que des PDF scannés : tous en `erreur`, code de retour 3 (EX-12) (décision du commanditaire du 26/11/2026) ; TM-04 sur un PC réel.
 
 **EX-72. Mise à jour.** Le dépôt doit fournir `installation/mettre-a-jour-windows.cmd` et `installation/mettre-a-jour-macos.command`, qui réinstallent l'outil dans sa dernière version depuis la source de distribution (`uv tool install --force` ou `uv tool upgrade` selon la source), recréent les raccourcis, relancent `ocr-md verifier` et affichent l'ancienne et la nouvelle version. La mise à jour conserve le fichier de configuration de l'utilisateur. L'outil ne se met jamais à jour seul et ne vérifie pas l'existence de nouvelles versions (EX-03).
 - CA : passage d'une version n à n+1 sur un poste : `ocr-md --version` affiche n+1 ; configuration conservée ; raccourcis fonctionnels.
@@ -581,6 +585,7 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 | 11 | Non pris en charge | .doc, .msg, .zip (fichiers factices) | `non_pris_en_charge` |
 | 12 | Chemin accentué | `Candidat Été & Fils (n° 2)/Mémoire d'été.pdf`, formes NFC et NFD | traité |
 | 13 | PDF corrompu et PDF chiffré | fichier tronqué ; fichier protégé par mot de passe | `erreur` |
+| 13b | PDF tronqué partiellement récupérable | fichier tronqué dont la réparation laisse au moins une page lisible et au moins une page perdue | `douteux`, motif `pdf_repare` |
 | 14 | Faux PDF de 1 Ko | substitut simulant un fichier non synchronisé | `erreur` |
 | 15 | Arborescence de lot | `Lot 1/Candidat A/…`, `Lot 1/Candidat B/…`, trois niveaux, un dossier `_OCR` préexistant | miroir exact |
 | 16 | Chemin long (Windows) | chemin de sortie de 300 caractères | traité |
@@ -837,7 +842,9 @@ Le front matter est un bloc YAML délimité par deux lignes `---`, en tête de f
 | `pages_douteuses` | liste d'entiers | oui | pages douteuses, triées ; `[]` si `qualite_texte: bonne` |
 | `origine_texte` | chaîne | oui | l'une des valeurs normalisées de la section 11.2 |
 | `pages_couche_existante` | liste d'entiers | oui | pages dont le texte vient d'une couche OCR fournie par l'expéditeur et non refaite ; `[]` sinon (ajout du rédacteur) |
-| `motifs_douteux` | liste de chaînes | non | présents si `qualite_texte: douteuse` : noms des indicateurs déclencheurs, par exemple `[taux_mots_inconnus, confiance_ocr_faible]` |
+| `motifs_douteux` | liste de chaînes | non | présents si `qualite_texte: douteuse` : noms des indicateurs déclencheurs, par exemple `[taux_mots_inconnus, confiance_ocr_faible]` ; `pdf_repare` pour un PDF réparé à l'ouverture (EX-21) |
+| `pages_recuperees` | entier | non | présent seulement avec le motif `pdf_repare` : nombre de pages ayant un contenu après réparation (décision du commanditaire du 26/11/2026) |
+| `pages_totales` | entier | non | présent seulement avec le motif `pdf_repare` : nombre de pages du document réparé (décision du commanditaire du 26/11/2026) |
 
 Règles de cohérence : `pages_douteuses` est inclus dans l'ensemble des pages du document ; `pages_ocr` et `pages_couche_existante` sont disjoints ; `qualite_texte: bonne` équivaut à `pages_douteuses: []`.
 
@@ -889,7 +896,16 @@ Paragraphe B, pour les pages douteuses reconnues par l'outil :
 > Signaler toute information tirée de ces pages comme « à vérifier ».
 ```
 
-Si les deux origines coexistent, les deux paragraphes se suivent, séparés par une ligne `>` vide.
+Paragraphe C, pour un PDF réparé à l'ouverture (motif `pdf_repare`, EX-21) (décision du commanditaire du 26/11/2026) :
+
+```
+> Ce PDF était endommagé et a été réparé à l'ouverture : {N} pages sur {M} ont été
+> récupérées. Son contenu peut être incomplet ou désordonné sur toutes les pages. Ne pas
+> utiliser ce document comme source d'un montant, d'une date, d'une référence ou d'une
+> conclusion sans vérification sur le PDF d'origine.
+```
+
+Si plusieurs origines coexistent, les paragraphes se suivent dans l'ordre C, A, B, séparés par une ligne `>` vide.
 
 ### 11.4 Repères dans le corps du Markdown
 

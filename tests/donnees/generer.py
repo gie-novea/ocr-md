@@ -421,6 +421,27 @@ class Generateur:
         doc.save(self.chemin(rel), encryption=pymupdf.PDF_ENCRYPT_AES_256, user_pw="essai", owner_pw="essai-proprietaire")
         self.enregistrer(numero="13", chemin=rel, type="pdf", pages=None, statut="erreur",
                          message_attendu="PDF protégé par mot de passe")
+        # 13b : PDF tronqué partiellement récupérable (police de base, non intégrée, pour que
+        # les pages placées avant la coupure restent lisibles après réparation).
+        partiel = pymupdf.open()
+        for i in range(1, 5):
+            p = partiel.new_page()
+            p.insert_text((72, 100), f"MOTREPARE{i:02d} Memoire technique, page {i}", fontname="helv", fontsize=12)
+            for k in range(30):
+                p.insert_text((72, 130 + k * 20), f"Ligne {k} de la page {i} : contenu de controle.",
+                              fontname="helv", fontsize=11)
+        octets = partiel.tobytes(garbage=4, deflate=True, no_new_id=True)
+        tronque = octets[: int(len(octets) * 0.55)]
+        repare = pymupdf.open("pdf", tronque)
+        recuperees = sum(1 for p in repare if p.get_text().strip())
+        assert repare.is_repaired and 1 <= recuperees < repare.page_count, "troncature 13b inadaptée"
+        rel = "erreurs/13b_tronque_recuperable.pdf"
+        self.chemin(rel).write_bytes(tronque)
+        self.enregistrer(numero="13b", chemin=rel, type="pdf", pages=repare.page_count, statut="douteux",
+                         pages_douteuses=list(range(1, repare.page_count + 1)), motifs=["pdf_repare"],
+                         pages_recuperees=recuperees,
+                         message_attendu=f"PDF endommagé et réparé : {recuperees} pages sur {repare.page_count} "
+                                         "récupérées, contenu possiblement incomplet")
         rel = "erreurs/14_substitut_1ko.pdf"
         self.chemin(rel).write_bytes(b"\0" * 1024)
         self.enregistrer(numero="14", chemin=rel, type="pdf", pages=None, statut="erreur",
@@ -490,7 +511,7 @@ class Generateur:
             tampon = io.BytesIO()
             img.save(tampon, "JPEG", quality=50)
             doc.new_page(width=595, height=842).insert_image(pymupdf.Rect(0, 0, 595, 842), stream=tampon.getvalue())
-        rel = "volumineux/17_mille_pages.pdf"
+        rel = f"volumineux/17_{nb_pages}_pages.pdf"
         self.enregistrer_pdf(doc, self.chemin(rel))
         self.enregistrer(numero="17", chemin=rel, type="pdf", pages=nb_pages, statut="ocrise", origine=ORIGINE["ocr"],
                          categories=["image"] * nb_pages, texte_reference=None, mots_uniques=None)

@@ -124,3 +124,31 @@ Interprétations et écarts (à valider) :
 - question : EX-12 prévoit le code 3 quand le moteur OCR manque alors qu'un OCR est nécessaire, mais le CA de EX-71 attend le code 1 dans ce cas (les autres fichiers étant traités). Proposition : code 3 seulement si aucun fichier n'a pu être traité faute de moteur, code 1 sinon. À trancher avant le jalon 5.
 
 Constat : le guillemet droit est interdit dans les noms de fichiers sous Windows ; le CA de EX-82 (nom avec point-virgule et guillemet) est vérifié sur un vrai fichier pour le point-virgule et sur le format CSV pour le guillemet.
+
+Décisions du commanditaire sur les jalons 2 et 3 (26/11/2026) :
+- EX-05 : interprétation validée (seul le dossier `_OCR` peut apparaître dans un dossier source) ;
+- PDF réparé à l'ouverture : 0 page avec contenu, erreur ; au moins une page récupérée, traitement normal et signalement (motif `pdf_repare`, statut `douteux`, message du rapport) ; cahier mis à jour (EX-21, EX-23, 7.1 fichier 13b, 11.1 champs `pages_recuperees` et `pages_totales`, 11.3 paragraphe C) ;
+- relance d'un fichier qui passe en erreur : anciennes sorties supprimées seulement si la source est plus récente ; sinon conservées et signalées dans le rapport ; cahier mis à jour (EX-52, EX-60) ;
+- codes de retour : 3 si aucun fichier n'a pu être traité faute de moteur OCR, 1 sinon ; cahier mis à jour (EX-12, EX-71) ; réalisation au jalon 5 ;
+- jalon 8 (obligatoire) : classeur de test avec formules et valeurs en cache, écrit directement en XML ; une formule sans valeur en cache s'écrit `[formule non calculée : =…]`.
+
+## Jalon 4 : analyse des pages, calque invisible, PDF consultable (26/11/2026)
+
+Fait :
+- `analyse_pdf` : classification des pages d'après le texte tracé (mode de rendu invisible), la surface couverte par les images (union exacte des rectangles) et la densité de texte, règle des mentions ajoutées par les plateformes ; statut du document et `origine_texte` (EX-22, EX-23, section 11.2) ; classification égale à la vérité terrain sur toutes les pages du jeu ;
+- `calque` : calque invisible en Noto Sans embarquée (`donnees/polices/`, OFL 1.1), mot par mot ou ligne par ligne, pages pivotées comprises ; adaptateur conforme à `ocr_function` (sans effet, compteur d'appels), utilisé au jalon 6 ;
+- `traiteurs/pdf.py` : OCR des seules pages-images, une fois (EX-24), réduction de résolution sous la dimension maximale du moteur avec mention au journal (EX-25), copie à l'identique des PDF sans page reconnue ni douteuse (EX-32), métadonnées d'avertissement (EX-33), enregistrement sans recompression des images (EX-29), PDF temporaire dans le profil en sortie Markdown seule, supprimé dans tous les cas (EX-28), PDF réparé partiellement récupérable ;
+- `images` : une page par image ou trame, dimensions d'après la résolution, plafond A3, orientation EXIF ; JPEG intégré sans recompression (rotation à l'insertion) (EX-34) ;
+- moteur OCR obtenu à la première page qui en a besoin ; s'il manque, seuls les fichiers à reconnaître passent en erreur avec le message de EX-71 ;
+- mémoire (EX-59) : le cache de MuPDF est vidé après chaque page reconnue ; pic mesuré de 162 Mo pour 100 pages et de 171 Mo pour 1 000 pages (moteur factice, 100 dpi) ; sans cette mesure, 456 Mo pour 1 000 pages ;
+- CI : Poppler (`pdftotext`, `pdfinfo`) installé sur les quatre plateformes ;
+- tests : 135 réussis, 4 sautés sous Windows.
+
+Provisoire : le Markdown est pour l'instant le texte du PDF consultable avec repères de page ; la conversion par PyMuPDF4LLM, les tableaux, le front matter et les avertissements arrivent aux jalons 6 et 7. L'évaluation de la qualité (pages douteuses des fichiers 4 et 5) arrive au jalon 7 : en attendant, le fichier 4 sort en `couche_expediteur` et le fichier 5 en `ocrise`.
+
+Interprétations :
+- PDF réparé : le signalement `pdf_repare` ne s'applique que si des pages ont été perdues (N < M) ; un PDF réparé dont toutes les pages ont un contenu est traité normalement, car de nombreux PDF réels sont réparés sans perte à l'ouverture ;
+- `doc.subset_fonts()` est appliqué au PDF consultable dès qu'une page a été reconnue : il réduit aussi les polices d'origine non réduites, sans changer leur rendu ni le texte extrait (EX-29 et EX-31 vérifiés) ;
+- un PDF réparé refuse parfois le nettoyage des objets inutilisés à l'enregistrement : il est alors enregistré sans nettoyage.
+
+Constat : Tesseract est installé sur le poste de développement (`AppData\Local\Programs\Tesseract-OCR`, dans le `PATH`). L'outil ne l'utilise pas ; le test de EX-08 sur la conversion Markdown (jalon 6) le vérifiera sur ce poste même.

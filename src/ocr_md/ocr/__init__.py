@@ -9,7 +9,21 @@ import os
 from .. import plateforme
 from .base import Ligne, MoteurIndisponible, MoteurOcr, Mot, ResultatOcr
 
-__all__ = ["Ligne", "MoteurIndisponible", "MoteurOcr", "Mot", "ResultatOcr", "moteur_systeme"]
+__all__ = ["Ligne", "MoteurIndisponible", "MoteurOcr", "Mot", "ResultatOcr", "message_moteur_absent",
+           "moteur_systeme"]
+
+
+def message_moteur_absent() -> str:
+    """Message de EX-71 lorsque le moteur OCR du système est indisponible."""
+    if plateforme.systeme() == "windows":
+        return ("Le module de reconnaissance de texte en français de Windows n'est pas installé sur ce poste. "
+                "Les PDF déjà lisibles et les fichiers Office restent convertibles ; les PDF scannés et les "
+                "images ne peuvent pas être traités. Transmettre à votre service informatique la commande "
+                "suivante, à exécuter en administrateur : "
+                "Add-WindowsCapability -Online -Name \"Language.OCR~~~fr-FR~0.0.1.0\"")
+    if plateforme.systeme() == "macos":
+        return "la reconnaissance de texte en français n'est pas disponible sur cette version de macOS"
+    return "aucun moteur de reconnaissance de texte n'est disponible sur ce système"
 
 
 def moteur_systeme(langue: str = "fr-FR", langue_secondaire: str | None = "en-US") -> MoteurOcr:

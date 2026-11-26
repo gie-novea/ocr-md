@@ -333,13 +333,30 @@ def test_un_fichier_en_erreur_n_arrete_pas_le_lot(lot, parametres):
     assert "RuntimeError" in journal and "Traceback" in journal
 
 
-@pytest.mark.exigence("EX-60")
-def test_erreur_en_relance_retire_les_sorties_perimees(lot, parametres):
+@pytest.mark.exigence("EX-52", "EX-60")
+def test_erreur_en_relance_conserve_les_sorties_si_source_inchangee(lot, parametres):
     parent, racine = lot
     lancer(parametres, racine)
-    assert (parent / "_OCR" / "Lot 1" / "Candidat B" / "DC2.pdf").exists()
+    sortie = parent / "_OCR" / "Lot 1" / "Candidat B" / "DC2.pdf"
+    date = {l["chemin_relatif"]: l for l in lignes_csv(parent / "_OCR")}["Lot 1/Candidat B/DC2.pdf"]["date_traitement"]
     lancer(parametres, "--forcer", racine, traiteur=TraiteurEssai({"DC2.pdf": "erreur"}))
+    assert sortie.exists()
+    ligne = {l["chemin_relatif"]: l for l in lignes_csv(parent / "_OCR")}["Lot 1/Candidat B/DC2.pdf"]
+    assert ligne["statut"] == "erreur"
+    assert ligne["message"] == f"erreur simulée ; sorties précédentes conservées (traitement du {date})"
+    assert ligne["sorties"] == "DC2.pdf | DC2.pdf.md"
+
+
+@pytest.mark.exigence("EX-52", "EX-60")
+def test_erreur_en_relance_supprime_les_sorties_si_source_plus_recente(lot, parametres):
+    parent, racine = lot
+    lancer(parametres, racine)
+    source = racine / "Candidat B" / "DC2.pdf"
+    os.utime(source, (time.time() + 60, time.time() + 60))
+    lancer(parametres, racine, traiteur=TraiteurEssai({"DC2.pdf": "erreur"}))
     assert not (parent / "_OCR" / "Lot 1" / "Candidat B" / "DC2.pdf").exists()
+    ligne = {l["chemin_relatif"]: l for l in lignes_csv(parent / "_OCR")}["Lot 1/Candidat B/DC2.pdf"]
+    assert (ligne["message"], ligne["sorties"]) == ("erreur simulée", "")
 
 
 @pytest.mark.exigence("EX-61")

@@ -5,8 +5,8 @@ source, produit ses sorties par `contexte.ecrivain.preparer(...)` et renvoie un
 `ResultatTraitement`. Il vérifie `contexte.arret` entre deux pages et lève `Annulation`
 si l'arrêt est demandé. Toute autre exception met le fichier en erreur (EX-60).
 
-Jalon 3 : seuls les contrôles d'ouverture des PDF (EX-21) sont réalisés ; les conversions
-arrivent aux jalons 4 (PDF consultable), 6 (Markdown) et 8 (Office, images).
+Jalon 4 : PDF et images réalisés (PDF consultable ; Markdown provisoire jusqu'au jalon 6) ;
+fichiers Office au jalon 8.
 """
 
 import dataclasses
@@ -40,7 +40,7 @@ class Contexte:
     ecrivain: object                   # sorties.Ecrivain
     journal: object                    # rapport.Journal
     arret: threading.Event
-    moteur: object | None = None       # moteur OCR (jalon 5)
+    moteur: object | None = None       # FournisseurMoteur : moteur OCR obtenu à la demande
 
     def verifier_arret(self) -> None:
         if self.arret.is_set():
@@ -62,20 +62,11 @@ class TraiteurNonRealise(Traiteur):
         raise ErreurFichier(self.message)
 
 
-class TraiteurPdfControle(Traiteur):
-    """Jalon 3 : contrôle d'ouverture du PDF (protégé, endommagé, signé) puis renvoi au
-    jalon 4 pour la conversion."""
-
-    def traiter(self, contexte: Contexte) -> ResultatTraitement:
-        from .pdf import controler_pdf
-        controler_pdf(contexte.element.source)
-        raise ErreurFichier("conversion des PDF : fonction réalisée au jalon 4")
-
-
 def traiteurs_par_defaut() -> dict[str, Traiteur]:
+    from .pdf import TraiteurImage, TraiteurPdf
     return {
-        "pdf": TraiteurPdfControle(),
-        "image": TraiteurNonRealise(4, "conversion des images"),
+        "pdf": TraiteurPdf(),
+        "image": TraiteurImage(),
         "docx": TraiteurNonRealise(8, "conversion des fichiers Office"),
         "xlsx": TraiteurNonRealise(8, "conversion des fichiers Office"),
         "pptx": TraiteurNonRealise(8, "conversion des fichiers Office"),

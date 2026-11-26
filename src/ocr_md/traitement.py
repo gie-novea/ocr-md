@@ -11,11 +11,12 @@ erreur n'arrête jamais le lot (EX-60) ; un arrêt demandé laisse les fichiers 
 import dataclasses
 import datetime
 import os
+import shutil
 import sys
 import threading
 import time
 
-from . import __version__, inventaire, rapport, sorties
+from . import __version__, inventaire, ocr, plateforme, rapport, sorties
 from .inventaire import ErreurFichier
 from .traiteurs import Annulation, Contexte, traiteurs_par_defaut
 
@@ -40,6 +41,52 @@ def creer_dossier_ocr(dossier_ocr) -> None:
     os.makedirs(sorties.chemin_systeme(dossier_ocr), exist_ok=True)
 
 
+class FournisseurMoteur:
+    """Moteur OCR obtenu à la première page qui en a besoin. S'il est indisponible, les
+    fichiers à reconnaître passent en erreur avec le message de EX-71, les autres sont
+    traités normalement."""
+
+    def __init__(self, parametres, moteur=None):
+        self._parametres = parametres
+        self._moteur = moteur
+        self._erreur = None
+        self.utilise = False
+        self.indisponible = False
+
+    def obtenir(self):
+        if self._moteur is None and self._erreur is None:
+            try:
+                self._moteur = ocr.moteur_systeme(self._parametres.langue_ocr, self._parametres.langue_ocr_secondaire)
+            except ocr.MoteurIndisponible as e:
+                self._erreur = e
+        if self._moteur is None:
+            self.indisponible = True
+            raise ErreurFichier(ocr.message_moteur_absent())
+        self.utilise = True
+        return self._moteur
+
+    def nom_si_utilise(self) -> str:
+        return self._moteur.nom if self._moteur is not None else "aucun"
+
+    @property
+    def moteur(self):
+        return self._moteur
+
+
+def nettoyer_dossier_temporaire(age_max_s: float = 6 * 3600) -> None:
+    """Supprime les dossiers temporaires d'exécutions précédentes (EX-28), en épargnant
+    ceux, récents, d'une exécution peut-être encore en cours."""
+    base = plateforme.dossier_temporaire()
+    if not base.is_dir():
+        return
+    for d in base.iterdir():
+        try:
+            if d.name == f"processus-{os.getpid()}" or time.time() - d.stat().st_mtime > age_max_s:
+                shutil.rmtree(d, ignore_errors=True)
+        except OSError:
+            pass
+
+
 @dataclasses.dataclass
 class BilanLot:
     code: int = SUCCES
@@ -53,11 +100,16 @@ def executer(options, parametres, *, traiteurs=None, arret: threading.Event | No
     traiteurs = traiteurs or traiteurs_par_defaut()
     arret = arret or threading.Event()
     bilan = bilan if bilan is not None else BilanLot()
+    fournisseur = moteur if isinstance(moteur, FournisseurMoteur) else FournisseurMoteur(parametres, moteur)
+    nettoyer_dossier_temporaire()
     groupes = inventaire.inventorier(list(options.chemins))
     total = sum(len(g.elements) for g in groupes)
     rang = 0
-    for groupe in groupes:
-        rang = _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan, rang, total)
+    try:
+        for groupe in groupes:
+            rang = _traiter_groupe(groupe, options, parametres, traiteurs, arret, fournisseur, bilan, rang, total)
+    finally:
+        shutil.rmtree(plateforme.dossier_temporaire() / f"processus-{os.getpid()}", ignore_errors=True)
     if any(l.statut == "erreur" for l in bilan.lignes) or bilan.messages:
         bilan.code = ERREUR_FICHIER
     return bilan.code
@@ -125,6 +177,22 @@ def _ligne_precedente_ou_nouvelle(element, precedente):
     return rapport.LigneRapport(element.relatif, element.type)
 
 
+def _ligne_erreur(element, precedente, prevues, message, debut):
+    """Ligne d'un fichier en erreur. Sorties d'un traitement précédent : supprimées si la
+    source est plus récente qu'elles, conservées et signalées sinon (EX-52)."""
+    existantes = {k: p for k, p in prevues.items() if os.path.exists(sorties.chemin_systeme(p))}
+    noms: tuple[str, ...] = ()
+    if existantes:
+        if sorties.source_plus_recente(element, existantes):
+            sorties.supprimer_sorties(existantes)
+        else:
+            noms = tuple(p.name for p in existantes.values())
+            date = precedente.date_traitement if precedente and precedente.date_traitement else                 sorties.date_sorties(existantes)
+            message = f"{message} ; sorties précédentes conservées (traitement du {date})"
+    return rapport.LigneRapport(element.relatif, element.type, statut="erreur", message=message, sorties=noms,
+                                duree_s=time.perf_counter() - debut, date_traitement=_maintenant())
+
+
 def _traiter_element(element, precedente, options, parametres, traiteurs, arret, moteur, journal):
     if not element.pris_en_charge:
         journal.info(f"{element.relatif} : non pris en charge")
@@ -158,17 +226,13 @@ def _traiter_element(element, precedente, options, parametres, traiteurs, arret,
         return ligne
     except ErreurFichier as e:
         ecrivain.abandonner()
-        sorties.supprimer_sorties(prevues)
         journal.info(f"{element.relatif} : erreur : {e}")
-        return rapport.LigneRapport(element.relatif, element.type, statut="erreur", message=str(e),
-                                    duree_s=time.perf_counter() - debut, date_traitement=_maintenant())
+        return _ligne_erreur(element, precedente, prevues, str(e), debut)
     except Exception as e:  # EX-60 : jamais d'arrêt du lot
         ecrivain.abandonner()
-        sorties.supprimer_sorties(prevues)
         journal.erreur(element.relatif, e)
-        return rapport.LigneRapport(element.relatif, element.type, statut="erreur",
-                                    message=f"erreur inattendue ({type(e).__name__}) : détails dans {rapport.NOM_JOURNAL}",
-                                    duree_s=time.perf_counter() - debut, date_traitement=_maintenant())
+        message = f"erreur inattendue ({type(e).__name__}) : détails dans {rapport.NOM_JOURNAL}"
+        return _ligne_erreur(element, precedente, prevues, message, debut)
     finally:
         ecrivain.abandonner()
     duree = time.perf_counter() - debut

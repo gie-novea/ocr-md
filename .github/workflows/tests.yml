@@ -49,6 +49,20 @@ jobs:
             Add-WindowsCapability -Online -Name "Language.OCR~~~fr-FR~0.0.1.0"
           }
 
+      # Poppler (pdftotext, pdfinfo) sert aux critères d'acceptation de EX-30 et EX-33.
+      - name: Poppler (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Poppler (macOS)
+        if: runner.os == 'macOS'
+        run: brew install poppler
+      - name: Poppler (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command pdftotext -ErrorAction SilentlyContinue)) { choco install poppler -y --no-progress }
+          Get-Command pdftotext, pdfinfo -ErrorAction SilentlyContinue | Format-Table Name, Source
+
       - name: Installation (environnement verrouillé)
         run: uv sync --locked --python 3.12
 

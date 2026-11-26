@@ -67,6 +67,18 @@ def a_jour(element, prevues: dict[str, pathlib.Path]) -> bool:
         return False
 
 
+def source_plus_recente(element, existantes: dict[str, pathlib.Path]) -> bool:
+    """La source a été modifiée après au moins une des sorties existantes."""
+    date_source = os.stat(chemin_systeme(element.source)).st_mtime
+    return any(os.stat(chemin_systeme(p)).st_mtime < date_source for p in existantes.values())
+
+
+def date_sorties(existantes: dict[str, pathlib.Path]) -> str:
+    import datetime
+    t = max(os.stat(chemin_systeme(p)).st_mtime for p in existantes.values())
+    return datetime.datetime.fromtimestamp(t).strftime("%Y-%m-%d %H:%M:%S")
+
+
 def nettoyer_temporaires(dossier_ocr: pathlib.Path) -> int:
     """Supprime les fichiers temporaires laissés par une exécution interrompue (EX-53)."""
     n = 0
@@ -121,6 +133,10 @@ class Ecrivain:
         temporaire = os.path.join(os.path.dirname(definitif), f"{cible.name}{MARQUE_TEMPORAIRE}{os.getpid()}")
         self._en_attente.append((temporaire, definitif))
         avec_tentatives(lambda: producteur(temporaire), self.tentatives, self.intervalle_s)
+
+    def dernier_temporaire(self) -> str:
+        """Chemin temporaire de la dernière sortie préparée (lisible avant validation)."""
+        return self._en_attente[-1][0]
 
     def valider(self) -> list[str]:
         """Renomme toutes les sorties préparées ; renvoie leurs noms."""
