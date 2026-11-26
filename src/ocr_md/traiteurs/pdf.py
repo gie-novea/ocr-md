@@ -12,6 +12,7 @@ import os
 import pathlib
 import shutil
 import sys
+import time
 import uuid
 
 import pymupdf
@@ -165,6 +166,7 @@ class Traitement:
     categories_finales: list
     pages_ocr: list
     resumes_ocr: dict  # numéro de page -> ResumeOcr
+    durees: dict = dataclasses.field(default_factory=lambda: {"rendu": 0.0, "ocr": 0.0, "calque": 0.0})
 
 
 def reconnaitre_pages(doc, ctx) -> Traitement:
@@ -172,6 +174,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
     p = ctx.parametres
     analyses = analyse_pdf.analyser(doc, p)
     finales, pages_ocr, resultats = [], [], {}
+    durees = {"rendu": 0.0, "ocr": 0.0, "calque": 0.0}
     for a in analyses:
         ctx.verifier_arret()
         if a.categorie != "image":
@@ -182,19 +185,31 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
             ctx.journal.info(f"{ctx.element.relatif} : OCR par {moteur.description()}, langue {p.langue_ocr} "
                              f"(secondaire {p.langue_ocr_secondaire}), {p.ocr_dpi} dpi")
         page = doc[a.numero - 1]
+        t0 = time.perf_counter()
         image, dpi = rendre_page(page, p.ocr_dpi, moteur.dimension_max(), ctx.journal)
+        t1 = time.perf_counter()
         resultat = moteur.reconnaitre(image)
+        t2 = time.perf_counter()
         del image
         # Le cache de MuPDF garde les images décodées : on le vide après chaque page pour
         # que la mémoire ne croisse pas avec le nombre de pages (EX-59).
         pymupdf.TOOLS.store_shrink(100)
         calque.ecrire_calque(page, resultat)
+        t3 = time.perf_counter()
+        durees["rendu"] += t1 - t0
+        durees["ocr"] += t2 - t1
+        durees["calque"] += t3 - t2
         resultats[a.numero] = resumer(resultat, p.confiance_basse)
         del resultat
         pages_ocr.append(a.numero)
         finales.append("ocr")
     ctx.journal.info(f"{ctx.element.relatif} : pages " + " ".join(f"{a.numero}={a.categorie}" for a in analyses))
-    return Traitement(analyses, finales, pages_ocr, resultats)
+    if pages_ocr:  # EX-57 : durée d'OCR par page, ventilée
+        n = len(pages_ocr)
+        ctx.journal.info(f"{ctx.element.relatif} : durée par page reconnue ({n} page(s)) : rendu "
+                         f"{durees['rendu'] / n:.3f} s, reconnaissance {durees['ocr'] / n:.3f} s, "
+                         f"calque {durees['calque'] / n:.3f} s")
+    return Traitement(analyses, finales, pages_ocr, resultats, durees)
 
 
 def dossier_temporaire_processus() -> pathlib.Path:
@@ -238,17 +253,19 @@ class TraiteurPdf(Traiteur):
                     doc.subset_fonts()
             pages_reconnues = [n for n, c in enumerate(t.categories_finales, 1) if c in ("ocr", "couche_existante")]
             adaptateur = calque.AdaptateurOcr()
-            self._ecrire_sorties(doc, ctx, copie_identique, pages_reconnues, douteuses, adaptateur)
+            repli: list[int] = []
+            self._ecrire_sorties(doc, ctx, copie_identique, pages_reconnues, douteuses, adaptateur, repli)
             if adaptateur.appels:
                 ctx.journal.info(f"{ctx.element.relatif} : conversion Markdown, adaptateur OCR appelé sans "
                                  f"reconnaissance pour les pages {adaptateur.appels}")
             return ResultatTraitement(statut, pages=doc.page_count, pages_ocr=tuple(t.pages_ocr),
                                       pages_douteuses=tuple(douteuses), motifs=tuple(motifs), origine=origine,
+                                      pages_texte_simple=tuple(repli),
                                       message=" ; ".join(messages))
         finally:
             doc.close()
 
-    def _ecrire_sorties(self, doc, ctx, copie_identique: bool, pages_reconnues, douteuses, adaptateur) -> None:
+    def _ecrire_sorties(self, doc, ctx, copie_identique: bool, pages_reconnues, douteuses, adaptateur, repli) -> None:
         source = ctx.element.source
 
         def produire_pdf(chemin):
@@ -272,7 +289,6 @@ class TraiteurPdf(Traiteur):
                 produire_pdf(temporaire)
                 chemin_pdf = temporaire
             ctx.verifier_arret()
-            repli = []
             texte = markdown_pdf.convertir(chemin_pdf, tableaux=ctx.options.tableaux, pages_ocr=pages_reconnues,
                                            pages_douteuses=douteuses, adaptateur=adaptateur,
                                            arret=ctx.verifier_arret, pages_repli=repli)

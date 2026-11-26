@@ -28,6 +28,7 @@ class ResultatTraitement:
     pages_douteuses: tuple[int, ...] = ()
     motifs: tuple[str, ...] = ()
     origine: str = ""
+    pages_texte_simple: tuple[int, ...] = ()
     message: str = ""
 
 

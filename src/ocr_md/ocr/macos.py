@@ -12,6 +12,7 @@ origine en bas à gauche : PV-06 b). Les boîtes des mots sont obtenues de deux 
 
 import io
 import re
+import time
 
 from PIL import Image
 
@@ -62,9 +63,14 @@ def _utf16(texte: str) -> int:
     return len(texte.encode("utf-16-le")) // 2
 
 
-def vision_avec_mots(image: Image.Image, langues: list[str]):
+def vision_avec_mots(image: Image.Image, langues: list[str], chronos: dict | None = None):
     """Appel direct de Vision. Renvoie [(texte, confiance, boîte_ligne, [(mot, boîte|None)])],
-    boîtes normalisées (x, y, largeur, hauteur), origine en bas à gauche."""
+    boîtes normalisées (x, y, largeur, hauteur), origine en bas à gauche. `chronos` reçoit
+    les durées cumulées : conversion de l'image (png), reconnaissance (vision), boîtes."""
+    chronos = chronos if chronos is not None else {}
+    t0 = time.perf_counter()
+    donnees = _png(image)
+    t1 = time.perf_counter()
     import Foundation
     import objc
     import Vision
@@ -74,8 +80,9 @@ def vision_avec_mots(image: Image.Image, langues: list[str]):
         requete.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
         requete.setRecognitionLanguages_(langues)
         requete.setUsesLanguageCorrection_(True)
-        gestionnaire = Vision.VNImageRequestHandler.alloc().initWithData_options_(_png(image), None)
+        gestionnaire = Vision.VNImageRequestHandler.alloc().initWithData_options_(donnees, None)
         retour = gestionnaire.performRequests_error_([requete], None)
+        t2 = time.perf_counter()
         ok, erreur = retour if isinstance(retour, tuple) else (bool(retour), None)
         if not ok or erreur is not None:
             raise RuntimeError(f"échec de Vision : {erreur}")
@@ -101,6 +108,9 @@ def vision_avec_mots(image: Image.Image, langues: list[str]):
                     bb = rect.boundingBox()
                     mots.append((m.group(), (bb.origin.x, bb.origin.y, bb.size.width, bb.size.height)))
             sortie.append((texte, float(candidat.confidence()), boite_ligne, mots))
+    t3 = time.perf_counter()
+    for cle, duree in (("png", t1 - t0), ("vision", t2 - t1), ("boites", t3 - t2)):
+        chronos[cle] = chronos.get(cle, 0.0) + duree
     return sortie
 
 
@@ -114,6 +124,7 @@ class MoteurMacos:
         self.langues = [langue] + ([langue_secondaire] if langue_secondaire else [])
         self.mode = mode
         self.statistiques = {"mots_boite_vision": 0, "mots_prorata": 0}
+        self.chronos: dict[str, float] = {}  # durées cumulées : png, vision, boîtes (mesure PV-14)
 
     def description(self) -> str:
         return f"Apple Vision (accurate, {', '.join(self.langues)})"
@@ -128,7 +139,7 @@ class MoteurMacos:
         largeur, hauteur = image.size
         lignes = []
         if self.mode == "mots":
-            for texte, confiance, boite_ligne, mots in vision_avec_mots(image, self.langues):
+            for texte, confiance, boite_ligne, mots in vision_avec_mots(image, self.langues, self.chronos):
                 ligne_px = boite_en_pixels(boite_ligne, largeur, hauteur)
                 resultat_mots = []
                 prorata = mots_estimes(texte, ligne_px, confiance)

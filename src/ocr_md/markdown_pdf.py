@@ -18,6 +18,7 @@ import re
 
 import pymupdf
 
+from . import correctifs
 from .calque import AdaptateurOcr
 
 REPERE_TABLEAU_OCR = ("<!-- tableau reconnu par OCR : correspondance lignes/colonnes non garantie, "
@@ -94,37 +95,9 @@ def _marquer_tableaux_ocr(texte: str) -> str:
 
 
 # ------------------------------------------------------------------------------ conversion
-_extract_cells_origine = None
-
-
-def _installer_correctif_cellules():
-    """Correctif ciblé de PyMuPDF4LLM 1.28.2 : en Markdown, chaque fragment de texte d'une
-    cellule est débarrassé de ses espaces ; or le calque de l'outil écrit un fragment par
-    mot, ce qui colle les mots (« MmeDurand »). Une cellule dont tout le texte est invisible
-    (calque OCR, sans mise en forme possible) est donc extraite en texte simple."""
-    global _extract_cells_origine
-    from pymupdf4llm.helpers import document_layout, utils
-    if _extract_cells_origine is not None:
-        return
-    _extract_cells_origine = utils.extract_cells
-
-    def extract_cells(table_blocks, cell, markdown=False, ocrpage=False):
-        if markdown:
-            spans = [s for b in table_blocks if not utils.are_disjoint(b["bbox"], cell)
-                     for l in b["lines"] if not utils.are_disjoint(l["bbox"], cell)
-                     for s in l["spans"] if not utils.are_disjoint(s["bbox"], cell)]
-            if spans and all(utils.is_ocr_text(s) for s in spans):
-                texte = _extract_cells_origine(table_blocks, cell, markdown=False, ocrpage=ocrpage)
-                return " ".join(texte.split(" ")).replace("\n", "<br>").replace("|", "\\|")
-        return _extract_cells_origine(table_blocks, cell, markdown=markdown, ocrpage=ocrpage)
-
-    utils.extract_cells = extract_cells
-    document_layout.utils.extract_cells = extract_cells
-
-
 def _to_markdown(chemin_pdf: str, pages: list[int], adaptateur, **options) -> list[str]:
     import pymupdf4llm
-    _installer_correctif_cellules()
+    correctifs.appliquer()  # idempotent ; normalement déjà fait au lancement du lot
     silence = io.StringIO()
     with contextlib.redirect_stdout(silence), contextlib.redirect_stderr(silence):
         morceaux = pymupdf4llm.to_markdown(

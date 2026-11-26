@@ -208,6 +208,11 @@ def test_page_scannee_avec_mention_de_depot(traite):
         assert pages[n].count(f["mention_native"]) == 1
     journal = (copie / "_OCR" / "ocr_journal.log").read_text(encoding="utf-8")
     assert "repli de PV-05" in journal
+    from ocr_md import rapport
+    lignes = rapport.lire(copie / "_OCR")
+    assert lignes["pdf/19_mention_plateforme.pdf"].pages_texte_simple == (1, 2)
+    assert lignes["pdf/06b_tableaux_scannes.pdf"].pages_texte_simple == (2, 3, 4)
+    assert lignes["pdf/02_scanne.pdf"].pages_texte_simple == ()
 
 
 @pytest.mark.exigence("EX-44", "EX-11")

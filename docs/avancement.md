@@ -195,3 +195,10 @@ Constats sur PyMuPDF4LLM 1.28.2 (consignés aussi dans `docs/verifications.md`, 
 Tests : 149 réussis, 5 sautés sous Windows (module fr-FR du poste de développement).
 
 CI du jalon 6 (run 45897735605), verte sur les quatre plateformes : 149 tests réussis sur les deux Mac, 148 sous Windows (en-US), 142 sous Linux. Pic mémoire 100 / 1 000 pages : Windows 57 / 71 Mo, Mac Intel 58 / 74 Mo, Mac Apple Silicon 68 / 84 Mo. PV-14 levé (voir `docs/verifications.md`).
+
+## Avant le jalon 7 (26/11/2026)
+
+- PV-14 validé par le commanditaire (boîtes Vision par défaut, prorata en repli) ; essai de recette TM-11 ajouté (recherche de montants dans Aperçu sur une DPGF scannée réelle).
+- Correctif de PyMuPDF4LLM isolé dans `correctifs.py`, avec contrôle de version, journalisation et tests ; ticket prêt dans `docs/ticket-pymupdf4llm-espaces-cellules.md`.
+- Ventilation du temps par page (rendu, reconnaissance, calque) au journal, débit global en fin de lot (EX-57).
+- Rapport : nouvelle colonne `pages_texte_simple` (pages du Markdown reprises en texte simple), insérée après `motif_douteux` ; EX-82 mis à jour (15 colonnes). Un rapport existant à 14 colonnes n'est plus relu : les fichiers concernés sont retraités à la relance suivante.

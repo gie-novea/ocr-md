@@ -83,3 +83,51 @@ def test_page_a0_avec_windows_media_ocr(tmp_path, parametres):
     assert f"dimension maximale du moteur : {moteur.dimension_max()} px" in journal
     texte = pymupdf.open(tmp_path / "P" / "_OCR" / "a0.pdf")[0].get_text()
     assert taux_retrouves(fab.LIGNES_COURANTES, texte) >= SEUIL
+
+
+@pytest.mark.windows
+@pytest.mark.macos
+@pytest.mark.exigence("EX-57")
+def test_ventilation_du_temps_par_page(jeu_de_test, tmp_path, parametres):
+    """Mesure : rendu, reconnaissance et écriture du calque, par page reconnue (journal)."""
+    import re
+    racine, _ = jeu_de_test
+    moteur_ou_saut()
+    parent = tmp_path / "P"
+    (parent / "pdf").mkdir(parents=True)
+    for rel in ("pdf/02_scanne.pdf", "pdf/18_ligatures.pdf", "pdf/06b_tableaux_scannes.pdf"):
+        shutil.copyfile(racine / rel, parent / rel)
+    options = cli.analyser(["--sortie", "pdf", str(parent / "pdf")])
+    assert traitement.executer(options, parametres) == 0
+    journal = (parent / "_OCR" / rapport.NOM_JOURNAL).read_text(encoding="utf-8")
+    mesures = [tuple(float(x) for x in m) for m in re.findall(
+        r"durée par page reconnue \(\d+ page\(s\)\) : rendu ([\d.]+) s, reconnaissance ([\d.]+) s, calque ([\d.]+) s",
+        journal)]
+    assert len(mesures) == 3
+    rendu, ocr_, calque_ = (sum(m[i] for m in mesures) / 3 for i in range(3))
+    total = rendu + ocr_ + calque_
+    print(f"ventilation par page ({LANGUE}) : rendu {rendu:.3f} s ({rendu / total:.0%}), "
+          f"reconnaissance {ocr_:.3f} s ({ocr_ / total:.0%}), calque {calque_:.3f} s ({calque_ / total:.0%})")
+    assert "pages par minute" in journal
+
+
+@pytest.mark.macos
+def test_ventilation_de_la_reconnaissance_vision(jeu_de_test):
+    """Sous macOS : part de la conversion de l'image en PNG, de Vision et des boîtes des mots."""
+    import time
+    from PIL import Image as ImagePIL
+    racine, m = jeu_de_test
+    moteur = moteur_ou_saut()
+    pages = 0
+    for rel in ("pdf/02_scanne.pdf", "pdf/18_ligatures.pdf"):
+        doc = pymupdf.open(racine / rel)
+        for page in doc:
+            t0 = time.perf_counter()
+            pix = page.get_pixmap(dpi=300, colorspace=pymupdf.csGRAY)
+            image = ImagePIL.frombytes("L", (pix.width, pix.height), pix.samples)
+            moteur.chronos["rendu"] = moteur.chronos.get("rendu", 0.0) + time.perf_counter() - t0
+            moteur.reconnaitre(image)
+            pages += 1
+    c = {k: v / pages for k, v in moteur.chronos.items()}
+    total = sum(c.values())
+    print("ventilation Vision par page : " + ", ".join(f"{k} {v:.3f} s ({v / total:.0%})" for k, v in c.items()))

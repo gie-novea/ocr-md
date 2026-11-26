@@ -459,7 +459,7 @@ def test_format_du_rapport(tmp_path, parametres):
     brut = (tmp_path / "P" / "_OCR" / rapport.NOM_RAPPORT).read_bytes()
     assert brut.startswith(b"\xef\xbb\xbf") and b"\r\n" in brut and b"\n" not in brut.replace(b"\r\n", b"")
     lignes = lignes_csv(tmp_path / "P" / "_OCR")
-    assert list(lignes[0].keys()) == list(rapport.COLONNES) and len(rapport.COLONNES) == 14
+    assert list(lignes[0].keys()) == list(rapport.COLONNES) and len(rapport.COLONNES) == 15
     assert lignes[0]["chemin_relatif"] == "D/Offre; « finale ».pdf"
     assert "," in lignes[0]["duree_s"] or lignes[0]["duree_s"] == "0,0"
     assert lignes[1]["sorties"] == "Simple.pdf | Simple.pdf.md"

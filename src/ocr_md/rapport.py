@@ -23,7 +23,7 @@ NOM_JOURNAL = "ocr_journal.log"
 TAILLE_MAX_JOURNAL = 5 * 1024 * 1024
 
 COLONNES = ("chemin_relatif", "type", "pages", "statut", "pages_ocr", "pages_douteuses", "motif_douteux",
-            "origine_texte", "sorties", "action", "duree_s", "date_traitement", "message", "version_outil")
+            "pages_texte_simple", "origine_texte", "sorties", "action", "duree_s", "date_traitement", "message", "version_outil")
 
 
 @dataclasses.dataclass
@@ -35,6 +35,7 @@ class LigneRapport:
     pages_ocr: tuple[int, ...] = ()
     pages_douteuses: tuple[int, ...] = ()
     motif_douteux: tuple[str, ...] = ()
+    pages_texte_simple: tuple[int, ...] = ()  # pages du Markdown reprises en texte simple (repli de PV-05)
     origine_texte: str = ""
     sorties: tuple[str, ...] = ()
     action: str = "traite"
@@ -47,7 +48,7 @@ class LigneRapport:
         return [
             self.chemin_relatif, self.type, "" if self.pages is None else str(self.pages), self.statut,
             " ".join(map(str, self.pages_ocr)), " ".join(map(str, self.pages_douteuses)),
-            " ".join(self.motif_douteux), self.origine_texte, " | ".join(self.sorties), self.action,
+            " ".join(self.motif_douteux), " ".join(map(str, self.pages_texte_simple)), self.origine_texte, " | ".join(self.sorties), self.action,
             "" if self.duree_s is None else f"{self.duree_s:.1f}".replace(".", ","),
             self.date_traitement, " ".join(self.message.split()), self.version_outil,
         ]
@@ -60,7 +61,8 @@ class LigneRapport:
             chemin_relatif=valeurs["chemin_relatif"], type=valeurs["type"],
             pages=int(valeurs["pages"]) if valeurs["pages"] else None, statut=valeurs["statut"],
             pages_ocr=entiers(valeurs["pages_ocr"]), pages_douteuses=entiers(valeurs["pages_douteuses"]),
-            motif_douteux=tuple(valeurs["motif_douteux"].split()), origine_texte=valeurs["origine_texte"],
+            motif_douteux=tuple(valeurs["motif_douteux"].split()),
+            pages_texte_simple=entiers(valeurs["pages_texte_simple"]), origine_texte=valeurs["origine_texte"],
             sorties=tuple(s for s in valeurs["sorties"].split(" | ") if s), action=valeurs["action"],
             duree_s=float(valeurs["duree_s"].replace(",", ".")) if valeurs["duree_s"] else None,
             date_traitement=valeurs["date_traitement"], message=valeurs["message"],

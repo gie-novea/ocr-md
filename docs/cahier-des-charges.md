@@ -628,6 +628,7 @@ Claude Code doit livrer ces tests sous forme de fiches à cocher (`docs/recette-
 | TM-08 | Lot réel anonymisé ou non confidentiel de 50 plis : relevé de performance (EX-58), relecture par sondage de 20 pages reconnues, relevé des faux positifs et faux négatifs de « texte douteux » | toutes |
 | TM-09 | Dépôt des sorties d'un pli dans Claude : une question posée sur une page douteuse donne une réponse qui mentionne la réserve ; une citation à la page est exacte | une |
 | TM-10 | Mise à jour puis désinstallation | toutes |
+| TM-11 | DPGF scannée réelle (non confidentielle ou anonymisée) : dans le PDF consultable ouvert avec Aperçu, recherche de plusieurs montants (avec et sans espace des milliers, avec virgule décimale) ; chaque montant est trouvé et surligné à son emplacement (ajout du commanditaire du 26/11/2026, PV-14) | Mac |
 
 ---
 
@@ -988,6 +989,7 @@ Lorsqu'une rubrique est vide, son tableau est remplacé par la phrase « Aucune.
 | `pages_ocr` | liste des pages reconnues par l'outil |
 | `pages_douteuses` | liste des pages douteuses |
 | `motif_douteux` | indicateurs déclencheurs, séparés par des espaces |
+| `pages_texte_simple` | pages dont le Markdown a été repris en texte simple depuis le PDF consultable, faute d'une restitution correcte par la bibliothèque de conversion (repli de PV-05) ; vide sinon (ajout du commanditaire du 26/11/2026, pour mesurer la fréquence du repli en recette) |
 | `origine_texte` | valeur de la section 11.2 |
 | `sorties` | noms des fichiers produits, séparés par ` \| ` (barre verticale entourée d'espaces) ; vide si aucun |
 | `action` | `traite`, `ignore_a_jour`, `annule` |
@@ -997,7 +999,7 @@ Lorsqu'une rubrique est vide, son tableau est remplacé par la phrase « Aucune.
 | `version_outil` | version de l'outil ayant produit les sorties |
 
 Lors d'une relance portant sur une partie seulement des éléments d'un dossier parent, les lignes des fichiers non concernés sont conservées ; les lignes des fichiers concernés sont remplacées.
-- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 14 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
+- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 15 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
 
 ### 11.7 Exemples complets
 
@@ -1098,7 +1100,7 @@ Mots-clés : qualite_texte=douteuse; pages_douteuses=3,4,9; origine=couche OCR f
 Ligne correspondante de `ocr_rapport.csv` :
 
 ```
-Lot 1/Candidat B/DC2.pdf;pdf;14;douteux;;3 4 9;taux_mots_inconnus taux_melange_chiffres_lettres;couche OCR fournie par l'expéditeur, non refaite;DC2.pdf | DC2.pdf.md;traite;2,4;2026-11-26 14:33:41;;1.0.0
+Lot 1/Candidat B/DC2.pdf;pdf;14;douteux;;3 4 9;taux_mots_inconnus taux_melange_chiffres_lettres;;couche OCR fournie par l'expéditeur, non refaite;DC2.pdf | DC2.pdf.md;traite;2,4;2026-11-26 14:33:41;;1.0.0
 ```
 
 #### Exemple 3 : document mixte (pages natives et pages reconnues par l'outil, dont une douteuse)

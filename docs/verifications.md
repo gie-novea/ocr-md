@@ -204,3 +204,18 @@ Marge sous le seuil : au moins 34 %. Sous Linux, le pic mesuré par `ru_maxrss` 
 ## PV-05 (complément, jalon 6) : comportements de PyMuPDF4LLM 1.28.2
 
 Voir `docs/avancement.md`, jalon 6 : espaces retirés dans les cellules de tableau (correctif ciblé), page scannée portant du texte visible dont le calque est absorbé par la zone d'image (repli en texte simple), cellules fusionnées coupées sur les tableaux scannés (même repli).
+
+## Correctif de PyMuPDF4LLM : application et contrôle (26/11/2026)
+
+- Module isolé : `src/ocr_md/correctifs.py`. Aucune copie modifiée de la bibliothèque : le correctif remplace, en mémoire, l'attribut `extract_cells` du module `pymupdf4llm.helpers.utils` par une fonction qui délègue à l'originale ; `document_layout` appelle cette fonction par l'attribut du module, et reçoit donc la version corrigée.
+- Moment : au lancement de chaque lot (`traitement.executer`) ; idempotent ; rappelé par `markdown_pdf` pour un usage direct.
+- Contrôle de version : le correctif n'est appliqué que si PyMuPDF et PyMuPDF4LLM sont exactement en 1.28.2 (version verrouillée). Sinon, il n'est pas appliqué et la raison est écrite au journal de chaque dossier `_OCR` (« correctif ... non appliqué : version ... ») ; l'état est aussi journalisé quand il est appliqué.
+- Portée : seules les cellules dont tout le texte est invisible (calque OCR) passent par le chemin « texte simple » de la fonction d'origine, qui conserve les espaces ; les cellules de texte natif sont inchangées.
+- Tests (`tests/test_correctifs.py`) : l'exemple minimal du ticket produit « AnnaSmith » sans le correctif (le test échoue si le défaut disparaît : le correctif serait alors à retirer), « Anna Smith » avec (le test échoue si le correctif n'agit plus) ; version différente simulée : correctif non appliqué et raison renseignée ; application au lancement et mention au journal.
+- Ticket pour le dépôt de PyMuPDF4LLM : `docs/ticket-pymupdf4llm-espaces-cellules.md` (à déposer par le commanditaire).
+
+## Temps par page : rendu, reconnaissance, calque (26/11/2026)
+
+- Instrumentation : pour chaque fichier, le journal indique la durée moyenne par page reconnue, ventilée entre rendu de la page, reconnaissance et écriture du calque, et, en fin de lot, le débit global en pages par minute (EX-57). Sous macOS, la reconnaissance est elle-même ventilée en conversion de l'image en PNG, appel de Vision et récupération des boîtes des mots (`tests/test_chaine_reelle.py`).
+- Poste de développement (Windows 11, `Windows.Media.Ocr` fr-FR, 300 dpi, fichiers 2, 18 et 6b) : rendu 0,046 s (23 %), reconnaissance 0,129 s (63 %), calque 0,029 s (14 %).
+- Mac Intel et Apple Silicon : relevé de la CI à consigner ci-dessous.

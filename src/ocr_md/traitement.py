@@ -16,7 +16,7 @@ import sys
 import threading
 import time
 
-from . import __version__, inventaire, ocr, plateforme, rapport, sorties
+from . import __version__, correctifs, inventaire, ocr, plateforme, rapport, sorties
 from .inventaire import ErreurFichier
 from .traiteurs import Annulation, Contexte, traiteurs_par_defaut
 
@@ -101,6 +101,7 @@ def executer(options, parametres, *, traiteurs=None, arret: threading.Event | No
     arret = arret or threading.Event()
     bilan = bilan if bilan is not None else BilanLot()
     fournisseur = moteur if isinstance(moteur, FournisseurMoteur) else FournisseurMoteur(parametres, moteur)
+    correctifs.appliquer()
     nettoyer_dossier_temporaire()
     groupes = inventaire.inventorier(list(options.chemins))
     total = sum(len(g.elements) for g in groupes)
@@ -149,6 +150,7 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
                      f"pages={','.join(map(str, options.pages)) or '-'} forcer={options.forcer} "
                      f"tableaux={options.tableaux}")
         journal.info("paramètres : " + " ".join(f"{k}={v}" for k, v in sorted(parametres.valeurs.items())))
+        journal.info(correctifs.ETAT.raison)
         if parametres.sources:
             journal.info("fichiers de configuration lus : " + " ; ".join(parametres.sources))
         if nettoyes:
@@ -173,6 +175,10 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
         _signaler_sources_disparues(groupe, lignes, journal)
         b = rapport.bilan(l for l in bilan.lignes if l.chemin_relatif in lignes)
         journal.info(f"fin du lot : {b}")
+        faites = [l for l in bilan.lignes if l.action == "traite" and l.duree_s and l.pages]
+        if faites:  # EX-57 : débit global
+            pages, duree = sum(l.pages for l in faites), sum(l.duree_s for l in faites)
+            journal.info(f"débit : {pages} page(s) en {duree:.1f} s, soit {60 * pages / duree:.1f} pages par minute")
     finally:
         journal.fermer()
     return rang
@@ -256,5 +262,6 @@ def _traiter_element(element, precedente, options, parametres, traiteurs, arret,
                  f"OCR {list(resultat.pages_ocr)}, douteuses {list(resultat.pages_douteuses)}, {duree:.1f} s")
     return rapport.LigneRapport(
         element.relatif, element.type, pages=resultat.pages, statut=resultat.statut, pages_ocr=resultat.pages_ocr,
-        pages_douteuses=resultat.pages_douteuses, motif_douteux=resultat.motifs, origine_texte=resultat.origine,
+        pages_douteuses=resultat.pages_douteuses, motif_douteux=resultat.motifs,
+        pages_texte_simple=resultat.pages_texte_simple, origine_texte=resultat.origine,
         sorties=tuple(noms), duree_s=duree, date_traitement=_maintenant(), message=resultat.message)
