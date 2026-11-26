@@ -122,3 +122,15 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 - onnxruntime : la résolution universelle de uv retient **1.23.2 sur toutes les plateformes** (dernière version publiée pour macOS Intel), ce qui garde une seule version partout. sympy et pyreadline3 s'ajoutent comme dépendances transitives.
 - Conséquence sur PV-05 : les constats faits en 2.2 restent valables en 1.28.2 (essai rejoué : même point d'entrée `pymupdf4llm.to_markdown`, même contrat de `ocr_function`, texte invisible repris, 1 seul appel pour la page sans calque). La remarque « paquets vides » ne vaut que pour la branche 2.x.
 - Sous Windows : 61 tests réussis avec la 1.28.2. À confirmer par la CI sur macOS Apple Silicon et Intel.
+
+## Deuxième passage de la CI (26/11/2026, run 45874712753, PyMuPDF 1.28.2) : succès sur les quatre plateformes
+
+| Plateforme | Système | Tests | OCR réel | Tcl/Tk |
+|---|---|---|---|---|
+| macOS Apple Silicon | macOS 26.7.2 (arm64) | 62 réussis, 2 sautés (Windows) | Vision : 98,8 % des mots ; ligatures 100 % ; boîtes à origine en bas confirmées | 9.0.3 |
+| macOS Intel | macOS 15.7.9 (x86_64) | 62 réussis, 2 sautés (Windows) | Vision : 96,4 % des mots ; ligatures 98,6 % ; `fr-FR` disponible ; origine en bas confirmée | 9.0.3 |
+| Windows | Windows Server 2025 (10.0.26100) | 61 réussis, 3 sautés (macOS) | module fr-FR installé par la CI ; `Windows.Media.Ocr` : 97,6 % ; ligatures 100 % | 8.6.12 |
+| Linux | Ubuntu | niveau 1 seulement | sans objet | sans objet |
+
+- **PV-08 (b), levé** : la chaîne (PyMuPDF 1.28.2, mise en page avec onnxruntime 1.23.2, Vision) fonctionne sur Mac Intel ; PV-08 (a) confirmé aussi sur macOS 15.
+- **PV-11 (macOS)** : le Python géré par uv embarque Tcl/Tk 9.0.3 sous macOS et 8.6.12 sous Windows ; présence confirmée, l'affichage d'une fenêtre (icône du Dock, haute densité) reste à vérifier en recette.
