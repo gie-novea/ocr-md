@@ -193,3 +193,5 @@ Constats sur PyMuPDF4LLM 1.28.2 (consignés aussi dans `docs/verifications.md`, 
 - objectif de recouvrement de EX-40 (98 %) : tenu sur toutes les pages du jeu ; seuil de 90 % retenu pour une page dont un tableau OCR reste en Markdown (cas prévu par le CA de EX-40).
 
 Tests : 149 réussis, 5 sautés sous Windows (module fr-FR du poste de développement).
+
+CI du jalon 6 (run 45897735605), verte sur les quatre plateformes : 149 tests réussis sur les deux Mac, 148 sous Windows (en-US), 142 sous Linux. Pic mémoire 100 / 1 000 pages : Windows 57 / 71 Mo, Mac Intel 58 / 74 Mo, Mac Apple Silicon 68 / 84 Mo. PV-14 levé (voir `docs/verifications.md`).

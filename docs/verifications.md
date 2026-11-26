@@ -20,7 +20,7 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 | PV-10 | à lever par le référent | |
 | PV-11 | levé (Windows, présence sur macOS) | tkinter présent dans le Python géré par uv : Tk 8.6.12 (Windows), 9.0.3 (macOS) ; affichage sous macOS en recette |
 | PV-12 | levé | Grammalecte 7.7, MPL 2.0, 476 083 formes, chargement en 0,13 s |
-| PV-14 | mesure en cours (CI macOS) | boîtes par mot d'Apple Vision par `boundingBoxForRange:error:` |
+| PV-14 | levé : méthode utilisable, retenue par défaut | boîtes fournies par Vision pour 100 % des mots ; aucun écart mesurable sur le jeu synthétique avec le critère EX-30 (b) ; coût de 0,11 à 0,12 s par page (3 à 5 %) |
 | PV-13 | levé avec repli | détection des fusions fiable sur tableau natif ; rendu HTML de PyMuPDF4LLM inutilisable pour les fusions ; HTML produit par l'outil |
 
 ## PV-03. Pack OCR français de Windows
@@ -187,7 +187,19 @@ Marge sous le seuil : au moins 34 %. Sous Linux, le pic mesuré par `ru_maxrss` 
 - Demande du commanditaire (26/11/2026) : obtenir des boîtes par mot sous macOS, mesurer le gain sur le taux de mots retrouvés et sur la position des mots (critère EX-30 b) et le coût en temps par page ; repli : répartition des mots au prorata des caractères dans la boîte de la ligne.
 - Réalisation : `ocr/macos.py`, mode « mots » : appel direct de `VNRecognizeTextRequest` par pyobjc (ocrmac n'expose pas la méthode), découpage de chaque ligne en mots et `VNRecognizedText.boundingBoxForRange:error:` pour chacun (plages en unités UTF-16) ; un mot sans boîte est placé au prorata. Mode « prorata » conservé pour la comparaison.
 - Mesure : `tests/test_pv14_vision_mots.py` (CI macOS Intel et Apple Silicon), pages des fichiers 2 et 18, trois écritures du calque comparées (par ligne, par mot au prorata, par mot avec boîtes Vision).
-- Résultats : à compléter après le passage de la CI.
+- Résultats (CI, run 45897735605, 6 pages : fichier 2 pages 1 à 4, fichier 18 pages 1 et 2) :
+
+| Mesure | Mac Apple Silicon : ligne / prorata / Vision | Mac Intel : ligne / prorata / Vision |
+|---|---|---|
+| Mots dont la boîte est fournie par Vision | 100 % (mode Vision) | 100 % (mode Vision) |
+| Mots de référence retrouvés dans le calque | 98,5 % à 100 %, identique dans les trois cas | 96,3 % à 99,3 %, identique dans les trois cas |
+| Mots de référence bien placés (centre dans la boîte de vérité agrandie de 10 %) | 100 % / 100 % / 100 % | 100 % / 100 % / 100 % |
+| Critère EX-30 (b) | 6/6 pages dans les trois cas | 6/6 pages dans les trois cas |
+| Temps par page | 2,34 s / 2,34 s / 2,45 s | 3,32 s / 3,32 s / 3,44 s |
+
+- Conclusion : `boundingBoxForRange:error:` est utilisable (aucun échec, aucun mot sans boîte). Le taux de mots retrouvés ne dépend pas du mode d'écriture (le texte est le même). Sur le jeu synthétique, le critère de position de EX-30 (b) est atteint aussi par la répartition au prorata : le texte, composé en une seule police à chasse régulière, rend le prorata presque exact ; le critère, centre dans la boîte agrandie de 10 %, ne permet donc pas de départager les méthodes. Le coût des boîtes Vision est de 0,11 à 0,12 s par page (3 à 5 %).
+- Décision : le mode Vision est retenu par défaut, car il ne dépend pas de la régularité de la police (documents réels : polices proportionnelles, gras, chiffres). Le repli au prorata reste appliqué mot par mot si Vision ne fournit pas une boîte.
+- Mesure plus fine possible (non faite) : écart moyen entre la boîte trouvée et la boîte de vérité (recouvrement), et page de test en police proportionnelle variée.
 
 ## PV-05 (complément, jalon 6) : comportements de PyMuPDF4LLM 1.28.2
 
