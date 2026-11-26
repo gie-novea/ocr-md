@@ -176,3 +176,20 @@ Remarques :
 - sous macOS, Vision ne fournit que des lignes : le calque est écrit ligne par ligne (les boîtes des mots sont estimées au prorata des caractères pour l'évaluation) ; la recherche et l'extraction sont exactes, la surbrillance de sélection d'un mot isolé est approximative (repli prévu par PV-06) ;
 - `Windows.Media.Ocr` n'accepte qu'une langue par moteur : la langue secondaire n'est pas utilisée sous Windows.
 - TM-04 (poste sans module français, puis installation par l'administrateur) reste un test manuel de recette.
+
+## Jalon 6 : Markdown des PDF et des images (26/11/2026)
+
+Fait :
+- `markdown_pdf` : conversion par `pymupdf4llm.to_markdown` depuis le PDF consultable, par lots de 50 pages, sortie de la bibliothèque rendue silencieuse, `page_chunks=True`, en-têtes et pieds de page conservés, aucune image exportée, adaptateur `ocr_function` de l'outil (EX-08, EX-40 à EX-43) ;
+- repères de page `<!-- page N -->` (variante « TEXTE DOUTEUX » prête pour le jalon 7), entourés de lignes vides, et mention « page sans texte exploitable » (EX-41) ;
+- tableaux (EX-44) : tableau simple en Markdown ; tableau natif fusionné ou à double en-tête en HTML produit par l'outil (`colspan`, `rowspan`), toutes les valeurs des tableaux du fichier 6 (dont DPGF et cadre d'honoraires) restituées exactement ; repère « tableau reconnu par OCR » sur les pages reconnues ; `--tableaux md` et `--tableaux html` ;
+- calque : chaque mot non final d'une ligne est suivi d'une espace réelle (sans elle, les cellules de tableau issues de l'OCR collaient les mots) ;
+- PV-14 : moteur macOS réécrit avec appel direct de Vision et boîte de chaque mot ; mesure en CI ; résultats dans `docs/verifications.md`.
+
+Constats sur PyMuPDF4LLM 1.28.2 (consignés aussi dans `docs/verifications.md`, PV-05) :
+- en Markdown, l'extraction d'une cellule de tableau retire les espaces autour de chaque fragment de texte ; le calque écrivant un fragment par mot, les mots étaient collés (« MmeDurand »). Correctif ciblé : une cellule dont tout le texte est invisible (calque OCR) est extraite en texte simple. La version de la bibliothèque étant figée, le correctif est vérifié par les tests à chaque montée de version ;
+- une page scannée qui porte aussi du texte visible (mention de dépôt d'une plateforme, fichier 19) n'est plus considérée par la bibliothèque comme une page OCR : l'image pleine page devient une « illustration » qui absorbe le calque, et le Markdown ne contenait que la mention. Repli de PV-05 appliqué aux seules pages reconnues : si le Markdown de la bibliothèque restitue moins de 90 % des mots du calque, ou s'il contient plus de 10 % de mots absents du calque, la page est reprise en texte simple, bloc par bloc, depuis le PDF consultable (journalisé) ;
+- sur les tableaux scannés à cellules fusionnées, la bibliothèque coupe les cellules et les nombres (« Total | 40 0 | 00 » pour 40 000) : le même critère fait basculer ces pages en texte simple, précédé du repère « tableau reconnu par OCR » ; les montants restent intacts, la grille est perdue (pages 2 à 4 du fichier 6b) ;
+- objectif de recouvrement de EX-40 (98 %) : tenu sur toutes les pages du jeu ; seuil de 90 % retenu pour une page dont un tableau OCR reste en Markdown (cas prévu par le CA de EX-40).
+
+Tests : 149 réussis, 5 sautés sous Windows (module fr-FR du poste de développement).

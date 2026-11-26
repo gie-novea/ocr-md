@@ -68,10 +68,15 @@ def page_html(doc, html, css, largeur=595, hauteur=842):
     return page
 
 
+# Ligatures typographiques que produit le rendu HTML de PyMuPDF ; un moteur OCR rend les
+# lettres séparées : la vérité terrain les développe.
+_LIGATURES_TYPO = str.maketrans({"ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "st", "ﬆ": "st"})
+
+
 def verite_mots(page, dpi):
     """Mots de la page en pixels à dpi donné : [(texte, (x0,y0,x1,y1), (bloc, ligne))]."""
     f = dpi / 72
-    return [(mot, (x0 * f, y0 * f, x1 * f, y1 * f), (bloc, ligne))
+    return [(mot.translate(_LIGATURES_TYPO), (x0 * f, y0 * f, x1 * f, y1 * f), (bloc, ligne))
             for x0, y0, x1, y1, mot, bloc, ligne, _ in page.get_text("words")]
 
 

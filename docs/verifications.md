@@ -20,6 +20,7 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 | PV-10 | à lever par le référent | |
 | PV-11 | levé (Windows, présence sur macOS) | tkinter présent dans le Python géré par uv : Tk 8.6.12 (Windows), 9.0.3 (macOS) ; affichage sous macOS en recette |
 | PV-12 | levé | Grammalecte 7.7, MPL 2.0, 476 083 formes, chargement en 0,13 s |
+| PV-14 | mesure en cours (CI macOS) | boîtes par mot d'Apple Vision par `boundingBoxForRange:error:` |
 | PV-13 | levé avec repli | détection des fusions fiable sur tableau natif ; rendu HTML de PyMuPDF4LLM inutilisable pour les fusions ; HTML produit par l'outil |
 
 ## PV-03. Pack OCR français de Windows
@@ -180,3 +181,14 @@ Mesures de la CI après correction (runs 45892587343 et 45893116911) :
 | Linux | 489 à 501 Mo | 489 à 501 Mo | 1,00 | 88 à 90 Mo |
 
 Marge sous le seuil : au moins 34 %. Sous Linux, le pic mesuré par `ru_maxrss` comprend le chargement initial des bibliothèques et masque la croissance ; la mesure de lot y reste significative.
+
+## PV-14. Boîtes par mot avec Apple Vision
+
+- Demande du commanditaire (26/11/2026) : obtenir des boîtes par mot sous macOS, mesurer le gain sur le taux de mots retrouvés et sur la position des mots (critère EX-30 b) et le coût en temps par page ; repli : répartition des mots au prorata des caractères dans la boîte de la ligne.
+- Réalisation : `ocr/macos.py`, mode « mots » : appel direct de `VNRecognizeTextRequest` par pyobjc (ocrmac n'expose pas la méthode), découpage de chaque ligne en mots et `VNRecognizedText.boundingBoxForRange:error:` pour chacun (plages en unités UTF-16) ; un mot sans boîte est placé au prorata. Mode « prorata » conservé pour la comparaison.
+- Mesure : `tests/test_pv14_vision_mots.py` (CI macOS Intel et Apple Silicon), pages des fichiers 2 et 18, trois écritures du calque comparées (par ligne, par mot au prorata, par mot avec boîtes Vision).
+- Résultats : à compléter après le passage de la CI.
+
+## PV-05 (complément, jalon 6) : comportements de PyMuPDF4LLM 1.28.2
+
+Voir `docs/avancement.md`, jalon 6 : espaces retirés dans les cellules de tableau (correctif ciblé), page scannée portant du texte visible dont le calque est absorbé par la zone d'image (repli en texte simple), cellules fusionnées coupées sur les tableaux scannés (même repli).

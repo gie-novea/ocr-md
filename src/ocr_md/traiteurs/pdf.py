@@ -2,9 +2,8 @@
 pages, OCR des seules pages-images, calque invisible, PDF consultable (EX-29 à EX-33),
 PDF temporaire en sortie Markdown seule (EX-28).
 
-Le Markdown produit ici est provisoire (texte du PDF consultable avec repères de page) ;
-la conversion par PyMuPDF4LLM, le front matter et les avertissements arrivent aux jalons
-6 et 7.
+Le Markdown est produit par PyMuPDF4LLM depuis le PDF consultable (module markdown_pdf) ;
+le front matter et les avertissements arrivent au jalon 7.
 """
 
 import dataclasses
@@ -18,7 +17,7 @@ import uuid
 import pymupdf
 from PIL import Image
 
-from .. import analyse_pdf, avertissements, calque, images, plateforme
+from .. import analyse_pdf, avertissements, calque, images, markdown_pdf, plateforme
 from ..inventaire import ErreurFichier
 from ..sorties import LONGUEUR_SURE, chemin_systeme
 from . import ResultatTraitement, Traiteur
@@ -198,17 +197,6 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
     return Traitement(analyses, finales, pages_ocr, resultats)
 
 
-def markdown_provisoire(chemin_pdf: str) -> str:
-    """Jalon 4 : texte du PDF consultable avec repères de page ; remplacé au jalon 6."""
-    doc = pymupdf.open(chemin_pdf)
-    morceaux = []
-    for page in doc:
-        texte = page.get_text().strip()
-        morceaux.append(f"<!-- page {page.number + 1} -->\n\n{texte or '*(page sans texte exploitable)*'}\n")
-    doc.close()
-    return "\n".join(morceaux)
-
-
 def dossier_temporaire_processus() -> pathlib.Path:
     return plateforme.dossier_temporaire() / f"processus-{os.getpid()}"
 
@@ -248,14 +236,19 @@ class TraiteurPdf(Traiteur):
                     moteur=moteur_nom))
                 if t.pages_ocr:
                     doc.subset_fonts()
-            self._ecrire_sorties(doc, ctx, copie_identique)
+            pages_reconnues = [n for n, c in enumerate(t.categories_finales, 1) if c in ("ocr", "couche_existante")]
+            adaptateur = calque.AdaptateurOcr()
+            self._ecrire_sorties(doc, ctx, copie_identique, pages_reconnues, douteuses, adaptateur)
+            if adaptateur.appels:
+                ctx.journal.info(f"{ctx.element.relatif} : conversion Markdown, adaptateur OCR appelé sans "
+                                 f"reconnaissance pour les pages {adaptateur.appels}")
             return ResultatTraitement(statut, pages=doc.page_count, pages_ocr=tuple(t.pages_ocr),
                                       pages_douteuses=tuple(douteuses), motifs=tuple(motifs), origine=origine,
                                       message=" ; ".join(messages))
         finally:
             doc.close()
 
-    def _ecrire_sorties(self, doc, ctx, copie_identique: bool) -> None:
+    def _ecrire_sorties(self, doc, ctx, copie_identique: bool, pages_reconnues, douteuses, adaptateur) -> None:
         source = ctx.element.source
 
         def produire_pdf(chemin):
@@ -279,7 +272,13 @@ class TraiteurPdf(Traiteur):
                 produire_pdf(temporaire)
                 chemin_pdf = temporaire
             ctx.verifier_arret()
-            texte = markdown_provisoire(chemin_pdf)
+            repli = []
+            texte = markdown_pdf.convertir(chemin_pdf, tableaux=ctx.options.tableaux, pages_ocr=pages_reconnues,
+                                           pages_douteuses=douteuses, adaptateur=adaptateur,
+                                           arret=ctx.verifier_arret, pages_repli=repli)
+            if repli:
+                ctx.journal.info(f"{ctx.element.relatif} : Markdown en texte simple (repli de PV-05) pour les "
+                                 f"pages {repli}")
             ctx.ecrivain.preparer(ctx.prevues["md"],
                                   lambda c: open(c, "w", encoding="utf-8", newline="\n").write(texte))
         finally:

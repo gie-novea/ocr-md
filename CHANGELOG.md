@@ -8,6 +8,7 @@
 - Jalon 3 : inventaire des entrées, contrôle des signatures, dossier miroir `_OCR`, nommage, règle de relance, écritures atomiques, rapport `ocr_rapport.csv`, journal, contrôles d'ouverture des PDF, annulation et robustesse du lot.
 - Jalon 4 : classification des pages, OCR des seules pages-images, calque texte invisible (police Noto Sans embarquée), PDF consultable et métadonnées d'avertissement, conversion des images en PDF, PDF temporaire en sortie Markdown seule, PDF réparés partiellement récupérables, mémoire constante sur les gros documents.
 - Jalon 5 : moteurs OCR natifs vérifiés de bout en bout, code de retour 3 lorsque le moteur OCR manque et qu'aucun fichier n'a pu être traité, mémoire rendue entre les fichiers d'un lot, CI Windows en deux passes (en-US à chaque envoi, fr-FR la nuit).
+- Jalon 6 : Markdown des PDF et des images par PyMuPDF4LLM, repères de page, en-têtes et pieds conservés, tableaux fusionnés en HTML, repère des tableaux reconnus par OCR, repli en texte simple pour les pages reconnues mal restituées par la bibliothèque, boîtes par mot avec Apple Vision (PV-14).
 
 ### Reprise de l'existant
 - Le code de l'outil existant (« Convertisseur MD », PC) a été fourni et lu. Aucun fichier n'en est copié et l'outil livré n'en dépend pas. Éléments de logique repris :

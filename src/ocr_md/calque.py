@@ -26,16 +26,18 @@ def police() -> pymupdf.Font:
 
 
 def elements_a_ecrire(resultat):
-    """[(texte, boîte en pixels)] : mots si le moteur les fournit, lignes sinon."""
+    """[(texte, boîte en pixels, espace_finale)] : mots si le moteur les fournit, lignes
+    sinon. Chaque mot non final d'une ligne est suivi d'une espace réelle : sans elle,
+    l'extraction des cellules de tableau colle les mots (« MmeDurand »)."""
     if resultat.niveau_mots:
-        return [(m.texte, m.boite) for l in resultat.lignes for m in l.mots]
-    return [(l.texte, l.boite) for l in resultat.lignes]
+        return [(m.texte, m.boite, i < len(l.mots) - 1) for l in resultat.lignes for i, m in enumerate(l.mots)]
+    return [(l.texte, l.boite, False) for l in resultat.lignes]
 
 
 def ecrire_calque(page, resultat) -> int:
     """Écrit le calque invisible du résultat d'OCR sur la page ; renvoie le nombre
     d'éléments écrits. L'image de la page n'est pas modifiée."""
-    elements = [(t, b) for t, b in elements_a_ecrire(resultat) if t.strip()]
+    elements = [(t, b, e) for t, b, e in elements_a_ecrire(resultat) if t.strip()]
     if not elements:
         return 0
     f = police()
@@ -46,7 +48,7 @@ def ecrire_calque(page, resultat) -> int:
     # Une seule forme par page : tout le calque tient dans un flux de contenu unique, au lieu
     # d'un flux par mot (mémoire et poids du fichier, EX-59).
     forme = page.new_shape()
-    for texte, boite in elements:
+    for texte, boite, espace in elements:
         r = pymupdf.Rect(boite) * echelle  # repère affiché, en points
         if r.is_empty or r.height <= 0:
             continue
@@ -54,7 +56,9 @@ def ecrire_calque(page, resultat) -> int:
         longueur = f.text_length(texte, fontsize=taille)
         etirement = r.width / longueur if longueur else 1.0
         base = pymupdf.Point(r.x0, r.y1 - RELEVEMENT_LIGNE_DE_BASE * r.height) * derotation
-        forme.insert_text(base, texte, fontname=NOM_POLICE, fontsize=taille, render_mode=3,
+        # L'étirement est calculé sur le mot seul : l'espace qui suit déborde de la boîte,
+        # vers le mot suivant, sans décaler le mot lui-même.
+        forme.insert_text(base, texte + (" " if espace else ""), fontname=NOM_POLICE, fontsize=taille, render_mode=3,
                           morph=(base, pymupdf.Matrix(etirement, 1) * pymupdf.Matrix(rotation)))
     forme.commit()
     # Le flux du calque (environ 300 octets par mot) est compressé tout de suite : il reste
