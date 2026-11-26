@@ -52,7 +52,9 @@ jobs:
       - name: Installation (environnement verrouillé)
         run: uv sync --locked --python 3.12
 
+      # Sous Linux, « verifier » renvoie 3 (système non pris en charge pour l'usage) : attendu.
       - name: Version et diagnostic
+        continue-on-error: ${{ runner.os == 'Linux' }}
         run: |
           uv run ocr-md --version
           uv run ocr-md verifier

@@ -28,9 +28,12 @@ def description_systeme() -> str:
     """Version du système et architecture, pour le journal et le diagnostic."""
     s = systeme()
     if s == "windows":
-        version = platform.version()
-        nom = "Windows 11" if int(version.split(".")[2]) >= 22000 else "Windows 10"
-        return f"{nom} ({version}, {platform.machine()})"
+        # platform.release() peut valoir « 2025Server » : on s'appuie sur le numéro de build.
+        v = sys.getwindowsversion()
+        nom = "Windows 11" if v.build >= 22000 else "Windows 10"
+        if "server" in platform.release().lower():
+            nom = f"Windows Server ({platform.release()})"
+        return f"{nom} ({v.major}.{v.minor}.{v.build}, {platform.machine()})"
     if s == "macos":
         return f"macOS {platform.mac_ver()[0]} ({platform.machine()})"
     return f"{platform.system()} {platform.release()} ({platform.machine()})"
@@ -40,7 +43,7 @@ def systeme_pris_en_charge() -> bool:
     """Windows 10 ou 11 ; macOS 10.15 ou plus (EX-71). Linux sert aux tests seulement."""
     s = systeme()
     if s == "windows":
-        return int(platform.release() or 0) >= 10
+        return sys.getwindowsversion().major >= 10
     if s == "macos":
         version = tuple(int(x) for x in (platform.mac_ver()[0] or "0").split(".")[:2])
         return version >= (10, 15)

@@ -87,5 +87,20 @@ def test_python_3_12_impose():
 
 def test_tkinter_present():
     """PV-11 : tkinter doit exister dans le Python utilisé (géré par uv en CI)."""
+    import re
     import tkinter
-    assert tkinter.Tcl().eval("info patchlevel").startswith("8.")
+    version = tkinter.Tcl().eval("info patchlevel")
+    print(f"Tcl {version}")
+    assert re.match(r"^(8\.6|9\.)", version), version
+
+
+@pytest.mark.exigence("EX-40")
+def test_conversion_markdown_minimale():
+    """La conversion Markdown (avec le module de mise en page et onnxruntime) fonctionne
+    sur cette plateforme ; détecte une dépendance binaire absente (cas du Mac Intel)."""
+    import pymupdf
+    import pymupdf4llm
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 100), "Mémoire technique : maîtrise d'œuvre")
+    morceaux = pymupdf4llm.to_markdown(doc, page_chunks=True, use_ocr=False)
+    assert "Mémoire technique" in morceaux[0]["text"]
