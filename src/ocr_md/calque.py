@@ -57,6 +57,10 @@ def ecrire_calque(page, resultat) -> int:
         forme.insert_text(base, texte, fontname=NOM_POLICE, fontsize=taille, render_mode=3,
                           morph=(base, pymupdf.Matrix(etirement, 1) * pymupdf.Matrix(rotation)))
     forme.commit()
+    # Le flux du calque (environ 300 octets par mot) est compressé tout de suite : il reste
+    # sinon en clair en mémoire jusqu'à l'enregistrement du document (EX-59).
+    xref = page.get_contents()[-1]
+    page.parent.update_stream(xref, page.parent.xref_stream(xref), compress=True)
     return len(elements)
 
 
