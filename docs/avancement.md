@@ -152,3 +152,25 @@ Interprétations :
 - un PDF réparé refuse parfois le nettoyage des objets inutilisés à l'enregistrement : il est alors enregistré sans nettoyage.
 
 Constat : Tesseract est installé sur le poste de développement (`AppData\Local\Programs\Tesseract-OCR`, dans le `PATH`). L'outil ne l'utilise pas ; le test de EX-08 sur la conversion Markdown (jalon 6) le vérifiera sur ce poste même.
+
+## Avant le jalon 5 : mémoire, CI Windows, PV-06 (b) et PV-08 (26/11/2026)
+
+- Mémoire (EX-59) : cause de la croissance d'environ 55 Ko par page identifiée (résultats complets du moteur conservés jusqu'à la fin du fichier) et corrigée (résumé compact par page) ; nouveau test `tests/test_memoire_lot.py` montrant que la mémoire est rendue entre les fichiers d'un lot ; détail dans `docs/verifications.md`. Le seuil de EX-59 n'a pas été modifié.
+- CI : à chaque envoi, moteur factice et moteur Windows réel en en-US (seuil de fonctionnement de 50 %, la qualité en français n'étant pas mesurable sans le module) ; chaque nuit, sur les étiquettes v* et à la demande, installation du module fr-FR, tests réels en français et lot mémoire de 20 fichiers de 500 pages.
+- PV-06 (b) et PV-08 (a, b, c) levés avec les résultats de la CI (`docs/verifications.md`).
+
+## Jalon 5 : moteurs OCR natifs (26/11/2026)
+
+Fait :
+- moteurs Windows (`Windows.Media.Ocr`, projection PyWinRT) et macOS (Apple Vision par `ocrmac`, niveau « accurate », français et anglais) derrière l'interface commune, choisis à l'exécution ; moteur factice pour les tests (EX-07, EX-26, EX-27) ; aucun moteur tiers (EX-08) ;
+- langue et résolution au journal, réduction de résolution sous `MaxImageDimension` (EX-25), vérifiée avec le moteur Windows réel sur une page A0 ;
+- `ocr-md verifier` : système, moteur et langues disponibles, dossiers du profil (EX-71 ; contrôle des raccourcis au jalon 9) ;
+- moteur indisponible : fichiers à reconnaître en erreur avec le message de EX-71, autres fichiers traités ; code de retour 3 si aucun fichier n'a pu être traité faute de moteur, 1 sinon (EX-12, décision du commanditaire) ;
+- tests de bout en bout avec le moteur réel (`tests/test_chaine_reelle.py`) : PDF consultables des fichiers 2, 3, 10 et 18 relus par `pdftotext`.
+
+Vérification sur le poste de développement (module fr-FR, Windows 11) : 97,8 % à 100 % des mots de référence retrouvés par `pdftotext` dans les PDF consultables, page par page ; suite complète : 139 tests réussis, 4 sautés (propres à macOS).
+
+Remarques :
+- sous macOS, Vision ne fournit que des lignes : le calque est écrit ligne par ligne (les boîtes des mots sont estimées au prorata des caractères pour l'évaluation) ; la recherche et l'extraction sont exactes, la surbrillance de sélection d'un mot isolé est approximative (repli prévu par PV-06) ;
+- `Windows.Media.Ocr` n'accepte qu'une langue par moteur : la langue secondaire n'est pas utilisée sous Windows.
+- TM-04 (poste sans module français, puis installation par l'administrateur) reste un test manuel de recette.

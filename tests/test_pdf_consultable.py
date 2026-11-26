@@ -322,7 +322,7 @@ def test_pdf_temporaire_supprime_en_sortie_md(jeu, parametres, cas):
         assert (copie / "pdf" / "_OCR" / "02_scanne.pdf.md").is_file()
 
 
-@pytest.mark.exigence("EX-71")
+@pytest.mark.exigence("EX-71", "EX-12")
 def test_moteur_indisponible(jeu, parametres, monkeypatch):
     from ocr_md import ocr
     copie, m = jeu
@@ -336,6 +336,13 @@ def test_moteur_indisponible(jeu, parametres, monkeypatch):
     l = rapport.lire(copie / "pdf" / "_OCR")
     assert l["01_natif.pdf"].statut == "natif"
     assert l["02_scanne.pdf"].statut == "erreur" and l["02_scanne.pdf"].message == ocr.message_moteur_absent()
+    # Lot ne contenant que des fichiers à reconnaître : aucun n'a pu être traité, code 3 (EX-12).
+    options = cli.analyser(["--forcer", "--sortie", "pdf", str(copie / "pdf" / "02_scanne.pdf"),
+                            str(copie / "pdf" / "18_ligatures.pdf"), str(copie / "non_pris_en_charge")])
+    assert traitement.executer(options, parametres) == 3
+    options = cli.analyser(["--forcer", "--sortie", "pdf", str(copie / "pdf" / "02_scanne.pdf"),
+                            str(copie / "pdf" / "01_natif.pdf")])
+    assert traitement.executer(options, parametres) == 1
 
 
 # ------------------------------------------------------------------------------ EX-59

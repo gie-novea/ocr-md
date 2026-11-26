@@ -20,7 +20,7 @@ from . import __version__, inventaire, ocr, plateforme, rapport, sorties
 from .inventaire import ErreurFichier
 from .traiteurs import Annulation, Contexte, traiteurs_par_defaut
 
-SUCCES, ERREUR_FICHIER = 0, 1
+SUCCES, ERREUR_FICHIER, PREREQUIS_MANQUANT = 0, 1, 3
 MESSAGE_PDF_OFFICE = "pas de PDF consultable pour ce format : utiliser Convertir en Markdown"
 MESSAGE_INTROUVABLE = "fichier ou dossier introuvable"
 MESSAGE_ANNULE = "traitement annulé avant la fin de ce fichier"
@@ -110,9 +110,25 @@ def executer(options, parametres, *, traiteurs=None, arret: threading.Event | No
             rang = _traiter_groupe(groupe, options, parametres, traiteurs, arret, fournisseur, bilan, rang, total)
     finally:
         shutil.rmtree(plateforme.dossier_temporaire() / f"processus-{os.getpid()}", ignore_errors=True)
-    if any(l.statut == "erreur" for l in bilan.lignes) or bilan.messages:
-        bilan.code = ERREUR_FICHIER
+    bilan.code = code_de_retour(bilan, fournisseur)
     return bilan.code
+
+
+def code_de_retour(bilan, fournisseur) -> int:
+    """EX-12 : 0 si aucun fichier en erreur ; 3 si le moteur OCR manque et qu'aucun fichier
+    n'a pu être traité faute de moteur (aucun fichier pris en charge traité avec succès) ;
+    1 dans les autres cas d'erreur."""
+    erreurs = [l for l in bilan.lignes if l.statut == "erreur"]
+    if not erreurs and not bilan.messages:
+        return SUCCES
+    if fournisseur.indisponible:
+        message = ocr.message_moteur_absent()
+        faute_de_moteur = [l for l in erreurs if l.message.startswith(message)]
+        reussis = [l for l in bilan.lignes if l.action in ("traite", "ignore_a_jour")
+                   and l.statut not in ("erreur", "non_pris_en_charge")]
+        if faute_de_moteur and not reussis:
+            return PREREQUIS_MANQUANT
+    return ERREUR_FICHIER
 
 
 def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan, rang, total) -> int:
