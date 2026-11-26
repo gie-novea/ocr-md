@@ -168,4 +168,15 @@ Mesures après correction (poste de développement, moteur factice, 72 dpi) :
 - lot de 10 fichiers de 200 pages (`tests/test_memoire_lot.py`) : mémoire après chaque fichier constante (75 Mo), pic pendant chaque fichier 79 à 80 Mo ;
 - le test passe à 20 fichiers de 500 pages lors de la passe complète de la CI (chaque nuit et sur les étiquettes v*).
 
-La croissance pendant un fichier est donc rendue à la fin de chaque fichier et ne s'accumule pas sur le lot. Le rapport 1 000 pages / 100 pages mesuré par la CI après correction est consigné ci-dessous.
+La croissance pendant un fichier est donc rendue à la fin de chaque fichier et ne s'accumule pas sur le lot.
+
+Mesures de la CI après correction (runs 45892587343 et 45893116911) :
+
+| Plateforme | Pic 100 pages | Pic 1 000 pages | Rapport (seuil EX-59 : 2) | Lot 10 x 200 pages, mémoire après chaque fichier |
+|---|---|---|---|---|
+| Windows | 57 Mo | 67 à 69 Mo | 1,18 à 1,21 | 66 à 68 Mo |
+| macOS Intel | 58 à 59 Mo | 74 à 76 Mo | 1,25 à 1,31 | 63 à 66 Mo |
+| macOS Apple Silicon | 69 Mo | 83 Mo | 1,20 | 80 Mo |
+| Linux | 489 à 501 Mo | 489 à 501 Mo | 1,00 | 88 à 90 Mo |
+
+Marge sous le seuil : au moins 34 %. Sous Linux, le pic mesuré par `ru_maxrss` comprend le chargement initial des bibliothèques et masque la croissance ; la mesure de lot y reste significative.

@@ -168,7 +168,9 @@ Fait :
 - moteur indisponible : fichiers à reconnaître en erreur avec le message de EX-71, autres fichiers traités ; code de retour 3 si aucun fichier n'a pu être traité faute de moteur, 1 sinon (EX-12, décision du commanditaire) ;
 - tests de bout en bout avec le moteur réel (`tests/test_chaine_reelle.py`) : PDF consultables des fichiers 2, 3, 10 et 18 relus par `pdftotext`.
 
-Vérification sur le poste de développement (module fr-FR, Windows 11) : 97,8 % à 100 % des mots de référence retrouvés par `pdftotext` dans les PDF consultables, page par page ; suite complète : 139 tests réussis, 4 sautés (propres à macOS).
+Vérification sur le poste de développement (module fr-FR, Windows 11) : 97,8 % à 100 % des mots de référence retrouvés par `pdftotext` dans les PDF consultables, page par page ; suite complète : 138 tests réussis, 4 sautés (propres à macOS).
+
+CI du jalon 5 (run 45893116911), verte sur les quatre plateformes : PDF consultables relus par `pdftotext`, Apple Vision 95,6 % à 99,3 % (Mac Intel) et 98,5 % à 100 % (Apple Silicon) ; `Windows.Media.Ocr` en en-US 72,6 % à 93,2 % (passe courante, seuil de fonctionnement). Point d'attention : sur Mac Intel, la page 3 du fichier 2 est à 95,6 %, proche de l'objectif de 95 % (calque par ligne sous Vision).
 
 Remarques :
 - sous macOS, Vision ne fournit que des lignes : le calque est écrit ligne par ligne (les boîtes des mots sont estimées au prorata des caractères pour l'évaluation) ; la recherche et l'extraction sont exactes, la surbrillance de sélection d'un mot isolé est approximative (repli prévu par PV-06) ;
