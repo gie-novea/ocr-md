@@ -316,7 +316,7 @@ Une page `native` qui contient en outre une grande image (tampon, plan, photogra
 - CA : pour chaque PDF du jeu de test, le nombre de pages et les dimensions sont identiques ; le rendu à 100 dpi de chaque page avant et après est identique au pixel près (ou avec un écart moyen inférieur à un seuil de tolérance fixé par le test pour l'anticrénelage) ; les flux d'images des pages non retraitées sont identiques octet pour octet.
 
 **EX-30. Calque texte invisible.** Le texte reconnu doit être inscrit avec PyMuPDF en mode de rendu 3 (la documentation indique que, dans ce mode, les glyphes ne sont ni tracés ni remplis et que le texte devient invisible ; source : https://pymupdf.readthedocs.io/en/latest/shape.html), ligne par ligne ou mot par mot, positionné et mis à l'échelle d'après la boîte englobante renvoyée par le moteur, après conversion du repère de l'image vers le repère de la page (échelle liée à `ocr_dpi`, origine, rotation de la page ; attention : Vision renvoie des coordonnées normalisées dont l'origine est à vérifier, voir PV-06). La police employée doit couvrir tous les caractères du français, y compris é è ê ë à â ù û ü ç î ï ô œ æ, les majuscules accentuées, les guillemets français, l'apostrophe typographique et le symbole € : les polices Base 14 intégrées de PyMuPDF (par exemple `helv`) ne couvrent que les caractères jusqu'à Unicode 256 (source : https://pymupdf.readthedocs.io/en/latest/faq/), ce qui exclut œ et € ; l'outil doit donc embarquer et utiliser une police Unicode sous licence libre, déclarée dans l'inventaire des licences.
-- CA : sur le PDF scanné du jeu de test, dont le texte de référence contient tous les caractères listés ci-dessus : (a) `pdftotext` appliqué au PDF consultable restitue ces caractères ; (b) `page.search_for()` de PyMuPDF trouve cinq mots de référence par page, et le centre du rectangle trouvé est à l'intérieur de la boîte du mot dans la vérité terrain, agrandie de 10 % ; (c) le rendu visuel est inchangé (EX-29) ; (d) test manuel TM-05 : la recherche et la sélection du texte fonctionnent dans Aperçu (macOS), dans Adobe Acrobat Reader et dans un navigateur.
+- CA : sur le PDF scanné du jeu de test, dont le texte de référence contient tous les caractères listés ci-dessus : (a) `pdftotext` appliqué au PDF consultable restitue ces caractères, les équivalences `œ`/`oe`, `æ`/`ae` et `’`/`'` étant admises, car `Windows.Media.Ocr` produit les secondes formes (décision du commanditaire du 26/11/2026, après l'essai PV-04) ; le texte reconnu n'est pas corrigé ; la capacité du calque à restituer œ, æ et ’ est vérifiée séparément, par un test qui écrit ces caractères dans le calque ; (b) `page.search_for()` de PyMuPDF trouve cinq mots de référence par page, et le centre du rectangle trouvé est à l'intérieur de la boîte du mot dans la vérité terrain, agrandie de 10 % ; (c) le rendu visuel est inchangé (EX-29) ; (d) test manuel TM-05 : la recherche et la sélection du texte fonctionnent dans Aperçu (macOS), dans Adobe Acrobat Reader et dans un navigateur.
 
 **EX-31. Pages natives intactes.** Les pages `native` et `couche_existante` non retraitées ne doivent recevoir aucun calque et leur texte existant ne doit pas être altéré.
 - CA : sur le PDF mixte du jeu de test, le texte extrait des pages natives est identique avant et après.
@@ -352,6 +352,8 @@ Une page `image` pour laquelle le moteur ne renvoie aucun texte alors qu'elle n'
 | `taux_melange_chiffres_lettres` | part des mots mêlant chiffres et lettres au milieu du mot (par exemple `mar0hé`, `l1eu`), hors motifs de référence reconnus (lettres puis chiffres, ou chiffres puis unité) | supérieur à 0,10 |
 | `densite_anormale` | nombre de caractères extraits rapporté à la surface de la page en cm², comparé à un intervalle plausible | inférieur à 0,2 alors que la page est couverte d'une image contenant visiblement du texte (page non blanche), ou supérieur à 60 |
 
+Avant la recherche dans le lexique, chaque mot est normalisé : `oe` et `œ`, `ae` et `æ`, `'` et `’` sont tenus pour équivalents (les formes `oeuvre`, `coeur` produites par `Windows.Media.Ocr` ne comptent pas comme mots inconnus) (décision du commanditaire du 26/11/2026, après l'essai PV-04). Cette normalisation ne sert qu'au calcul ; le texte n'est pas modifié.
+
 Le verdict, les indicateurs calculés et le motif (nom du ou des indicateurs déclencheurs) sont journalisés et reportés dans la colonne `motif_douteux` du rapport. Les pages de moins de 40 mots évaluables ne sont jugées que sur les indicateurs autres que `taux_mots_inconnus`.
 - CA : sur le PDF à couche OCR volontairement dégradée du jeu de test, toutes les pages dégradées sont déclarées douteuses et aucune page saine du jeu de test ne l'est (objectif de départ : aucun faux positif sur le jeu de test ; à confirmer sur documents réels en recette) ; un test démontre que la modification d'un seuil dans le fichier de configuration change le verdict.
 
@@ -382,10 +384,12 @@ Le verdict, les indicateurs calculés et le motif (nom du ou des indicateurs dé
 
 **EX-44. Règle de rendu des tableaux.** Avec `--tableaux auto` (défaut), la règle est la suivante, appliquée page par page :
 1. un tableau est rendu en **tableau Markdown** (syntaxe compatible GitHub) lorsqu'il est simple : aucune cellule fusionnée, une seule ligne d'en-tête ;
-2. un tableau est rendu en **HTML** (`table_output="html"`, option qui conserve les cellules fusionnées) lorsqu'il comporte au moins une cellule fusionnée (horizontalement ou verticalement) ou plusieurs lignes d'en-tête ;
+2. un tableau est rendu en **HTML**, avec attributs `colspan` et `rowspan`, lorsqu'il comporte au moins une cellule fusionnée (horizontalement ou verticalement) ou plusieurs lignes d'en-tête ;
 3. si la page contient à la fois des tableaux simples et des tableaux complexes, toute la page est convertie avec le rendu HTML des tableaux.
-`--tableaux md` et `--tableaux html` imposent un rendu unique. La détection des cellules fusionnées s'appuie sur l'analyse des tableaux de PyMuPDF (`page.find_tables()`). À VÉRIFIER (PV-13) : cette détection est possible et fiable ; repli : en mode `auto`, rendu HTML pour toute page contenant un tableau dont la grille extraite comporte des cellules vides issues d'une fusion, et, si même cela n'est pas discernable, rendu HTML pour toutes les pages contenant un tableau.
-- CA : sur le PDF « tableau fusionné » du jeu de test : la page du tableau simple contient un tableau Markdown (lignes commençant par `|`) et aucune balise `<table>` ; la page du tableau fusionné contient une balise `<table>` avec au moins un attribut `colspan` ou `rowspan`, et toutes les valeurs de cellules de la vérité terrain y figurent.
+`--tableaux md` et `--tableaux html` imposent un rendu unique. La détection des cellules fusionnées s'appuie sur l'analyse des tableaux de PyMuPDF (`page.find_tables()`), qui marque les positions couvertes par une fusion (PV-13 : détection fiable sur les tableaux natifs). Le rendu HTML de PyMuPDF4LLM (`table_output="html"`) ne restituant pas les fusions (PV-13), l'outil produit lui-même le HTML des tableaux natifs, à partir des cellules détectées, et le substitue au rendu de la bibliothèque (décision du commanditaire du 26/11/2026).
+
+**Tableaux des pages reconnues par OCR.** Sur une page reconnue par OCR (par l'outil ou par l'expéditeur), les fusions ne sont pas détectables et la correspondance des lignes et des colonnes n'est pas garantie. Tout tableau détecté sur une telle page est précédé, sur une ligne isolée, du repère `<!-- tableau reconnu par OCR : correspondance lignes/colonnes non garantie, vérifier sur l'original avant de citer un montant -->` ; il est rendu selon la règle ci-dessus, sans garantie sur les fusions (décision du commanditaire du 26/11/2026).
+- CA : sur le PDF « tableau fusionné » du jeu de test : la page du tableau simple contient un tableau Markdown (lignes commençant par `|`) et aucune balise `<table>` ; la page du tableau fusionné contient une balise `<table>` avec au moins un attribut `colspan` ou `rowspan`, et toutes les valeurs de cellules de la vérité terrain y figurent ; il en va de même pour la DPGF et le cadre de décomposition des honoraires ; sur le fichier 6b (version scannée), chaque tableau détecté est précédé du repère « tableau reconnu par OCR » et aucun tableau d'une page native n'en porte.
 
 ### 4.9 Markdown issu des fichiers Office
 
@@ -568,7 +572,8 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 | 3 | PDF mixte, 6 pages | 3 pages natives, 2 pages-images, 1 page vide | `mixte` |
 | 4 | PDF à couche OCR dégradée, 4 pages | image et couche texte invisible volontairement corrompue sur les pages 2 et 3 (substitutions de caractères, mots fragmentés, caractères aberrants) | `douteux`, pages 2 et 3 |
 | 5 | PDF scanné illisible, 2 pages | page 2 très floue et bruitée | `douteux`, page 2 (OCR de l'outil) |
-| 6 | PDF avec tableaux, 2 pages | page 1 : tableau simple ; page 2 : tableau à cellules fusionnées et double en-tête | Markdown puis HTML |
+| 6 | PDF avec tableaux, au moins 4 pages natives | page 1 : tableau simple ; page 2 : tableau à cellules fusionnées et double en-tête ; page 3 : DPGF (lots et sous-lots fusionnés, quantités, prix unitaires, totaux) ; page 4 : cadre de décomposition des honoraires de maîtrise d'œuvre (missions par cotraitant, en-têtes sur deux niveaux) | Markdown pour la page 1, HTML avec `colspan`/`rowspan` pour les pages 2 à 4 |
+| 6b | Version scannée du fichier 6 | pages 1 à 4 rendues en image | `ocrise` ; chaque tableau détecté précédé du repère « tableau reconnu par OCR » |
 | 7 | .docx | titres, liste, tableau | `natif` |
 | 8 | .xlsx | deux feuilles visibles, une masquée | `natif` |
 | 9 | .pptx | trois diapositives, une avec commentaires | `natif` |
@@ -580,6 +585,7 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 | 15 | Arborescence de lot | `Lot 1/Candidat A/…`, `Lot 1/Candidat B/…`, trois niveaux, un dossier `_OCR` préexistant | miroir exact |
 | 16 | Chemin long (Windows) | chemin de sortie de 300 caractères | traité |
 | 17 | PDF volumineux | 1 000 pages scannées simulées (généré à la demande, hors dépôt) | test de mémoire |
+| 18 | PDF scanné riche en ligatures, 2 pages | texte courant dense en « maître d'œuvre », « l'œuvre », « cœur », « sœur », « vœu », « Lætitia », « ex æquo », avec apostrophes typographiques | `ocrise`, aucune page douteuse, sous Apple Vision comme sous `Windows.Media.Ocr` |
 
 - CA : `python tests/donnees/generer.py` produit le jeu complet et son manifeste sur les trois systèmes ; deux exécutions donnent des fichiers de même contenu textuel ; aucun document réel ni donnée personnelle dans le dépôt.
 
@@ -597,7 +603,7 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 ### 7.3 Critères d'acceptation globaux
 
 1. Toutes les exigences de la phase ont leur critère d'acceptation satisfait, ou une dérogation motivée acceptée par le commanditaire et inscrite au CHANGELOG.
-2. Qualité de reconnaissance (objectif, à confirmer) : sur les PDF scannés propres du jeu de test (fichiers 2, 3 et 10), au moins 95 % des mots de référence de chaque page sont retrouvés dans le PDF consultable (`pdftotext`) et dans le Markdown, sur Mac comme sur PC. Cette valeur mesure le bon fonctionnement de la chaîne sur des pages synthétiques propres ; elle ne préjuge pas de la qualité sur des scans réels.
+2. Qualité de reconnaissance (objectif, à confirmer) : sur les PDF scannés propres du jeu de test (fichiers 2, 3 et 10), au moins 95 % des mots de référence de chaque page sont retrouvés dans le PDF consultable (`pdftotext`) et dans le Markdown, sur Mac comme sur PC, la comparaison admettant les équivalences `œ`/`oe`, `æ`/`ae` et `’`/`'` (décision du commanditaire du 26/11/2026, après l'essai PV-04). Cette valeur mesure le bon fonctionnement de la chaîne sur des pages synthétiques propres ; elle ne préjuge pas de la qualité sur des scans réels.
 3. Le traitement du jeu de test complet se termine avec le code de retour 1 (présence volontaire de fichiers en erreur), un rapport conforme, et aucun fichier source modifié.
 4. Les tests manuels de la section 7.4 sont réussis sur un vrai Mac et un vrai PC, sous compte standard.
 
@@ -893,6 +899,7 @@ Si les deux origines coexistent, les deux paragraphes se suivent, séparés par 
 | page douteuse | `<!-- page N : TEXTE DOUTEUX, ne pas citer sans vérification sur l'original -->` |
 | feuille de classeur | `<!-- feuille N : "Nom de la feuille" -->` |
 | diapositive | `<!-- diapositive N -->` |
+| tableau détecté sur une page reconnue par OCR | `<!-- tableau reconnu par OCR : correspondance lignes/colonnes non garantie, vérifier sur l'original avant de citer un montant -->` (placé immédiatement avant le tableau, voir EX-44) |
 
 Chaque repère est seul sur sa ligne, précédé et suivi d'une ligne vide.
 

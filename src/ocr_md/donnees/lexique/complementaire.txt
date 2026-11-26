@@ -1,0 +1,46 @@
+# Lexique complémentaire d'ocr-md (EX-37) : sigles, anglais courant et vocabulaire des
+# marchés publics absents du lexique français. Un mot par ligne. Extensible par le
+# paramètre « lexique_complementaire » du fichier de configuration.
+AMO
+APD
+APS
+AVP
+BPU
+CCAG
+CCAP
+CCTP
+DCE
+DC1
+DC2
+DC4
+DET
+DOE
+DPGF
+DQE
+DUME
+EXE
+HT
+Kbis
+MOA
+MOE
+NOTI1
+NOTI2
+OPC
+OPR
+PRO
+RC
+SIREN
+SIRET
+SPS
+TTC
+TVA
+URSSAF
+VISA
+BIM
+CVC
+HQE
+RE2020
+email
+online
+software
+management

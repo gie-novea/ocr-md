@@ -45,3 +45,32 @@ Reste à faire avant ou pendant les jalons suivants :
 - section 3.4 et PV-05 : `pymupdf4llm` et `pymupdf-layout` 2.2 sont des paquets vides ; le code vient de `pymupdf` 2.2 ; `onnxruntime` (MIT) devient une dépendance transitive ;
 - EX-44 : `table_output="html"` ne conserve pas les fusions (voir PV-13) ;
 - EX-30 et 7.3 : voir PV-04.
+
+Décisions du commanditaire sur le jalon 0 (26/11/2026) :
+- interprétations validées : `origine_texte` entre guillemets ; pas de nouveau champ de front matter pour `couche_expediteur` ;
+- équivalences `œ`/`oe`, `æ`/`ae`, `’`/`'` admises dans les critères (EX-30 a, 7.3) et appliquées avant la recherche dans le lexique (EX-36) ; texte reconnu inchangé ; fichier 18 ajouté au jeu de test ;
+- tableaux : HTML des tableaux natifs fusionnés produit par l'outil ; repère « tableau reconnu par OCR » devant tout tableau d'une page reconnue par OCR (EX-44 et 11.4 mis à jour) ; DPGF et cadre de décomposition des honoraires ajoutés au fichier 6, version scannée 6b ajoutée ;
+- lexique : Grammalecte (MPL 2.0).
+
+## Jalon 1 : squelette, configuration, ligne de commande, CI (26/11/2026)
+
+Fait :
+- EX-01 : outil existant fourni et lu ; éléments repris consignés dans le CHANGELOG (« Reprise de l'existant ») ; aucune dépendance à l'exécution ;
+- `pyproject.toml` (Python `>=3.12,<3.13`, dépendances propres à chaque plateforme par marqueurs `sys_platform`, lanceur sans console `ocr-mdw`), `uv.lock` versionné, licence AGPL-3.0 (`LICENSE`), `README.md`, `CHANGELOG.md`, `LICENCES-TIERCES.md` (données embarquées) ;
+- `config` : 24 paramètres avec valeur par défaut, bornes et description ; fichier TOML du profil puis `--config` ; paramètre inconnu ou valeur invalide : erreur d'usage (EX-67) ;
+- `cli` : interface complète de EX-11 en français, codes de retour (EX-12), `--qualite` renvoyant 2 avec le message de la v1.1, `--version` (versions, moteur, licence, adresse du code source), `verifier` (système, moteur OCR et langues, dossiers du profil) ; le traitement des fichiers lui-même arrive aux jalons 3 à 8 ;
+- `ocr` : interface commune, moteur Windows (`Windows.Media.Ocr`, attente de l'opération WinRT sans `asyncio`) et moteur macOS (Apple Vision par `ocrmac`), choisis à l'exécution ;
+- `qualite` : lexique embarqué (PV-12 levé) et normalisation des équivalences ;
+- tests : 63 tests (réseau neutralisé pour tous, EX-03), dont tests d'architecture (EX-07, EX-08) et tests des moteurs réels (niveau 2). Sous Windows : 60 réussis, 3 sautés (propres à macOS). Mots de référence retrouvés par `Windows.Media.Ocr` : 97,6 % ; page à ligatures : 100 %, moins de 10 % de mots inconnus ;
+- CI GitHub Actions (`.github/workflows/tests.yml`) : Windows, macOS Apple Silicon, macOS Intel (`macos-15-intel`), Linux ; Python géré par uv ; sous macOS, OCR Apple Vision réel et test de la convention des boîtes (PV-06 b, PV-08 a). **Non exécutée : aucun envoi vers un dépôt distant sans accord.**
+
+Reste à faire :
+- premier passage de la CI après envoi vers GitHub (à autoriser) : confirmer la convention des boîtes de Vision, la présence de fr-FR sous macOS, le fonctionnement sur Mac Intel et la disponibilité du module OCR français sur l'image Windows de GitHub ;
+- PV-02 : essai à 200 éléments ; supprimer le journal `essais/pv02/sortie/journal_arguments.jsonl`, qui contient des chemins réels ;
+- PV-09 : dossier kDrive de test.
+
+Écarts et précisions :
+- `--pages` implique la reprise d'OCR des pages listées, avec ou sans `--refaire-ocr` (lecture de EX-39) ;
+- la sous-commande `raccourcis` répond « fonction réalisée au jalon 9 » (code 2) d'ici là ; le traitement renvoie 1 avec un message d'ici le jalon 3 ;
+- paramètres ajoutés, marqués « proposition » dans le code : `page_blanche_ecart_type_max` (8), `intervalle_tentatives_s` (1 s) ; `processus` borné à 1 en v1 (REC-06) ;
+- sous macOS, Vision ne donnant que des lignes, les boîtes des mots sont estimées au prorata des caractères (écriture du calque par ligne, voir PV-06).

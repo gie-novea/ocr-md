@@ -1,0 +1,61 @@
+# Intégration continue d'ocr-md : tests automatisés sur Windows, macOS et Linux.
+# - Windows et macOS : niveaux 1 (moteur factice) et 2 (moteurs OCR réels du système).
+# - Linux : niveau 1 seulement (pas de moteur OCR du système).
+# Python 3.12 est installé et géré par uv, comme sur les postes (EX-09).
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - macos-latest      # Apple Silicon
+          - macos-15-intel    # Mac Intel (PV-08 b)
+          - ubuntu-latest
+    env:
+      UV_PYTHON_PREFERENCE: only-managed
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.21"
+
+      # Le module OCR français n'est pas garanti sur les images Windows Server. Le runner
+      # étant administrateur, on tente de l'installer ; en cas d'échec, les tests du moteur
+      # réel sont sautés avec un motif explicite (visible dans le résumé pytest).
+      - name: Module OCR français de Windows
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: powershell
+        run: |
+          [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime] | Out-Null
+          $langues = [Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages | ForEach-Object { $_.LanguageTag }
+          Write-Output "Langues OCR avant : $($langues -join ', ')"
+          if ($langues -notcontains 'fr-FR') {
+            Add-WindowsCapability -Online -Name "Language.OCR~~~fr-FR~0.0.1.0"
+          }
+
+      - name: Installation (environnement verrouillé)
+        run: uv sync --locked --python 3.12
+
+      - name: Version et diagnostic
+        run: |
+          uv run ocr-md --version
+          uv run ocr-md verifier
+
+      - name: Tests
+        run: uv run pytest -v -ra -s

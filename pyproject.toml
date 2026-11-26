@@ -1,0 +1,59 @@
+[project]
+name = "ocr-md"
+version = "0.1.0"
+description = "Rend lisibles les PDF scannés (OCR du système) et convertit PDF, images et fichiers Office en Markdown annoté pour l'analyse par IA."
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "src/ocr_md/donnees/lexique/LICENCE-MPL-2.0.txt"]
+requires-python = ">=3.12,<3.13"
+authors = [{ name = "GIE NOVEA" }]
+dependencies = [
+    # Cœur : PDF, calque, Markdown. PyMuPDF 2.2 livre aussi le code de pymupdf4llm et
+    # de layout ; les paquets pymupdf4llm et pymupdf-layout 2.2 sont des coquilles (PV-05).
+    "pymupdf==2.2",
+    "pymupdf4llm==2.2",
+    "pillow>=11",
+    # Office (EX-45, REC-05) ; defusedxml protège openpyxl des XML piégés (repris de
+    # l'outil existant).
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    "python-pptx>=1.0",
+    "defusedxml>=0.7",
+    # OCR Windows : projection PyWinRT de Windows.Media.Ocr (PV-04).
+    "winrt-runtime>=3 ; sys_platform == 'win32'",
+    "winrt-Windows.Foundation>=3 ; sys_platform == 'win32'",
+    "winrt-Windows.Foundation.Collections>=3 ; sys_platform == 'win32'",
+    "winrt-Windows.Globalization>=3 ; sys_platform == 'win32'",
+    "winrt-Windows.Graphics.Imaging>=3 ; sys_platform == 'win32'",
+    "winrt-Windows.Media.Ocr>=3 ; sys_platform == 'win32'",
+    "winrt-Windows.Storage.Streams>=3 ; sys_platform == 'win32'",
+    # OCR macOS : Apple Vision par ocrmac (EX-26).
+    "ocrmac>=1.0 ; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+ocr-md = "ocr_md.cli:main"
+
+[project.gui-scripts]
+# Lanceur sans console, cible des raccourcis Windows (EX-15).
+ocr-mdw = "ocr_md.cli:main_graphique"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    # Police Noto Sans pour fabriquer les PDF synthétiques des tests.
+    "pymupdf-fonts>=1.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "exigence(*ids): exigences du cahier des charges couvertes par le test (EX-nn)",
+    "windows: test exécuté seulement sous Windows (moteur OCR réel)",
+    "macos: test exécuté seulement sous macOS (moteur OCR réel)",
+]

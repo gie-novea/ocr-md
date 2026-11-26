@@ -9,7 +9,7 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 | Point | État | Résumé |
 |---|---|---|
 | PV-01 | à lever par le référent | poste SODEB sous compte standard ; voir aussi l'observation sur `uv python install` ci-dessous |
-| PV-02 | partie Windows préparée, test manuel à faire | `.lnk` créé sans droits ; transmission de 30 et 200 fichiers à constater |
+| PV-02 | partie Windows largement levée | `.lnk` créé sans droits ; sélection de 66 éléments transmise en un seul lancement ; 200 éléments non testés |
 | PV-03 | levé pour le poste de développement | `fr-FR` disponible, détection sans élévation |
 | PV-04 | levé | projection PyWinRT retenue ; œ, æ et ’ non restitués par le moteur (décision à prendre) |
 | PV-05 | levé | `pymupdf4llm.to_markdown`, texte invisible repris, `ocr_function` jamais appelée sur une page déjà dotée d'un calque |
@@ -19,7 +19,7 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 | PV-09 | script prêt, essai à faire sur le dossier kDrive de test | |
 | PV-10 | à lever par le référent | |
 | PV-11 | levé (Windows) | tkinter présent dans le Python géré par uv |
-| PV-12 | sources identifiées, téléchargement à autoriser | |
+| PV-12 | levé | Grammalecte 7.7, MPL 2.0, 476 083 formes, chargement en 0,13 s |
 | PV-13 | levé avec repli | détection des fusions fiable sur tableau natif ; rendu HTML de PyMuPDF4LLM inutilisable pour les fusions ; HTML produit par l'outil |
 
 ## PV-03. Pack OCR français de Windows
@@ -78,9 +78,12 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 
 ## PV-12. Lexique français
 
-- Date : 26/11/2026. Aucun téléchargement fait à ce stade.
-- Sources candidates : (1) lexique de Grammalecte (formes fléchies à plat, licence MPL 2.0) ; (2) Lexique 3 (lexique.org, licence CC BY-SA 4.0). Les deux licences ont été acceptées par le commanditaire. Recommandation : Grammalecte, pour sa couverture des formes fléchies et sa licence à réciprocité limitée aux fichiers.
-- Reste à faire : téléchargement (à autoriser), contrôle de la licence sur le fichier reçu, mesure de la taille et du temps de chargement (objectif : moins d'une seconde).
+- Date : 26/11/2026. Source retenue par le commanditaire : lexique de Grammalecte.
+- Fichier : https://grammalecte.net/dic/lexique-grammalecte-fr-v7.7.zip (archive du 15/12/2025, 12 325 782 octets), SHA-256 `bdccf2065e252010253171000a38de84581407896b6bc60aca7d4d69dab7e4d2`.
+- Licence : MPL 2.0 (en-tête du fichier et `README_lexique.txt`) ; la mention « Incompatible With Secondary Licenses » est absente, ce qui permet la distribution avec un projet sous AGPL-3.0. L'avis MPL est conservé en tête du fichier dérivé ; le texte de la MPL 2.0 est livré à côté.
+- Fichier embarqué : `src/ocr_md/donnees/lexique/formes-fr.txt.gz`, construit par `outils/construire_lexique.py` (colonne « Flexion », NFC, sans doublon) : 476 083 formes, 1,2 Mo.
+- Chargement : 0,13 s (objectif : moins d'une seconde).
+- Constat : le lexique contient « œuvre » et « cœur » mais pas « oeuvre » ni « coeur » ; la normalisation des équivalences (décision du 26/11/2026) est donc nécessaire avant la recherche. Avec elle, la page synthétique riche en ligatures reconnue par `Windows.Media.Ocr` compte moins de 10 % de mots inconnus (test `test_windows_ligatures_restent_dans_le_lexique`).
 
 ## PV-13. Cellules fusionnées
 
@@ -95,7 +98,9 @@ Versions constatées le 26/11/2026 : PyMuPDF 2.2, pymupdf4llm 2.2, pymupdf-layou
 
 - Date : 26/11/2026. Essai : `essais/pv02/creer_raccourci.py`.
 - Résultat : un `.lnk` est créé sans droits d'administrateur par l'objet COM `WScript.Shell`, appelé depuis Windows PowerShell (aucune dépendance Python ajoutée) ; cible, arguments (`--sortie md`) et fenêtre réduite relus correctement. Le raccourci a été créé dans `essais/pv02/sortie/`, pas dans SendTo.
-- Reste à faire (manuel) : copier `essais/pv02/sortie/OCR - Essai PV-02.lnk` dans `%APPDATA%\Microsoft\Windows\SendTo`, envoyer 1, 30 et 200 fichiers, puis lire `essais/pv02/sortie/journal_arguments.jsonl` (nombre d'arguments reçus, longueur totale) ; vérifier l'accès par « Afficher d'autres options » sous Windows 11 ; supprimer ensuite le raccourci de SendTo.
+- Test manuel du commanditaire (26/11/2026, raccourci copié dans SendTo) : 4 lancements consignés, chacun en un seul processus, avec `--sortie md` conservé en tête : 1 dossier ; 5 fichiers ; 66 dossiers (10 796 caractères de ligne de commande) ; 1 fichier. Chemins accentués et avec espaces transmis intacts. Le journal contient des chemins réels ; il n'est pas versionné et n'est pas reproduit ici.
+- Conclusion : une sélection multiple est transmise en entier, en un seul lancement, au moins jusqu'à 66 éléments. La limite théorique de la ligne de commande Windows (32 767 caractères) correspond, avec des chemins de cette longueur (environ 160 caractères), à environ 200 éléments.
+- Reste à faire : essai à 200 éléments (pour constater le comportement au-delà de la limite) ; accès par « Afficher d'autres options » sous Windows 11. En attendant, le repli de PV-02 (sélectionner le dossier plutôt que les fichiers) reste recommandé dans le guide.
 
 ## PV-09. Fichiers kDrive « en ligne uniquement »
 
