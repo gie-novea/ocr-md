@@ -158,3 +158,4 @@ Résultat avec ces seuils : aucune erreur de verdict avec le moteur factice, `Wi
 ## Apple Vision (CI macOS, run 45986963307, correction linguistique désactivée, seuil 0,21 alors en vigueur)
 
 Avec le seuil provisoire de 0,21, deux pages du fichier 21 étaient jugées saines sur chaque Mac (Apple Silicon : pages 1 et 3 ; Intel : pages 1 et 2) ; les autres verdicts étaient conformes. Écart des mots inconnus : Apple Silicon 0,027 (fichier 2, p. 4) à 0,076 (fichier 21, p. 1), milieu 0,051 ; Intel 0,050 (fichier 19, p. 1) à 0,061 (fichier 21, p. 1), milieu 0,055. Seuil retenu : 0,055. Tableaux complets dans le journal de la CI, étape « Calibrage avec Apple Vision ».
+Contrôle avec le seuil retenu (CI run 45991048588) : avec `mots_inconnus_max_vision` = 0,055, aucune erreur de verdict sur les 27 pages, sur Apple Silicon comme sur Intel.

@@ -1,0 +1,6 @@
+# Fins de ligne des scripts d'installation : LF pour les scripts macOS (bash), CRLF pour les
+# scripts Windows (cmd.exe exige CRLF ; PowerShell 5.1 les accepte).
+*.sh text eol=lf
+*.command text eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

@@ -18,6 +18,7 @@ import time
 
 from . import __version__, avertissements, correctifs, inventaire, ocr, plateforme, rapport, sorties
 from .inventaire import ErreurFichier
+from .suivi import Suivi, SuiviConsole
 from .traiteurs import Annulation, Contexte, traiteurs_par_defaut
 
 SUCCES, ERREUR_FICHIER, PREREQUIS_MANQUANT = 0, 1, 3
@@ -93,13 +94,17 @@ class BilanLot:
     lignes: list = dataclasses.field(default_factory=list)       # lignes traitées pendant ce lancement
     dossiers_ocr: list = dataclasses.field(default_factory=list)
     messages: list = dataclasses.field(default_factory=list)     # erreurs générales (parent non inscriptible)
+    # Avertissements du lancement (ligne de commande proche de sa limite) : repris dans le
+    # message de chaque ligne du rapport, sans effet sur le code de retour.
+    avertissements: list = dataclasses.field(default_factory=list)
 
 
 def executer(options, parametres, *, traiteurs=None, arret: threading.Event | None = None,
-             moteur=None, bilan: BilanLot | None = None) -> int:
+             moteur=None, bilan: BilanLot | None = None, suivi=None) -> int:
     traiteurs = traiteurs or traiteurs_par_defaut()
     arret = arret or threading.Event()
     bilan = bilan if bilan is not None else BilanLot()
+    suivi = suivi if suivi is not None else (SuiviConsole() if options.sans_interface else Suivi())
     fournisseur = moteur if isinstance(moteur, FournisseurMoteur) else FournisseurMoteur(parametres, moteur)
     correctifs.appliquer()
     nettoyer_dossier_temporaire()
@@ -108,7 +113,8 @@ def executer(options, parametres, *, traiteurs=None, arret: threading.Event | No
     rang = 0
     try:
         for groupe in groupes:
-            rang = _traiter_groupe(groupe, options, parametres, traiteurs, arret, fournisseur, bilan, rang, total)
+            rang = _traiter_groupe(groupe, options, parametres, traiteurs, arret, fournisseur, bilan, rang, total,
+                                   suivi)
     finally:
         shutil.rmtree(plateforme.dossier_temporaire() / f"processus-{os.getpid()}", ignore_errors=True)
     bilan.code = code_de_retour(bilan, fournisseur)
@@ -132,7 +138,7 @@ def code_de_retour(bilan, fournisseur) -> int:
     return ERREUR_FICHIER
 
 
-def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan, rang, total) -> int:
+def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan, rang, total, suivi) -> int:
     dossier_ocr = groupe.dossier_ocr
     try:
         creer_dossier_ocr(dossier_ocr)
@@ -168,10 +174,11 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
             _ecrire_rapports(groupe, lignes, parametres)
         for element in groupe.elements:
             rang += 1
-            if options.sans_interface:
-                print(f"[{rang}/{total}] {element.relatif}", flush=True)
+            suivi.fichier(rang, total, element.relatif)
             ligne = _traiter_element(element, lignes.get(element.relatif), options, parametres, traiteurs,
-                                     arret, moteur, journal)
+                                     arret, moteur, journal, suivi=suivi)
+            for avertissement in bilan.avertissements:
+                ligne.message = f"{ligne.message} ; {avertissement}" if ligne.message else avertissement
             lignes[element.relatif] = ligne
             bilan.lignes.append(ligne)
             _ecrire_rapports(groupe, lignes, parametres)
@@ -225,7 +232,7 @@ def _ligne_erreur(element, precedente, prevues, message, debut):
                                 duree_s=time.perf_counter() - debut, date_traitement=_maintenant())
 
 
-def _traiter_element(element, precedente, options, parametres, traiteurs, arret, moteur, journal):
+def _traiter_element(element, precedente, options, parametres, traiteurs, arret, moteur, journal, suivi=None):
     if not element.pris_en_charge:
         journal.info(f"{element.relatif} : non pris en charge")
         return rapport.LigneRapport(element.relatif, "autre", statut="non_pris_en_charge", message=element.message,
@@ -244,7 +251,7 @@ def _traiter_element(element, precedente, options, parametres, traiteurs, arret,
         journal.info(f"{element.relatif} : sorties à jour, ignoré")
         return ligne
     ecrivain = sorties.Ecrivain(parametres.tentatives_ecriture, parametres.intervalle_tentatives_s)
-    contexte = Contexte(element, prevues, options, parametres, ecrivain, journal, arret, moteur)
+    contexte = Contexte(element, prevues, options, parametres, ecrivain, journal, arret, moteur, suivi)
     debut = time.perf_counter()
     try:
         inventaire.controler(element, parametres.delai_hydratation_s)

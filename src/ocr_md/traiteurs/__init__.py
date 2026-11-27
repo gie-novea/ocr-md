@@ -42,6 +42,7 @@ class Contexte:
     journal: object                    # rapport.Journal
     arret: threading.Event
     moteur: object | None = None       # FournisseurMoteur : moteur OCR obtenu à la demande
+    suivi: object | None = None        # suivi.Suivi : progression (page en cours)
 
     def verifier_arret(self) -> None:
         if self.arret.is_set():

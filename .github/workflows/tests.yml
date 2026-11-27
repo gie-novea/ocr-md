@@ -103,3 +103,48 @@ jobs:
         if: always() && runner.os == 'macOS'
         continue-on-error: true
         run: uv run python tests/calibrage.py --moteur systeme
+
+      # Scripts d'installation, de mise à jour et de désinstallation (EX-69, EX-72, EX-73) :
+      # installation réelle dans le profil depuis l'archive GitHub de ce commit (sans Git),
+      # seconde installation sans doublon, mise à jour, puis désinstallation complète.
+      - name: Installation, mise à jour, désinstallation (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          OCR_MD_SANS_PAUSE: "1"
+          OCR_MD_SOURCE: https://github.com/${{ github.repository }}/archive/${{ github.sha }}.zip
+        run: |
+          $sendto = Join-Path $env:APPDATA "Microsoft\Windows\SendTo"
+          function Get-Raccourcis { @(Get-ChildItem -LiteralPath $sendto -Filter "OCR - *.lnk") }
+          installation\installer-windows.cmd
+          if ($LASTEXITCODE -ne 0) { throw "installation en échec" }
+          (Get-Raccourcis).Name
+          if ((Get-Raccourcis).Count -ne 3) { throw "trois raccourcis attendus" }
+          installation\installer-windows.cmd
+          if ($LASTEXITCODE -ne 0 -or (Get-Raccourcis).Count -ne 3) { throw "seconde installation en échec ou doublon" }
+          installation\mettre-a-jour-windows.cmd
+          if ($LASTEXITCODE -ne 0) { throw "mise à jour en échec" }
+          installation\desinstaller-windows.cmd -SupprimerConfiguration oui -DesinstallerUv non
+          if ($LASTEXITCODE -ne 0) { throw "désinstallation en échec" }
+          if ((Get-Raccourcis).Count -ne 0) { throw "raccourcis restants" }
+          if (uv tool list | Select-String "ocr-md") { throw "outil encore installé" }
+
+      - name: Installation, mise à jour, désinstallation (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          OCR_MD_SANS_PAUSE: "1"
+          OCR_MD_SOURCE: https://github.com/${{ github.repository }}/archive/${{ github.sha }}.zip
+        run: |
+          set -e
+          compter() { ls -d "$HOME/Library/Services/OCR - "*.workflow 2>/dev/null | wc -l | tr -d ' '; }
+          ./installation/installer-macos.command
+          ls "$HOME/Library/Services"
+          [ "$(compter)" = "3" ] || { echo "trois Actions rapides attendues"; exit 1; }
+          for w in "$HOME/Library/Services/OCR - "*.workflow; do plutil -lint "$w/Contents/document.wflow" "$w/Contents/Info.plist"; done
+          ./installation/installer-macos.command
+          [ "$(compter)" = "3" ] || { echo "doublon après la seconde installation"; exit 1; }
+          ./installation/mettre-a-jour-macos.command
+          ./installation/desinstaller-macos.command oui non
+          [ "$(compter)" = "0" ] || { echo "Actions rapides restantes"; exit 1; }
+          if uv tool list | grep -q "ocr-md"; then echo "outil encore installé"; exit 1; fi

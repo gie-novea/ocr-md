@@ -352,3 +352,23 @@ Fait :
 - tests : 204 réussis, 7 sautés sous Windows.
 
 Point d'attention : les seuils de Windows et de Vision ont des marges étroites sur le jeu synthétique (Vision : 0,050 à 0,061) ; leur recalibrage est la priorité de la recette (TM-08), avec la confiance.
+
+CI du 27/11/2026 (run 45991048588) : verte sous Windows, Linux et Mac Intel ; sur Apple Silicon, un seul échec, sans lien avec les seuils : `test_reproductible` comparait au octet près la taille du PDF chiffré du jeu, qui varie de quelques octets (chiffrement aléatoire) ; tolérance de 64 octets ajoutée. Calibrage avec Vision : aucune erreur de verdict sur les deux Mac avec le seuil de 0,055.
+
+## Jalon 9 : interface, raccourcis, installation (27/11/2026)
+
+Fait :
+- suivi de la progression (`suivi.py`) : fichier en cours, rang sur le total, page en cours pendant l'OCR ; console avec `--sans-interface` (EX-17) ;
+- fenêtre tkinter (`interface.py`, REC-02) : progression, bouton « Annuler » (arrêt après la page en cours ; fermer la fenêtre vaut annulation), puis fenêtre de fin avec les nombres de EX-16 recalculés depuis le rapport, les dossiers `_OCR` et un bouton « Ouvrir le dossier » ; elle ne se ferme pas seule s'il y a des fichiers signalés, en erreur ou annulés, ou un message (sinon après 20 s). Repli sans affichage : notification du système et `_EN_COURS.txt` dans le dossier `_OCR` pendant le lot ;
+- fenêtre par défaut, y compris depuis un terminal ; `--sans-interface` pour la console ; `ocr-mdw` (lanceur sans console) montre aussi une erreur d'usage dans une notification ;
+- raccourcis (`raccourcis.py`, EX-13, EX-15, EX-70) : « OCR - Rendre lisible (PDF) », « OCR - Convertir en Markdown », « OCR - Les deux » (préfixe de REC-01) ; Windows : `.lnk` dans SendTo vers `ocr-mdw.exe` (WScript.Shell par Windows PowerShell, PV-02) ; macOS : Actions rapides `.workflow` dans `~/Library/Services` (script shell, chemin absolu, `"$@"`), Finder prévenu par `pbs -update` ; recréation sans doublon ; suppression des trois entrées et d'elles seules ;
+- `ocr-md verifier` contrôle aussi les raccourcis (présents et pointant vers l'installation courante ; « [!] » sans effet sur le code de retour) ; vérification complète au premier lancement après installation ou mise à jour, échecs montrés dans la fenêtre de fin (EX-71) ;
+- sélection proche de la limite de la ligne de commande Windows (au-delà de 90 % de 32 767 caractères, mesurée par `GetCommandLineW`) : signalée dans la fenêtre de fin et dans le message de chaque ligne du rapport, sans changer le code de retour (décision du 26/11/2026) ;
+- scripts `installation/` (EX-69, EX-72, EX-73) : installer, mettre à jour, désinstaller, pour Windows (`.cmd` qui lance le `.ps1` avec `-ExecutionPolicy Bypass`) et macOS (`.command`) ; idempotents, dans le profil, sans droits ; Python vérifié par `uv python find` (observation du jalon 0) ; désinstallation avec confirmation pour la configuration et proposition, non imposée, de retirer uv ; dossiers `_OCR` jamais touchés ;
+- CI : installation réelle depuis l'archive GitHub du commit, seconde installation sans doublon, mise à jour et désinstallation, sous Windows et macOS ;
+- tests : `tests/test_interface.py` (13 tests : fenêtre, annulation, fenêtre de fin maintenue ouverte, traitement réel avec fenêtre, repli, raccourcis réels dans un dossier temporaire, raccourci obsolète détecté, premier lancement, ligne de commande longue) ; suite complète : 217 réussis, 7 sautés sous Windows.
+
+À valider (écart de mise en œuvre) :
+- source de distribution : archive zip du dépôt GitHub (`https://github.com/gie-novea/ocr-md/archive/refs/heads/main.zip`) plutôt que l'adresse Git (`git+https://...`), car uv a besoin du programme Git pour une adresse Git, absent des postes ordinaires ; même dépôt, paramètre en tête de script (ou `OCR_MD_SOURCE`). Une étiquette de version (`archive/refs/tags/v1.0.0.zip`) pourra remplacer `main` à la livraison.
+
+Reste à faire (recette) : TM-01 à TM-03 sur postes réels (clic droit, Windows 11 « Afficher d'autres options », Finder et Gatekeeper pour les `.command` téléchargés, icône dans le Dock), essai à 200 éléments (PV-02).

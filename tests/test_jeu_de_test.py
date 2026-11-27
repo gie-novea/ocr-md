@@ -178,7 +178,8 @@ def test_reproductible(jeu_de_test, tmp_path):
         elif f["type"] in ("docx", "xlsx", "pptx"):
             assert texte_office(a) == texte_office(b)
         elif f["chemin"].endswith(("13_chiffre.pdf", "13_tronque.pdf")):
-            assert a.stat().st_size == b.stat().st_size  # chiffrement et identifiant aléatoires
+            # Chiffrement et identifiant aléatoires : la taille varie de quelques octets.
+            assert abs(a.stat().st_size - b.stat().st_size) <= 64
         else:
             assert a.read_bytes() == b.read_bytes() or f["type"] == "image"
 

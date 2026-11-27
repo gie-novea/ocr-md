@@ -272,6 +272,8 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
     durees = {"rendu": 0.0, "ocr": 0.0, "calque": 0.0}
     for numero in a_reconnaitre:
         ctx.verifier_arret()
+        if ctx.suivi is not None:
+            ctx.suivi.page(numero, doc.page_count)
         moteur = ctx.moteur.obtenir()
         if not pages_ocr:
             ctx.journal.info(f"{ctx.element.relatif} : OCR par {moteur.description()}, langue {p.langue_ocr} "

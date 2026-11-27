@@ -13,6 +13,8 @@
 - Jalon 7 : évaluation de la qualité par page, seuils calibrés, reprise d'OCR (`--refaire-ocr`, `--pages`), front matter et schéma JSON, bloc d'avertissement, `_AVERTISSEMENTS.md`, reconstruction des PDF réparés, conversion plus rapide de l'image transmise à Vision.
 - Avant le jalon 8 : seuils de qualité revenus aux valeurs du cahier (calibrage définitif en recette), correctif PyMuPDF4LLM non appliqué signalé au journal et par `verifier`.
 - Jalon 8 : Markdown des fichiers .docx, .xlsx et .pptx (titres, listes, tableaux fusionnés, notes de bas de page, zones de texte, révisions en état final et commentaires signalés, valeurs en cache des classeurs et formules non calculées, feuilles et diapositives masquées, commentaires du présentateur) ; colonne `revisions_commentaires` du rapport ; message propre aux fichiers Office protégés par mot de passe.
+- Après le jalon 8 : seuils de mots inconnus par origine du texte (couche existante, Windows, Vision), fichier 21 de pages moyennement dégradées, correction linguistique de Vision désactivée (PV-15).
+- Jalon 9 : fenêtre de progression et de fin (tkinter) avec annulation, raccourcis « Envoyer vers » et Actions rapides du Finder, contrôle des raccourcis par `verifier`, vérification au premier lancement, signalement des sélections proches de la limite de la ligne de commande Windows, scripts d’installation, de mise à jour et de désinstallation, essai de ces scripts en CI.
 
 ### Reprise de l'existant
 - Le code de l'outil existant (« Convertisseur MD », PC) a été fourni et lu. Aucun fichier n'en est copié et l'outil livré n'en dépend pas. Éléments de logique repris :
