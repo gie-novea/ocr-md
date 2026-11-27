@@ -236,3 +236,33 @@ Voir `docs/avancement.md`, jalon 6 : espaces retirés dans les cellules de table
 | Intel | 0,992 s, puis 0,130 s | 3,021 s, puis 2,287 s | 3,56 s, puis 2,59 s (moins 27 %) | 97,8 %, inchangé |
 
 Vision traite aussi plus vite une image en niveaux de gris qu'en couleur. PV-14 inchangé : boîtes Vision pour 100 % des mots, critère EX-30 (b) réussi sur 6 pages sur 6.
+
+## PV-15. Apple Vision : niveau de reconnaissance, confiance et correction linguistique (27/11/2026)
+
+Question : sur Mac Intel, la page illisible du fichier 5 reçoit une confiance de 1,0 (comportement qui rappelle Live Text) ; Vision corrige ses erreurs en mots plausibles, ce qui abaisse le taux de mots inconnus. Essai de diagnostic `tests/test_pv15_vision_correction.py`, CI run 45980728997 (Apple Silicon arm64 sous macOS 26.7.2 ; Intel x86_64 sous macOS 15.7.9). Le réglage par défaut de l'outil n'est pas modifié.
+
+(a) Réglages et confiance. Relus sur la requête après exécution, sur les deux Mac : niveau « accurate » (0), révision 3 (révisions prises en charge 1 à 3, 3 par défaut), langues fr-FR et en-US, correction linguistique telle que demandée. Ce n'est donc pas Live Text ni le niveau rapide. La confiance de Vision est quantifiée (0,3, 0,5 ou 1,0 par ligne) ; la confiance du candidat et celle de l'observation sont identiques, et le moteur de l'outil lit bien la première. Sur la page illisible :
+
+| Niveau, correction | Apple Silicon : lignes, confiance moyenne | Intel : lignes, confiance moyenne |
+|---|---|---|
+| accurate, avec correction (réglage de l'outil) | 14 lignes, 0,679 (valeurs 0,5 et 1,0) | 15 lignes, 1,000 (toutes à 1,0) |
+| accurate, sans correction | 14 lignes, 0,507 (0,3, 0,5, 1,0) | 15 lignes, 0,520 (0,3, 0,5, 1,0) |
+| fast, avec ou sans correction | 1 ligne, 0,3 ou 0,5 | 1 ligne, 0,3 ou 0,5 |
+
+Avec la correction linguistique, Vision donne la confiance 1,0 aux lignes qu'il a corrigées sur Intel : la confiance n'y dit plus rien. Sur Apple Silicon, elle reste juste au-dessus du seuil de 0,70 dans la chaîne complète (0,725).
+
+(b) Correction linguistique active ou non : mots de référence retrouvés, mots inconnus, confiance moyenne.
+
+| Page | Apple Silicon, avec | Apple Silicon, sans | Intel, avec | Intel, sans |
+|---|---|---|---|---|
+| fichier 5, p. 2 (illisible) | 63,0 %, 0,299, 0,68 | 58,5 %, 0,373, 0,51 | 60,7 %, 0,290, 1,00 | 53,3 %, 0,418, 0,52 |
+| fichier 2, p. 1 à 4 (saines) | 98,5 % à 100 %, 0,000 à 0,027, 0,84 à 0,87 | 97,8 % à 99,3 %, 0,000 à 0,027, 0,83 à 0,93 | 96,3 % à 97,8 %, 0,013 à 0,040, 1,00 | 96,3 % à 97,8 %, 0,013 à 0,040, 0,83 à 0,93 |
+| fichier 18, p. 1 et 2 (saines) | 100 %, 0,000, 0,91 | 98,6 %, 0,019, 0,88 | 98,6 % à 99,3 %, 0,010 à 0,019, 1,00 | 98,6 % à 99,3 %, 0,010 à 0,019, 0,79 à 0,86 |
+
+Constats :
+- sans correction, la page illisible se sépare nettement des pages saines par deux indicateurs indépendants : la confiance (0,51 et 0,52 contre 0,79 au moins sur les pages saines ; seuil du cahier de 0,70) et les mots inconnus (0,37 et 0,42 contre 0,040 au plus) ;
+- avec correction, seule la part de mots inconnus la sépare (0,29 et 0,30 contre 0,040 au plus), d'où le seuil propre à Vision de 0,165 ; la confiance est inopérante sur Intel ;
+- le coût de la désactivation sur les pages saines est faible : de 0 à 1,4 point de mots retrouvés, minimum 96,3 % (objectif de 95 % de la section 7.3 tenu) ;
+- la correction peut remplacer un mot mal lu par un autre mot du lexique : l'erreur devient alors invisible, ce qui est le risque que l'outil cherche à signaler.
+
+Recommandation (à décider par le commanditaire, réglage non modifié) : désactiver la correction linguistique de Vision par défaut. La détection des pages douteuses reposerait alors sur la confiance et sur les mots inconnus, avec des marges larges sur les deux Mac ; le seuil `mots_inconnus_max_vision` serait recalculé sur ce mode (écart 0,040 à 0,373, milieu 0,21, ou retour à 0,35 si l'on accepte une marge étroite sur Apple Silicon). Avant de basculer : vérifier en CI, avec la correction désactivée, le critère EX-30 (a) sur les fichiers 2, 3, 10 et 18, le placement des mots (PV-14) et le calibrage complet. Mesure faite sur une seule page illisible : à confirmer en recette (TM-08) sur des scans réels.

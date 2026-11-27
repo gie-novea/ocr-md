@@ -328,3 +328,15 @@ Interprétations :
 - non repris : en-têtes et pieds de page des .docx, graphiques et SmartArt des .pptx, feuilles de graphique des .xlsx (non demandés par EX-45).
 
 Reste à faire : envoi des commits locaux et suivi de la CI ; jalon 9.
+
+## Après le jalon 8 : seuils par origine et PV-15 (27/11/2026)
+
+Décisions du commanditaire : jalon 8 validé, y compris le message « fichier Office protégé par mot de passe » ; seuil des mots inconnus propre à l'origine du texte.
+
+Fait :
+- trois paramètres : `mots_inconnus_max_couche_existante` 0,35 (dans l'écart 0,000 à 0,383), `mots_inconnus_max_windows` 0,35 (aucune page dégradée du jeu lue par Windows n'a 40 mots évaluables : pas d'écart mesurable, valeur du cahier conservée), `mots_inconnus_max_vision` 0,165 (milieu de l'écart propre à Vision sur les deux Mac, 0,040 à 0,290) ; tout autre moteur (moteur factice) prend le seuil de Windows. EX-36, configuration et `docs/calibrage.md` mis à jour ;
+- `tests/calibrage.py` : pages saines et dégradées tirées du manifeste, écarts par origine du texte. Avec cette méthode, l'écart des autres indicateurs est souvent sans objet (chaque page dégradée n'en éprouve que certains) ; leurs seuils restent ceux du 27/11/2026 ;
+- CI : test mémoire du lot corrigé (pic comparé à la mémoire d'avant le fichier ; macOS rend la mémoire en différé) ; calibrage avec Apple Vision ajouté sous macOS ; CI verte sur les quatre plateformes (run 45980728997) ;
+- PV-15 : essai de diagnostic de Vision (niveau, révision, confiance, correction linguistique), résultats et recommandation dans `docs/verifications.md`. Le niveau « accurate », révision 3, est bien appliqué sur Intel ; la confiance vaut 1,0 sur Intel quand la correction linguistique est active.
+
+À décider avant le jalon 9 : correction linguistique de Vision (recommandation : la désactiver par défaut, après vérification en CI).

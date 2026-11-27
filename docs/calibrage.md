@@ -135,3 +135,7 @@ Résultat : aucune erreur de verdict avec le moteur factice et `Windows.Media.Oc
 | taux_mots_fragmentes | 0.059 (pdf/06b_tableaux_scannes.pdf p. 1) | 0.071 (pdf/05_illisible.pdf p. 2) | 0.25 | non | 0.065 |
 | taux_melange_chiffres_lettres | 0.019 (pdf/06b_tableaux_scannes.pdf p. 3) | 0.000 (pdf/05_illisible.pdf p. 2) | 0.1 | pas d'écart |  |
 | densite | 0.164 (pdf/06b_tableaux_scannes.pdf p. 1) | 0.053 (pdf/05_illisible.pdf p. 2) | 0.2 | non | 0.108 |
+
+## Apple Vision (CI macOS, run 45980728997, correction linguistique active)
+
+Aucune erreur de verdict sur les deux Mac avec le seuil `mots_inconnus_max_vision` = 0,165. Écart des mots inconnus (pages d'au moins 40 mots évaluables) : Apple Silicon 0,027 (fichier 2, p. 4) à 0,298 (fichier 5, p. 2), milieu 0,163 ; Intel 0,040 (fichier 2, p. 4) à 0,290 (fichier 5, p. 2), milieu 0,165. Confiance moyenne de la page illisible : 0,725 (Apple Silicon) et 1,0 (Intel, voir PV-15 dans `docs/verifications.md`). Tableaux complets dans le journal de la CI, étape « Calibrage avec Apple Vision ».
