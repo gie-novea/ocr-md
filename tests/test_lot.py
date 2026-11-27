@@ -510,7 +510,7 @@ def test_journal(lot, parametres):
     parent, racine = lot
     lancer(parametres, racine)
     journal = (parent / "_OCR" / rapport.NOM_JOURNAL).read_text(encoding="utf-8")
-    assert "ocr-md 0.1.0" in journal and "options : sortie=les-deux" in journal
+    assert f"ocr-md {__import__('ocr_md').__version__}" in journal and "options : sortie=les-deux" in journal
     assert "paramètres : " in journal and "ocr_dpi=300" in journal
     assert "Mémoire technique" not in journal and "MOTA" not in journal  # aucun texte de document
 

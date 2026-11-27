@@ -6,11 +6,11 @@ Utilitaire de bureau (macOS et Windows) qui rend lisibles les pièces d'un pli d
 
 Dans le profil de l'utilisateur, sans droits d'administrateur.
 
-- **Windows** : télécharger https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0.zip, l'extraire, double-cliquer sur `installation\installer-windows.cmd`.
+- **Windows** : télécharger https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0-rc1.zip (version candidate, en recette), l'extraire, double-cliquer sur `installation\installer-windows.cmd`.
 - **macOS** : coller dans le Terminal :
 
   ```
-  cd /tmp && curl -LsSf https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0.zip -o ocr-md.zip && unzip -oq ocr-md.zip && bash ocr-md-1.0.0/installation/installer-macos.command
+  cd /tmp && rm -rf ocr-md-* && curl -LsSf https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0-rc1.zip -o ocr-md.zip && unzip -oq ocr-md.zip && bash ocr-md-*/installation/installer-macos.command
   ```
 
 Ensuite : clic droit sur un dossier, puis « Envoyer vers » (Windows) ou « Actions rapides » (macOS), puis « OCR - Les deux ».

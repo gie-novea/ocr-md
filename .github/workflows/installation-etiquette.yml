@@ -1,0 +1,80 @@
+# Installation depuis une étiquette publiée (EX-69, guides utilisateur) : exécute la procédure
+# exacte des guides sur des machines sans uv préinstallé, depuis l'archive GitHub de
+# l'étiquette, puis vérifie la version installée et les raccourcis, et désinstalle.
+# - macOS : la ligne d'installation est lue dans docs/guide-utilisateur-macos.md et exécutée
+#   telle quelle ;
+# - Windows : téléchargement de l'archive, extraction, installer-windows.cmd sans paramètre
+#   (l'étiquette est celle inscrite en tête du script).
+name: installation depuis l'étiquette
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      etiquette:
+        description: "Étiquette à installer (par exemple v1.0.0-rc1)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  installation:
+    name: installation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, macos-15-intel]
+    env:
+      ETIQUETTE: ${{ github.event.inputs.etiquette || github.ref_name }}
+      OCR_MD_SANS_PAUSE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.etiquette || github.ref }}
+
+      - name: Version attendue
+        shell: bash
+        run: |
+          # v1.0.0-rc1 -> 1.0.0rc1 (version Python) ; v1.0.0 -> 1.0.0
+          ATTENDUE="$(echo "${ETIQUETTE#v}" | sed 's/-rc/rc/')"
+          echo "ATTENDUE=$ATTENDUE" >> "$GITHUB_ENV"
+          echo "étiquette $ETIQUETTE, version attendue $ATTENDUE"
+
+      - name: Ligne d'installation du guide macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          LIGNE="$(grep -o '`cd /tmp && rm -rf ocr-md-\* && curl[^`]*`' docs/guide-utilisateur-macos.md | tr -d '`')"
+          echo "ligne du guide : $LIGNE"
+          echo "$LIGNE" | grep -q "/tags/$ETIQUETTE.zip" || { echo "le guide ne désigne pas l'étiquette $ETIQUETTE"; exit 1; }
+          if command -v uv >/dev/null; then echo "uv préinstallé : $(command -v uv)"; fi
+          bash -c "$LIGNE"
+          VERSION="$("$HOME/.local/bin/ocr-md" --version | head -n 1)"
+          echo "$VERSION"
+          [ "$VERSION" = "ocr-md $ATTENDUE" ] || { echo "version installée inattendue"; exit 1; }
+          [ "$(ls -d "$HOME/Library/Services/OCR - "*.workflow | wc -l | tr -d ' ')" = "3" ] || { echo "trois Actions rapides attendues"; exit 1; }
+          bash /tmp/ocr-md-*/installation/desinstaller-macos.command oui oui
+
+      - name: Procédure du guide Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "ocr-md.zip"
+          Invoke-WebRequest "https://github.com/${{ github.repository }}/archive/refs/tags/$env:ETIQUETTE.zip" -OutFile $archive
+          Expand-Archive $archive -DestinationPath $env:RUNNER_TEMP -Force
+          $dossier = Get-ChildItem $env:RUNNER_TEMP -Directory -Filter "ocr-md-*" | Select-Object -First 1
+          & (Join-Path $dossier.FullName "installation\installer-windows.cmd")
+          if ($LASTEXITCODE -ne 0) { throw "installation en échec" }
+          $ocrmd = Join-Path $env:USERPROFILE ".local\bin\ocr-md.exe"
+          if (-not (Test-Path $ocrmd)) { $ocrmd = (Get-Command ocr-md.exe).Source }
+          $version = (& $ocrmd --version | Select-Object -First 1).Trim()
+          $version
+          if ($version -ne "ocr-md $env:ATTENDUE") { throw "version installée inattendue" }
+          $lnk = @(Get-ChildItem (Join-Path $env:APPDATA "Microsoft\Windows\SendTo") -Filter "OCR - *.lnk")
+          if ($lnk.Count -ne 3) { throw "trois raccourcis attendus" }
+          & (Join-Path $dossier.FullName "installation\desinstaller-windows.cmd") -SupprimerConfiguration oui -DesinstallerUv non
+          if ($LASTEXITCODE -ne 0) { throw "désinstallation en échec" }

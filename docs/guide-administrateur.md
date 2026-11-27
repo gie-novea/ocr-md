@@ -19,14 +19,14 @@ ocr-md rend lisibles les pièces d'un pli de candidature : il produit, dans un d
 
 ## 3. Installation
 
-La source de distribution est l'archive de la version publiée sur GitHub (`https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0.zip`), installée par `uv` sans Git. Les scripts sont idempotents : les relancer répare une installation sans créer de doublon.
+La source de distribution est l'archive d'une étiquette publiée sur GitHub, installée par `uv` sans Git. Pendant la recette, c'est la version candidate `v1.0.0-rc1` (`https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0-rc1.zip`, publication marquée « pre-release ») ; la version finale `v1.0.0` sera publiée après la recette et le recalibrage des seuils (section 4). Les scripts sont idempotents : les relancer répare une installation sans créer de doublon.
 
 **Windows.** Télécharger l'archive ci-dessus, l'extraire, puis double-cliquer sur `installation\installer-windows.cmd`. Si Windows affiche un avertissement de sécurité sur un fichier téléchargé (SmartScreen, « Le fichier provient d'un autre ordinateur »), choisir « Exécuter quand même », ou cocher « Débloquer » dans les propriétés de l'archive avant de l'extraire.
 
 **macOS (méthode principale).** Ouvrir le Terminal (Applications, Utilitaires) et coller la ligne suivante, qui télécharge l'archive par `curl` (donc sans mise en quarantaine par Gatekeeper) et lance le script d'installation :
 
 ```
-cd /tmp && curl -LsSf https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0.zip -o ocr-md.zip && unzip -oq ocr-md.zip && bash ocr-md-1.0.0/installation/installer-macos.command
+cd /tmp && rm -rf ocr-md-* && curl -LsSf https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0-rc1.zip -o ocr-md.zip && unzip -oq ocr-md.zip && bash ocr-md-*/installation/installer-macos.command
 ```
 
 **macOS (secours).** Extraire l'archive téléchargée par le navigateur, puis double-cliquer sur `installation/installer-macos.command`. Si macOS refuse de l'ouvrir (« développeur non identifié »), faire clic droit sur le fichier, puis « Ouvrir », puis confirmer « Ouvrir ».
@@ -37,7 +37,18 @@ cd /tmp && curl -LsSf https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0
 
 ## 4. Mise à jour
 
-`installation\mettre-a-jour-windows.cmd` ou `installation/mettre-a-jour-macos.command` : réinstallation de la dernière version depuis la source de distribution (`uv tool install --force --reinstall`), recréation des raccourcis, diagnostic, affichage de l'ancienne et de la nouvelle version. Le fichier de configuration de l'utilisateur est conservé. L'outil ne se met jamais à jour seul et ne vérifie pas l'existence de nouvelles versions (EX-72). Pour passer à une nouvelle version publiée, modifier l'adresse en tête de `installation/commun-windows.ps1` et de `installation/commun-macos.sh`, ou passer la nouvelle adresse en paramètre.
+`installation\mettre-a-jour-windows.cmd` ou `installation/mettre-a-jour-macos.command` : réinstallation de la dernière version depuis la source de distribution (`uv tool install --force --reinstall`), recréation des raccourcis, diagnostic, affichage de l'ancienne et de la nouvelle version. Le fichier de configuration de l'utilisateur est conservé. L'outil ne se met jamais à jour seul et ne vérifie pas l'existence de nouvelles versions (EX-72).
+
+L'étiquette installée est un paramètre unique, en tête de `installation/commun-windows.ps1` (`$Etiquette`) et de `installation/commun-macos.sh` (`ETIQUETTE`). Le script de mise à jour installe l'étiquette inscrite dans le script lui-même : il faut donc lancer celui de l'archive de la nouvelle version.
+
+**Passer d'une version candidate à la version finale** (mainteneur, puis référent) :
+
+1. dans le dépôt : version `1.0.0` dans `pyproject.toml` et `src/ocr_md/__init__.py` (puis `uv lock`), seuils recalibrés en recette dans `src/ocr_md/config.py` et `docs/calibrage.md`, rubrique `[1.0.0]` du CHANGELOG, étiquette `v1.0.0` dans les deux scripts communs, la ligne d'installation des guides et le README ; tests et intégration continue verts ;
+2. créer l'étiquette `v1.0.0` sur ce commit, l'envoyer, et publier la version sur GitHub sans la marque « pre-release » ; l'intégration continue vérifie alors l'installation depuis l'étiquette (workflow « installation depuis l'étiquette ») ;
+3. sur chaque poste de recette : télécharger l'archive `v1.0.0`, l'extraire et lancer `installation\mettre-a-jour-windows.cmd` ou `installation/mettre-a-jour-macos.command` (ou, sous macOS, la nouvelle ligne d'installation du guide, qui réinstalle sans doublon) ; contrôler que `ocr-md --version` affiche `1.0.0` et que la configuration est conservée ;
+4. diffuser aux membres les guides désignant `v1.0.0`.
+
+Une nouvelle version candidate (`v1.0.0-rc2`, version `1.0.0rc2`) suit les mêmes étapes, publiée en « pre-release ».
 
 ## 5. Désinstallation
 

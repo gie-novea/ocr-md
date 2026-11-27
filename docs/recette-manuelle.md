@@ -10,7 +10,7 @@ Postes : ☐ Windows 10 ☐ Windows 11 ☐ Mac Apple Silicon (macOS ……) ☐ 
 
 Plateformes : Mac Apple Silicon, Mac Intel si le parc en compte, Windows 10, Windows 11.
 
-1. ☐ Windows : télécharger l'archive v1.0.0, l'extraire, double-cliquer sur `installation\installer-windows.cmd`.
+1. ☐ Windows : télécharger l'archive de la version candidate (https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0-rc1.zip), l'extraire, double-cliquer sur `installation\installer-windows.cmd`.
 2. ☐ macOS : coller la ligne d'installation du guide dans le Terminal ; puis, sur un second poste ou après désinstallation, essayer le secours (double-clic sur le `.command`, clic droit puis « Ouvrir »).
 3. ☐ Aucune demande de mot de passe administrateur ni d'élévation.
 4. ☐ Message final « Installation terminée » ; diagnostic sans ligne `[X]` (sauf module OCR absent, voir TM-04).
@@ -93,9 +93,13 @@ Constat : …………………………………………… Date : ………�
 Plateformes : toutes. Lot anonymisé ou non confidentiel.
 
 1. ☐ Performance (EX-58) : durée totale, pages par minute, durée de la relance, mémoire maximale (Gestionnaire des tâches ou Moniteur d'activité). Objectifs : moins de 20 minutes, relance en moins de 30 secondes, moins de 1,5 Go. Pour un relevé chiffré comparable : `uv run python tests/perf/lot_type.py` depuis une copie du dépôt.
-2. ☐ Relecture par sondage de 20 pages reconnues : texte conforme ; montants exacts.
-3. ☐ Faux positifs (pages saines signalées douteuses) et faux négatifs (pages fausses non signalées) : relevés page par page avec le motif. Priorité : seuils de confiance de Vision, de résolution de l'image (scans à 200 dpi), de bruit et de netteté, de mots inconnus.
-4. ☐ Calibrage : `uv run python tests/calibrage.py DOSSIER --moteur systeme` sur un dossier local des pages relues ; proposer les seuils ajustés au commanditaire (guide administrateur, section 9).
+2. ☐ Sur un vrai Mac (Apple Silicon, et Intel si le parc en compte) : durée totale et mémoire maximale du même lot (Moniteur d'activité, colonne « Mémoire » du processus Python d'ocr-md), à comparer aux relevés de l'intégration continue (Apple Silicon : 8 min 36 s et 714 Mo ; Intel : 13 min 55 s et 530 Mo, sur le lot type).
+   Durée : ………… Mémoire maximale : ………… Modèle et macOS : …………
+3. ☐ Mémoire vive des Mac du parc : relever pour chaque modèle si elle est de 8 Go ou plus (la mémoire maximale de l'outil atteint 0,7 Go sur le lot type ; un Mac à 8 Go reste confortable si peu d'applications sont ouvertes, un Mac à moins de 8 Go est à essayer en priorité).
+   Modèles et mémoire : ……………………………………
+4. ☐ Relecture par sondage de 20 pages reconnues : texte conforme ; montants exacts.
+5. ☐ Faux positifs (pages saines signalées douteuses) et faux négatifs (pages fausses non signalées) : relevés page par page avec le motif. Priorité : seuils de confiance de Vision, de résolution de l'image (scans à 200 dpi), de bruit et de netteté, de mots inconnus.
+6. ☐ Calibrage : `uv run python tests/calibrage.py DOSSIER --moteur systeme` sur un dossier local des pages relues ; proposer les seuils ajustés au commanditaire (guide administrateur, section 9).
 
 Constat : …………………………………………… Date : ………… Visa : …………
 

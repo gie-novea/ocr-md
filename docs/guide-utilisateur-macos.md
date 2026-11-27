@@ -2,7 +2,7 @@
 
 **Installer (une fois).** Ouvrir le Terminal (Applications, puis Utilitaires), coller la ligne transmise par le référent, appuyer sur Entrée et attendre le message « Installation terminée » :
 
-`cd /tmp && curl -LsSf https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0.zip -o ocr-md.zip && unzip -oq ocr-md.zip && bash ocr-md-1.0.0/installation/installer-macos.command`
+`cd /tmp && rm -rf ocr-md-* && curl -LsSf https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0-rc1.zip -o ocr-md.zip && unzip -oq ocr-md.zip && bash ocr-md-*/installation/installer-macos.command`
 
 En secours : double-cliquer sur `installation/installer-macos.command` dans l'archive extraite ; si macOS refuse (« développeur non identifié »), faire clic droit sur le fichier, puis « Ouvrir », puis « Ouvrir ».
 

@@ -1,6 +1,6 @@
 [project]
 name = "ocr-md"
-version = "0.1.0"
+version = "1.0.0rc1"
 description = "Rend lisibles les PDF scannés (OCR du système) et convertit PDF, images et fichiers Office en Markdown annoté pour l'analyse par IA."
 readme = "README.md"
 license = "AGPL-3.0-only"

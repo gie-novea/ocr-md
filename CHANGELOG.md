@@ -1,6 +1,8 @@
 # Journal des modifications
 
-## [Non publié] : vers 1.0.0
+## [1.0.0rc1] : 27/11/2026, version candidate pour la recette
+
+Version candidate (étiquette `v1.0.0-rc1`, publiée en « pre-release »). La version 1.0.0 suivra la recette et le recalibrage des seuils (TM-08).
 
 ### Ajouts
 - Jalon 1 : squelette du paquet (`pyproject.toml`, Python 3.12, lanceur sans console `ocr-mdw`), paramètres réglables par fichier TOML, ligne de commande en français avec codes de retour, interface des moteurs OCR et moteurs Windows (`Windows.Media.Ocr`) et macOS (Apple Vision), lexique français embarqué (Grammalecte 7.7, MPL 2.0), tests automatisés, intégration continue GitHub Actions (Windows, macOS Apple Silicon et Intel, Linux).
