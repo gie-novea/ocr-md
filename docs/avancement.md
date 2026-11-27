@@ -224,7 +224,7 @@ Interprétations et points d'attention :
 
 CI du jalon 7 (run 45945692381), verte sur les quatre plateformes (169 tests réussis sur chaque Mac, 166 sous Windows en en-US, 159 sous Linux). Temps de reconnaissance par page sous macOS : 1,48 s (Apple Silicon, moins 52 %) et 2,59 s (Intel, moins 27 %), taux de mots retrouvés inchangés. Mémoire du lot de 10 x 200 pages stable sur toutes les plateformes ; son niveau de départ a monté (160 à 233 Mo selon la plateforme) avec le chargement du lexique de 476 000 formes, une fois par processus.
 
-## Point de reprise (27/11/2026, changement de session)
+## Point de reprise (27/11/2026, changement de session ; état à la fin du jalon 7, mis à jour par les rubriques suivantes)
 
 ### État exact
 
@@ -300,3 +300,31 @@ Fait :
 - lexique : déjà chargé à la première recherche d'un mot seulement ; test qu'un lot de PDF natifs ne le charge pas. La mémoire de départ plus haute du test de lot vient de ce que ce lot est fait de pages scannées, qui l'utilisent.
 
 Tests : 171 réussis, 6 sautés sous Windows (fr-FR).
+
+## Jalon 8 : fichiers Office (27/11/2026)
+
+Décisions du commanditaire (27/11/2026), reportées dans le cahier (EX-45, 7.1, 11.3, 11.4, 11.6, EX-82) :
+- .xlsx : virgule décimale, 12 chiffres significatifs (artefacts de virgule flottante retirés sans perte des centimes), pourcentage quand le format de la cellule contient « % », dates ISO, VRAI et FAUX, erreurs telles quelles ;
+- .docx : révisions présentées dans leur état final, signalées avec le nombre de commentaires par une mention en tête du Markdown et par une nouvelle colonne du rapport, sans statut douteux ;
+- zones de texte à leur point d'ancrage, sinon en fin de document avec un repère ; diapositive masquée convertie et signalée.
+
+Fait :
+- `markdown_office` (python-docx, openpyxl, python-pptx) et traiteur `traiteurs/office.py` : Markdown seul, front matter avec `moteur_ocr: aucun`, `pages: null` pour .docx et .xlsx, nombre de diapositives pour .pptx, statut `natif` ;
+- .docx : titres (styles de titre, niveaux hiérarchiques), listes à puces et numérotées, tableaux (fusions horizontales et verticales, lignes d'en-tête répétées), notes de bas de page et de fin, révisions (insertions retenues, suppressions écartées), commentaires comptés, zones de texte à leur ancrage précédées de `<!-- zone de texte -->` (la variante VML de repli d'une forme moderne n'est pas lue, sinon le texte serait doublé) ;
+- .xlsx : lecture en continu (lecture seule, valeurs en cache, seconde lecture des formules pour repérer celles sans valeur en cache), fusions lues dans le XML de la feuille, bords vides retirés, feuille vide signalée, troncature au-delà de `xlsx_lignes_max` avec le nombre de lignes de la feuille, feuilles masquées listées en fin de document ;
+- .pptx : titres, textes dans l'ordre de lecture (formes groupées comprises), puces des zones de contenu, tableaux fusionnés, commentaires du présentateur, diapositive masquée signalée ;
+- tableaux (EX-44) : l'unité de la règle 3 est le document .docx, la feuille ou la diapositive ;
+- rapport : colonne `revisions_commentaires` (16 colonnes) ; un rapport à 15 colonnes n'est plus relu, les fichiers sont retraités à la relance ;
+- fichier Office endommagé : `erreur` avec un message clair, détail au journal ;
+- jeu de test : fichiers 7 et 9 enrichis, fichier 8 écrit directement en XML (formule avec et sans valeur en cache, fusions, pourcentages, artefacts, date, booléen, erreur, feuille masquée) ;
+- tests : `tests/test_office.py` (32 tests, dont mémoire bornée sur un classeur de 60 000 lignes) ; suite complète : 203 réussis, 6 sautés sous Windows (fr-FR).
+
+Ajout à valider (non demandé explicitement) : un .docx, .xlsx ou .pptx chiffré par mot de passe (conteneur CFB portant « EncryptedPackage ») reçoit le message « fichier Office protégé par mot de passe : l'enregistrer sans mot de passe dans son application, puis relancer », au lieu de « le contenu du fichier ne correspond pas à son extension ».
+
+Interprétations :
+- titres : le style « Titre » du document et « Titre 1 » donnent tous deux `#`, « Titre N » donne N dièses ;
+- repère de feuille : N est le rang parmi les feuilles visibles (numérotation continue) ;
+- zones de texte : le paragraphe d'ancrage est toujours connu dans le XML, y compris pour une zone flottante ; le repli en fin de document n'a pas eu à servir sur le jeu de test ;
+- non repris : en-têtes et pieds de page des .docx, graphiques et SmartArt des .pptx, feuilles de graphique des .xlsx (non demandés par EX-45).
+
+Reste à faire : envoi des commits locaux et suivi de la CI ; jalon 9.

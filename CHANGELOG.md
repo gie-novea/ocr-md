@@ -11,13 +11,15 @@
 - Jalon 6 : Markdown des PDF et des images par PyMuPDF4LLM, repères de page, en-têtes et pieds conservés, tableaux fusionnés en HTML, repère des tableaux reconnus par OCR, repli en texte simple pour les pages reconnues mal restituées par la bibliothèque, boîtes par mot avec Apple Vision (PV-14).
 - Avant le jalon 7 : correctif PyMuPDF4LLM isolé et testé, ticket préparé, ventilation du temps par page, colonne `pages_texte_simple` du rapport.
 - Jalon 7 : évaluation de la qualité par page, seuils calibrés, reprise d'OCR (`--refaire-ocr`, `--pages`), front matter et schéma JSON, bloc d'avertissement, `_AVERTISSEMENTS.md`, reconstruction des PDF réparés, conversion plus rapide de l'image transmise à Vision.
+- Avant le jalon 8 : seuils de qualité revenus aux valeurs du cahier (calibrage définitif en recette), correctif PyMuPDF4LLM non appliqué signalé au journal et par `verifier`.
+- Jalon 8 : Markdown des fichiers .docx, .xlsx et .pptx (titres, listes, tableaux fusionnés, notes de bas de page, zones de texte, révisions en état final et commentaires signalés, valeurs en cache des classeurs et formules non calculées, feuilles et diapositives masquées, commentaires du présentateur) ; colonne `revisions_commentaires` du rapport ; message propre aux fichiers Office protégés par mot de passe.
 
 ### Reprise de l'existant
 - Le code de l'outil existant (« Convertisseur MD », PC) a été fourni et lu. Aucun fichier n'en est copié et l'outil livré n'en dépend pas. Éléments de logique repris :
   - test d'écriture réel d'un dossier (sous Windows, `os.access` ignore les ACL) : `plateforme.dossier_inscriptible` ;
   - reconfiguration des flux en UTF-8 au démarrage ;
   - `defusedxml` déclaré pour protéger `openpyxl` des fichiers .xlsx piégés ;
-  - à reprendre au jalon 8 : lecture des .xlsx en valeurs calculées et en lecture seule, structure de conversion des .pptx (titres, niveaux de puces, tableaux, notes du présentateur).
+  - lecture des .xlsx en valeurs calculées et en lecture seule, structure de conversion des .pptx (titres, niveaux de puces, tableaux, notes du présentateur) : repris au jalon 8 (`markdown_office`).
 - Non repris, car contraires au cahier des charges : installation par droits d'administrateur, Tesseract, OCRmyPDF, pandoc, Ghostscript, écriture à côté de la source, repli sur le Bureau.
 - Les mesures de sécurité de l'outil existant qui concernent un lanceur `.bat` (injection par nom de fichier) sont sans objet : les raccourcis d'ocr-md ciblent directement le lanceur `ocr-mdw.exe`, sans interpréteur de commandes.
 

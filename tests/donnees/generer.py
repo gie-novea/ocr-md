@@ -45,6 +45,27 @@ ORIGINE = {
 }
 
 
+def reecrire_zip(source: bytes | None, cible: pathlib.Path, modifications: dict, ajouts: dict) -> None:
+    """Écrit un paquet Office (zip) : parties de `source` modifiées par les fonctions de
+    `modifications` (texte vers texte), puis parties de `ajouts`. Dates fixes (reproductible)."""
+    entrees = {}
+    if source is not None:
+        with zipfile.ZipFile(io.BytesIO(source)) as z:
+            for nom in z.namelist():
+                donnees = z.read(nom)
+                if nom in modifications:
+                    donnees = modifications[nom](donnees.decode("utf-8")).encode("utf-8")
+                entrees[nom] = donnees
+    for nom, texte in ajouts.items():
+        entrees[nom] = texte.encode("utf-8")
+    noms = sorted(entrees, key=lambda n: (n != "[Content_Types].xml", n))
+    with zipfile.ZipFile(cible, "w", zipfile.ZIP_DEFLATED) as z:
+        for nom in noms:
+            info = zipfile.ZipInfo(nom, date_time=DATE_FIXE.timetuple()[:6])
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, entrees[nom])
+
+
 class Generateur:
     def __init__(self, racine: pathlib.Path, graine: int):
         self.racine = racine
@@ -276,53 +297,225 @@ class Generateur:
 
     # -------------------------------------------------------------- Office
     def f07_docx(self):
+        """Mémoire .docx : titres, listes, tableau fusionné, note de bas de page, commentaire,
+        révisions non acceptées (insertion et suppression), zone de texte ancrée (forme Word
+        moderne avec sa variante VML de repli, qui ne doit être lue qu'une fois)."""
         import docx
         d = docx.Document()
         textes = ["Mémoire technique du groupement", "1. Compréhension de la mission",
                   "Le groupement propose une équipe de maîtrise d’œuvre complète.",
                   "Visites de chantier hebdomadaires", "Comptes rendus sous 48 heures",
-                  "2. Moyens humains", "Intervenant", "Fonction", "Mme Durand", "Architecte mandataire",
+                  "Phase études", "Phase travaux",
+                  "Le planning détaillé figure en annexe.",
+                  "Encadré de synthèse ci-contre.",
+                  "2. Moyens humains", "Intervenant", "Mission", "Équipe", "Mme Durand", "Architecte mandataire",
+                  "40 %", "Groupement", "M. Martin", "Économiste", "20 %",
                   self.sentinelle(7)]
+        note = "Équipe constituée pour ce marché fictif."
+        zone = "Engagement qualité : visa des plans sous 8 jours."
+        revision = "Délai d’exécution proposé : dix-huit mois."
+        commentaire = "Vérifier la date de remise avec le mandataire."
         d.add_heading(textes[0], 0)
         d.add_heading(textes[1], 1)
-        d.add_paragraph(textes[2])
+        d.add_paragraph("@@NOTE@@")
         d.add_paragraph(textes[3], style="List Bullet")
         d.add_paragraph(textes[4], style="List Bullet")
-        d.add_heading(textes[5], 1)
-        t = d.add_table(rows=2, cols=2)
+        d.add_paragraph(textes[5], style="List Number")
+        d.add_paragraph(textes[6], style="List Number")
+        d.add_paragraph("@@COMMENTAIRE@@")
+        d.add_paragraph("@@REVISION@@")
+        d.add_paragraph("@@ZONE@@")
+        d.add_heading(textes[9], 1)
+        t = d.add_table(rows=3, cols=4)
         t.style = "Table Grid"
-        for (r, c), v in zip(((0, 0), (0, 1), (1, 0), (1, 1)), textes[6:10]):
+        t.cell(0, 1).merge(t.cell(0, 2))
+        t.cell(1, 3).merge(t.cell(2, 3))
+        for (r, c), v in zip(((0, 0), (0, 1), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3), (2, 0), (2, 1), (2, 2)),
+                             textes[10:20]):
             t.cell(r, c).text = v
-        d.add_paragraph(textes[10])
+        d.add_paragraph(textes[20])
         d.core_properties.created = d.core_properties.modified = DATE_FIXE
+        tampon = io.BytesIO()
+        d.save(tampon)
+        a = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+        corps_zone = f'<w:txbxContent><w:p><w:r><w:t>{zone}</w:t></w:r></w:p></w:txbxContent>'
+        remplacements = {
+            "@@NOTE@@": (f'<w:r><w:t>{textes[2]}</w:t></w:r><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr>'
+                         '<w:footnoteReference w:id="1"/></w:r>'),
+            "@@COMMENTAIRE@@": ('<w:commentRangeStart w:id="0"/>'
+                                f'<w:r><w:t>{textes[7]}</w:t></w:r><w:commentRangeEnd w:id="0"/>'
+                                '<w:r><w:commentReference w:id="0"/></w:r>'),
+            "@@REVISION@@": ('<w:r><w:t xml:space="preserve">Délai d’exécution proposé : </w:t></w:r>'
+                             '<w:ins w:id="11" w:author="Relecteur" w:date="2026-11-26T09:00:00Z"><w:r>'
+                             '<w:t>dix-huit mois</w:t></w:r></w:ins>'
+                             '<w:del w:id="12" w:author="Relecteur" w:date="2026-11-26T09:00:00Z"><w:r>'
+                             '<w:delText>vingt-quatre mois</w:delText></w:r></w:del><w:r><w:t>.</w:t></w:r>'),
+            "@@ZONE@@": (f'<w:r><w:t>{textes[8]}</w:t></w:r><w:r><mc:AlternateContent><mc:Choice Requires="wps">'
+                         '<w:drawing><wp:anchor distT="0" distB="0" distL="114300" distR="114300" simplePos="0" '
+                         'relativeHeight="1" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">'
+                         '<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>3000000'
+                         '</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0'
+                         '</wp:posOffset></wp:positionV><wp:extent cx="2000000" cy="600000"/><wp:wrapSquare '
+                         'wrapText="bothSides"/><wp:docPr id="1" name="Zone de texte 1"/><wp:cNvGraphicFramePr/>'
+                         f'<a:graphic {a}><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/'
+                         'wordprocessingShape"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" '
+                         'y="0"/><a:ext cx="2000000" cy="600000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/>'
+                         f'</a:prstGeom></wps:spPr><wps:txbx>{corps_zone}</wps:txbx><wps:bodyPr/></wps:wsp>'
+                         '</a:graphicData></a:graphic></wp:anchor></w:drawing></mc:Choice><mc:Fallback><w:pict>'
+                         '<v:shape id="Zone1" type="#_x0000_t202" style="position:absolute;width:157pt;height:47pt">'
+                         f'<v:textbox>{corps_zone}</v:textbox></v:shape></w:pict></mc:Fallback>'
+                         '</mc:AlternateContent></w:r>'),
+        }
+        w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+        parties = {
+            "word/footnotes.xml": (
+                f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:footnotes {w}>'
+                '<w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>'
+                '<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r>'
+                '</w:p></w:footnote><w:footnote w:id="1"><w:p><w:r><w:rPr><w:vertAlign w:val="superscript"/>'
+                f'</w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> {note}</w:t></w:r></w:p>'
+                '</w:footnote></w:footnotes>'),
+            "word/comments.xml": (
+                f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:comments {w}>'
+                '<w:comment w:id="0" w:author="Relecteur" w:date="2026-11-26T09:00:00Z" w:initials="R"><w:p>'
+                f'<w:r><w:t>{commentaire}</w:t></w:r></w:p></w:comment></w:comments>'),
+        }
+        types = {"word/footnotes.xml": "footnotes", "word/comments.xml": "comments"}
+
+        def document(xml: str) -> str:
+            for repere, runs in remplacements.items():
+                xml = xml.replace(f"<w:r><w:t>{repere}</w:t></w:r>", runs)
+            assert "@@" not in xml
+            return xml
+
+        def relations(xml: str) -> str:
+            ajout = "".join(f'<Relationship Id="rIdJeu{i}" Type="http://schemas.openxmlformats.org/officeDocument/'
+                            f'2006/relationships/{t}" Target="{n.split("/")[-1]}"/>'
+                            for i, (n, t) in enumerate(types.items()))
+            return xml.replace("</Relationships>", ajout + "</Relationships>")
+
+        def contenus(xml: str) -> str:
+            ajout = "".join(f'<Override PartName="/{n}" ContentType="application/vnd.openxmlformats-officedocument.'
+                            f'wordprocessingml.{t}+xml"/>' for n, t in types.items())
+            return xml.replace("</Types>", ajout + "</Types>")
+
         rel = "office/07_memoire.docx"
-        d.save(self.chemin(rel))
+        reecrire_zip(tampon.getvalue(), self.chemin(rel),
+                     {"word/document.xml": document, "word/_rels/document.xml.rels": relations,
+                      "[Content_Types].xml": contenus}, parties)
+        mention = ("Document contenant des révisions non acceptées et 1 commentaire : texte présenté dans son état "
+                   "final (insertions acceptées, suppressions écartées), commentaires non repris.")
         self.enregistrer(numero="7", chemin=rel, type="docx", pages=None, statut="natif", origine=ORIGINE["natif"],
-                         textes_attendus=textes, sentinelles=[textes[10]])
+                         textes_attendus=textes + [note, zone, revision], sentinelles=[textes[20]],
+                         textes_absents=["vingt-quatre mois", commentaire], zone_de_texte=zone,
+                         mention_revisions=mention, revisions_commentaires="revisions commentaires=1",
+                         titres={"Mémoire technique du groupement": 1, "1. Compréhension de la mission": 1,
+                                 "2. Moyens humains": 1})
 
     def f08_xlsx(self):
-        import openpyxl
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Synthèse"
-        lignes = [["Lot", "Montant HT", "Délai"], ["Gros œuvre", 125000, "12 mois"], ["Charpente", 48500, "4 mois"]]
-        for l in lignes:
-            ws.append(l)
-        ws2 = wb.create_sheet("Détail")
-        for l in [["Poste", "Quantité"], ["Terrassements", 320], ["Fondations", 85]]:
-            ws2.append(l)
-        ws3 = wb.create_sheet("Paramètres")
-        ws3.append(["Taux de TVA", 0.2])
-        ws3.sheet_state = "hidden"
-        wb.properties.created = wb.properties.modified = DATE_FIXE
+        """Classeur écrit directement en XML (openpyxl n'écrit pas de valeurs en cache) :
+        formule avec valeur en cache, formule sans valeur, cellules fusionnées, pourcentages,
+        artefacts de virgule flottante, date, booléen, erreur, feuille masquée."""
+        jour = (datetime.date(2026, 11, 26) - datetime.date(1899, 12, 30)).days
+        chaines = ["Récapitulatif des lots", "Lot", "Montant HT", "Délai", "Part", "Gros œuvre", "12 mois",
+                   "Charpente", "4 mois", "Total HT", "Total TTC", "Révision", "Date de valeur", "Contrôle",
+                   "Ratio", "Poste", "Quantité", "Terrassements", "Fondations", "Taux de TVA", "Prix unitaire"]
+        s = {c: i for i, c in enumerate(chaines)}
+
+        def c(ref, chaine=None, v=None, f=None, t=None, style=None):
+            attributs = f' r="{ref}"' + (f' s="{style}"' if style else "")
+            if chaine is not None:
+                return f'<c{attributs} t="s"><v>{s[chaine]}</v></c>'
+            contenu = (f"<f>{f}</f>" if f else "") + (f"<v>{v}</v>" if v is not None else "")
+            return f'<c{attributs}{f" t=\"{t}\"" if t else ""}>{contenu}</c>'
+
+        def feuille(lignes, fusions=()):
+            xml = "".join(f'<row r="{n}">{"".join(cs)}</row>' for n, cs in lignes)
+            fus = (f'<mergeCells count="{len(fusions)}">' + "".join(f'<mergeCell ref="{r}"/>' for r in fusions)
+                   + "</mergeCells>") if fusions else ""
+            return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.'
+                    'openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + xml + "</sheetData>" + fus
+                    + "</worksheet>")
+
+        synthese = feuille([
+            (1, [c("A1", "Récapitulatif des lots")]),
+            (2, [c("A2", "Lot"), c("B2", "Montant HT"), c("C2", "Délai"), c("D2", "Part")]),
+            (3, [c("A3", "Gros œuvre"), c("B3", v=125000), c("C3", "12 mois"), c("D3", v="0.72", style=1)]),
+            (4, [c("A4", "Charpente"), c("B4", v="48500.1"), c("C4", "4 mois"), c("D4", v="0.28", style=1)]),
+            (5, [c("A5", "Total HT"), c("B5", f="B3+B4", v="173500.09999999998")]),
+            (6, [c("A6", "Total TTC"), c("B6", f="B5*1.2")]),
+            (7, [c("A7", "Révision"), c("B7", v="0.30000000000000004"), c("C7", "Ratio"),
+                 c("D7", v="0.12345", style=2)]),
+            (8, [c("A8", "Date de valeur"), c("B8", v=jour, style=3), c("C8", "Contrôle"), c("D8", v=1, t="b")]),
+            (9, [c("A9", "Prix unitaire"), c("B9", v="1234.5600000000002"), c("C9", f="B3/0", v="#DIV/0!", t="e")]),
+        ], fusions=["A1:D1"])
+        detail = feuille([
+            (1, [c("A1", "Poste"), c("B1", "Quantité")]),
+            (2, [c("A2", "Terrassements"), c("B2", v=320)]),
+            (3, [c("A3", "Fondations"), c("B3", v=85)]),
+        ])
+        parametres = feuille([(1, [c("A1", "Taux de TVA"), c("B1", v="0.2", style=1)])])
+        ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        nsr = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+        rels = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+        noms = [("Synthèse", "visible"), ("Détail", "visible"), ("Paramètres", "hidden")]
+        parties = {
+            "[Content_Types].xml": (
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.'
+                'openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/'
+                'vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/'
+                'xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-'
+                'officedocument.spreadsheetml.sheet.main+xml"/>'
+                + "".join(f'<Override PartName="/xl/worksheets/sheet{i}.xml" ContentType="application/vnd.'
+                          'openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' for i in (1, 2, 3))
+                + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.'
+                'spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/'
+                'vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>'),
+            "_rels/.rels": (
+                f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.'
+                f'openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{rels}/'
+                'officeDocument" Target="xl/workbook.xml"/></Relationships>'),
+            "xl/workbook.xml": (
+                f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook {ns} {nsr}><sheets>'
+                + "".join(f'<sheet name="{n}" sheetId="{i}"{"" if e == "visible" else f" state=\"{e}\""} '
+                          f'r:id="rId{i}"/>' for i, (n, e) in enumerate(noms, 1))
+                + "</sheets></workbook>"),
+            "xl/_rels/workbook.xml.rels": (
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.'
+                'openxmlformats.org/package/2006/relationships">'
+                + "".join(f'<Relationship Id="rId{i}" Type="{rels}/worksheet" Target="worksheets/sheet{i}.xml"/>'
+                          for i in (1, 2, 3))
+                + f'<Relationship Id="rId4" Type="{rels}/styles" Target="styles.xml"/>'
+                f'<Relationship Id="rId5" Type="{rels}/sharedStrings" Target="sharedStrings.xml"/>'
+                "</Relationships>"),
+            "xl/styles.xml": (
+                f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet {ns}>'
+                '<numFmts count="1"><numFmt numFmtId="164" formatCode="0.00\\ %"/></numFmts>'
+                '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
+                '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill '
+                'patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/>'
+                '<diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" '
+                'borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" '
+                'borderId="0" xfId="0"/><xf numFmtId="9" fontId="0" fillId="0" borderId="0" xfId="0" '
+                'applyNumberFormat="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" '
+                'applyNumberFormat="1"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" '
+                'applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" '
+                'builtinId="0"/></cellStyles></styleSheet>'),
+            "xl/sharedStrings.xml": (
+                f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst {ns} count="{len(chaines)}" '
+                f'uniqueCount="{len(chaines)}">' + "".join(f"<si><t>{t}</t></si>" for t in chaines) + "</sst>"),
+            "xl/worksheets/sheet1.xml": synthese, "xl/worksheets/sheet2.xml": detail,
+            "xl/worksheets/sheet3.xml": parametres,
+        }
         rel = "office/08_chiffrage.xlsx"
-        wb.save(self.chemin(rel))
-        # Limite : openpyxl n'écrit pas de valeurs calculées en cache ; le classeur ne
-        # contient donc que des valeurs saisies (pas de formule).
+        reecrire_zip(None, self.chemin(rel), {}, parties)
         self.enregistrer(numero="8", chemin=rel, type="xlsx", pages=None, statut="natif", origine=ORIGINE["natif"],
                          feuilles_visibles=["Synthèse", "Détail"], feuilles_masquees=["Paramètres"],
-                         textes_attendus=["Gros œuvre", "125000", "12 mois", "Terrassements", "320"],
-                         textes_absents=["Taux de TVA"])
+                         textes_attendus=["Récapitulatif des lots", "Gros œuvre", "125000", "12 mois", "48500,1",
+                                          "173500,1", "[formule non calculée : =B5*1.2]", "72 %", "28 %",
+                                          "0,3", "12,345 %", "2026-11-26", "VRAI", "1234,56", "#DIV/0!",
+                                          "Terrassements", "320"],
+                         textes_absents=["Taux de TVA", "0,30000000000000004", "1234,5600000000002", "0,72"])
 
     def f09_pptx(self):
         from pptx import Presentation
@@ -335,18 +528,30 @@ class Generateur:
         s2.shapes.title.text = "Méthodologie"
         s2.placeholders[1].text = "Diagnostic de l’existant"
         s2.notes_slide.notes_text_frame.text = "Insister sur le planning de la phase études."
+        groupe = s2.shapes.add_group_shape()
+        groupe.shapes.add_textbox(Inches(1), Inches(5), Inches(3), Inches(0.5)).text_frame.text = "Visa sous 8 jours"
+        groupe.shapes.add_textbox(Inches(5), Inches(5), Inches(3), Inches(0.5)).text_frame.text = "Synthèse mensuelle"
         s3 = prs.slides.add_slide(prs.slide_layouts[5])
         s3.shapes.title.text = "Équipe proposée"
-        tab = s3.shapes.add_table(2, 2, Inches(1), Inches(2), Inches(6), Inches(1)).table
-        for (r, c), v in zip(((0, 0), (0, 1), (1, 0), (1, 1)), ["Rôle", "Nom", "Mandataire", "Mme Durand"]):
+        tab = s3.shapes.add_table(3, 3, Inches(1), Inches(2), Inches(6), Inches(1.5)).table
+        tab.cell(0, 1).merge(tab.cell(0, 2))
+        for (r, c), v in zip(((0, 0), (0, 1), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)),
+                             ["Rôle", "Intervenant et part", "Mandataire", "Mme Durand", "40 %",
+                              "Économiste", "M. Martin", "20 %"]):
             tab.cell(r, c).text = v
+        s4 = prs.slides.add_slide(prs.slide_layouts[5])
+        s4.shapes.title.text = "Annexe masquée"
+        s4._element.set("show", "0")
         prs.core_properties.created = prs.core_properties.modified = DATE_FIXE
         rel = "office/09_presentation.pptx"
         prs.save(self.chemin(rel))
-        self.enregistrer(numero="9", chemin=rel, type="pptx", pages=3, statut="natif", origine=ORIGINE["natif"],
-                         textes_attendus=["Présentation de l’offre", "Méthodologie", "Diagnostic de l’existant",
-                                          "Insister sur le planning de la phase études.", "Équipe proposée",
-                                          "Mandataire", "Mme Durand"])
+        self.enregistrer(numero="9", chemin=rel, type="pptx", pages=4, statut="natif", origine=ORIGINE["natif"],
+                         textes_attendus=["Présentation de l’offre", "Groupement fictif Alpha Bêta", "Méthodologie",
+                                          "Diagnostic de l’existant", "Insister sur le planning de la phase études.",
+                                          "Visa sous 8 jours", "Synthèse mensuelle", "Équipe proposée",
+                                          "Intervenant et part", "Mandataire", "Mme Durand", "40 %", "Économiste",
+                                          "M. Martin", "Annexe masquée"],
+                         diapositives_masquees=[4])
 
     # -------------------------------------------------------------- images
     def _image_page(self, prefixe):

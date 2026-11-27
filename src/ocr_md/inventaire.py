@@ -30,6 +30,9 @@ MESSAGES_NON_PRIS_EN_CHARGE = {
 }
 MESSAGE_FORMAT_INCONNU = "format non pris en charge"
 MESSAGE_SIGNATURE = "le contenu du fichier ne correspond pas à son extension"
+MESSAGE_OFFICE_PROTEGE = ("fichier Office protégé par mot de passe : l'enregistrer sans mot de passe dans son "
+                          "application, puis relancer")
+ENTETE_CFB = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # conteneur des fichiers Office chiffrés
 MESSAGE_KDRIVE = ("fichier kDrive non disponible sur ce poste (en ligne uniquement) : dans l'Explorateur ou "
                   "le Finder, clic droit sur le dossier, puis \"Toujours conserver sur cet appareil\" (ou "
                   "équivalent), attendre la fin de la synchronisation, puis relancer")
@@ -204,4 +207,19 @@ def controler(element: Element, delai_hydratation_s: float, lecteur=None) -> Non
         except OSError as e:
             raise ErreurFichier(f"lecture impossible : {e.strerror or e}") from None
     if not signature_conforme(element.type, debut, element.source):
+        if element.type in ("docx", "xlsx", "pptx") and office_chiffre(debut, element.source):
+            raise ErreurFichier(MESSAGE_OFFICE_PROTEGE)
         raise ErreurFichier(MESSAGE_SIGNATURE)
+
+
+def office_chiffre(debut: bytes, chemin: pathlib.Path, taille_max: int = 8 * 1024 * 1024) -> bool:
+    """Fichier .docx, .xlsx ou .pptx chiffré par mot de passe : conteneur CFB portant le flux
+    « EncryptedPackage » (format ECMA-376 chiffré)."""
+    if not debut.startswith(ENTETE_CFB):
+        return False
+    try:
+        with open(chemin_systeme(chemin), "rb") as f:
+            contenu = f.read(taille_max)
+    except OSError:
+        return False
+    return "EncryptedPackage".encode("utf-16-le") in contenu

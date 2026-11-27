@@ -396,10 +396,10 @@ Le verdict, les indicateurs calculés et le motif (nom du ou des indicateurs dé
 ### 4.9 Markdown issu des fichiers Office
 
 **EX-45. Conversion .docx, .xlsx, .pptx.** L'outil doit convertir ces formats en Markdown, hors ligne, sans Microsoft Office ni LibreOffice :
-- **.docx** : titres (niveaux de titre du document), paragraphes, listes, tableaux, notes de bas de page si la bibliothèque le permet ; pas de repère de page (un .docx n'a pas de pagination fixe) ;
-- **.xlsx** : une section par feuille visible, précédée du repère `<!-- feuille N : "Nom de la feuille" -->`, contenu en tableau (valeurs calculées en cache, pas les formules) ; les feuilles masquées sont listées en fin de document sans leur contenu ; au-delà de `xlsx_lignes_max` lignes par feuille (défaut : 2 000), la feuille est tronquée et une ligne d'avertissement l'indique explicitement ;
-- **.pptx** : une section par diapositive, précédée du repère `<!-- diapositive N -->`, titre, textes, tableaux, commentaires du présentateur.
-Le choix de la bibliothèque est laissé à Claude Code (REC-05 : reprendre celle de l'outil existant si le code est fourni ; sinon une bibliothèque sous licence permissive, par exemple MarkItDown ou le trio `python-docx`, `openpyxl`, `python-pptx` ; licences et capacités à vérifier lors de l'inventaire des licences). Les tableaux suivent la règle de EX-44 lorsque la bibliothèque donne accès aux fusions.
+- **.docx** : titres (niveaux de titre du document), paragraphes, listes, tableaux, notes de bas de page si la bibliothèque le permet ; pas de repère de page (un .docx n'a pas de pagination fixe). Révisions non acceptées : le texte est présenté dans son état final (insertions acceptées, suppressions écartées) ; les commentaires ne sont pas repris ; la présence de révisions et le nombre de commentaires sont signalés par une mention en tête du Markdown (section 11.3) et par la colonne `revisions_commentaires` du rapport, sans statut `douteux`. Zones de texte : leur texte est placé à leur point d'ancrage, après le paragraphe qui les porte, précédé du repère `<!-- zone de texte -->` ; à défaut d'ancrage fiable, en fin de document avec le même repère (décisions du commanditaire du 27/11/2026) ;
+- **.xlsx** : une section par feuille visible, précédée du repère `<!-- feuille N : "Nom de la feuille" -->` (N : rang parmi les feuilles visibles), contenu en tableau (valeurs calculées en cache, pas les formules) ; une formule sans valeur en cache s'écrit `[formule non calculée : =…]` et non comme une cellule vide ; les feuilles masquées sont listées en fin de document sans leur contenu ; au-delà de `xlsx_lignes_max` lignes par feuille (défaut : 2 000), la feuille est tronquée et une ligne d'avertissement l'indique explicitement. Écriture des valeurs (décision du commanditaire du 27/11/2026) : nombres avec virgule décimale, sans séparateur de milliers ni symbole monétaire, arrondis à 12 chiffres significatifs pour retirer les artefacts de virgule flottante sans perte des centimes ; pourcentage (« 20 % » et non « 0,2 ») lorsque le format de la cellule contient « % » ; dates au format ISO (`AAAA-MM-JJ`, suivi de l'heure si elle n'est pas nulle) ; booléens `VRAI` et `FAUX` ; erreurs (`#DIV/0!`, etc.) telles quelles ;
+- **.pptx** : une section par diapositive, précédée du repère `<!-- diapositive N -->`, titre, textes (formes groupées comprises, de haut en bas puis de gauche à droite), tableaux, commentaires du présentateur ; une diapositive masquée est convertie, et la ligne `*(diapositive masquée)*` suit son repère.
+Le choix de la bibliothèque est laissé à Claude Code (REC-05 : reprendre celle de l'outil existant si le code est fourni ; sinon une bibliothèque sous licence permissive, par exemple MarkItDown ou le trio `python-docx`, `openpyxl`, `python-pptx` ; licences et capacités à vérifier lors de l'inventaire des licences). Les tableaux suivent la règle de EX-44 lorsque la bibliothèque donne accès aux fusions ; l'unité qui tient lieu de page pour la règle 3 est le document (.docx), la feuille (.xlsx) ou la diapositive (.pptx).
 - CA : sur les trois fichiers Office du jeu de test, tous les textes de la vérité terrain figurent dans le Markdown ; les repères de feuille et de diapositive sont présents et numérotés ; le front matter est conforme (section 11) avec `pages: null` pour .docx et .xlsx, et `origine_texte: "texte natif du document"`.
 
 ### 4.10 Front matter et avertissements
@@ -578,9 +578,9 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 | 5 | PDF scanné illisible, 2 pages | page 2 très floue et bruitée | `douteux`, page 2 (OCR de l'outil) |
 | 6 | PDF avec tableaux, au moins 4 pages natives | page 1 : tableau simple ; page 2 : tableau à cellules fusionnées et double en-tête ; page 3 : DPGF (lots et sous-lots fusionnés, quantités, prix unitaires, totaux) ; page 4 : cadre de décomposition des honoraires de maîtrise d'œuvre (missions par cotraitant, en-têtes sur deux niveaux) | Markdown pour la page 1, HTML avec `colspan`/`rowspan` pour les pages 2 à 4 |
 | 6b | Version scannée du fichier 6 | pages 1 à 4 rendues en image | `ocrise` ; chaque tableau détecté précédé du repère « tableau reconnu par OCR » |
-| 7 | .docx | titres, liste, tableau | `natif` |
-| 8 | .xlsx | deux feuilles visibles, une masquée | `natif` |
-| 9 | .pptx | trois diapositives, une avec commentaires | `natif` |
+| 7 | .docx | titres, listes à puces et numérotée, tableau à cellules fusionnées, note de bas de page, un commentaire, révisions non acceptées (insertion et suppression), zone de texte ancrée | `natif` ; mention des révisions et du commentaire en tête |
+| 8 | .xlsx | écrit directement en XML : deux feuilles visibles, une masquée ; formule avec valeur en cache et formule sans valeur en cache, cellules fusionnées, pourcentages, valeurs à artefact de virgule flottante, date, booléen, erreur | `natif` |
+| 9 | .pptx | quatre diapositives, dont une masquée et une avec commentaires du présentateur ; formes groupées ; tableau à cellules fusionnées | `natif` |
 | 10 | Images | un JPEG (orientation EXIF 6), un PNG, un TIFF de 3 trames | `ocrise` |
 | 11 | Non pris en charge | .doc, .msg, .zip (fichiers factices) | `non_pris_en_charge` |
 | 12 | Chemin accentué | `Candidat Été & Fils (n° 2)/Mémoire d'été.pdf`, formes NFC et NFD | traité |
@@ -908,6 +908,25 @@ Paragraphe C, pour un PDF réparé à l'ouverture (motif `pdf_repare`, EX-21) (d
 
 Si plusieurs origines coexistent, les paragraphes se suivent dans l'ordre C, A, B, séparés par une ligne `>` vide.
 
+**Mention des révisions et commentaires d'un .docx** (décision du commanditaire du 27/11/2026, EX-45). Un .docx qui contient des révisions non acceptées ou des commentaires reçoit, immédiatement après le front matter, une mention en citation (lignes commençant par `> `). Elle n'est pas un avertissement de qualité : le document garde `qualite_texte: bonne` et le statut `natif`. Selon le cas :
+
+```
+> Document contenant des révisions non acceptées et {N} commentaires : texte présenté
+> dans son état final (insertions acceptées, suppressions écartées), commentaires non
+> repris.
+```
+
+```
+> Document contenant des révisions non acceptées : texte présenté dans son état final
+> (insertions acceptées, suppressions écartées).
+```
+
+```
+> Document contenant {N} commentaires : commentaires non repris.
+```
+
+« commentaires » s'écrit au singulier pour N = 1. La colonne `revisions_commentaires` du rapport (11.6) porte la même information.
+
 ### 11.4 Repères dans le corps du Markdown
 
 | Cas | Ligne |
@@ -915,7 +934,9 @@ Si plusieurs origines coexistent, les paragraphes se suivent dans l'ordre C, A, 
 | page de PDF ou d'image, saine | `<!-- page N -->` |
 | page douteuse | `<!-- page N : TEXTE DOUTEUX, ne pas citer sans vérification sur l'original -->` |
 | feuille de classeur | `<!-- feuille N : "Nom de la feuille" -->` |
-| diapositive | `<!-- diapositive N -->` |
+| diapositive | `<!-- diapositive N -->`, suivi de la ligne `*(diapositive masquée)*` si la diapositive est masquée |
+| zone de texte d'un .docx | `<!-- zone de texte -->`, placé après le paragraphe qui porte la zone (son ancrage), avant le texte de la zone |
+| feuilles masquées d'un classeur | `<!-- feuilles masquées -->`, en fin de document, suivi de la phrase `Feuilles masquées du classeur, contenu non repris : "Nom", "Nom".` |
 | tableau détecté sur une page reconnue par OCR | `<!-- tableau reconnu par OCR : correspondance lignes/colonnes non garantie, vérifier sur l'original avant de citer un montant -->` (placé immédiatement avant le tableau, voir EX-44) |
 
 Chaque repère est seul sur sa ligne, précédé et suivi d'une ligne vide.
@@ -990,6 +1011,7 @@ Lorsqu'une rubrique est vide, son tableau est remplacé par la phrase « Aucune.
 | `pages_douteuses` | liste des pages douteuses |
 | `motif_douteux` | indicateurs déclencheurs, séparés par des espaces |
 | `pages_texte_simple` | pages dont le Markdown a été repris en texte simple depuis le PDF consultable, faute d'une restitution correcte par la bibliothèque de conversion (repli de PV-05) ; vide sinon (ajout du commanditaire du 26/11/2026, pour mesurer la fréquence du repli en recette) |
+| `revisions_commentaires` | pour un .docx : `revisions` s'il contient des révisions non acceptées, `commentaires=N` s'il contient N commentaires, les deux séparés par une espace ; vide sinon (décision du commanditaire du 27/11/2026, voir EX-45) |
 | `origine_texte` | valeur de la section 11.2 |
 | `sorties` | noms des fichiers produits, séparés par ` \| ` (barre verticale entourée d'espaces) ; vide si aucun |
 | `action` | `traite`, `ignore_a_jour`, `annule` |
@@ -999,7 +1021,7 @@ Lorsqu'une rubrique est vide, son tableau est remplacé par la phrase « Aucune.
 | `version_outil` | version de l'outil ayant produit les sorties |
 
 Lors d'une relance portant sur une partie seulement des éléments d'un dossier parent, les lignes des fichiers non concernés sont conservées ; les lignes des fichiers concernés sont remplacées.
-- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 15 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
+- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 16 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
 
 ### 11.7 Exemples complets
 
@@ -1100,7 +1122,7 @@ Mots-clés : qualite_texte=douteuse; pages_douteuses=3,4,9; origine=couche OCR f
 Ligne correspondante de `ocr_rapport.csv` :
 
 ```
-Lot 1/Candidat B/DC2.pdf;pdf;14;douteux;;3 4 9;taux_mots_inconnus taux_melange_chiffres_lettres;;couche OCR fournie par l'expéditeur, non refaite;DC2.pdf | DC2.pdf.md;traite;2,4;2026-11-26 14:33:41;;1.0.0
+Lot 1/Candidat B/DC2.pdf;pdf;14;douteux;;3 4 9;taux_mots_inconnus taux_melange_chiffres_lettres;;;couche OCR fournie par l'expéditeur, non refaite;DC2.pdf | DC2.pdf.md;traite;2,4;2026-11-26 14:33:41;;1.0.0
 ```
 
 #### Exemple 3 : document mixte (pages natives et pages reconnues par l'outil, dont une douteuse)

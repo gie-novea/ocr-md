@@ -5,8 +5,7 @@ source, produit ses sorties par `contexte.ecrivain.preparer(...)` et renvoie un
 `ResultatTraitement`. Il vérifie `contexte.arret` entre deux pages et lève `Annulation`
 si l'arrêt est demandé. Toute autre exception met le fichier en erreur (EX-60).
 
-Jalon 4 : PDF et images réalisés (PDF consultable ; Markdown provisoire jusqu'au jalon 6) ;
-fichiers Office au jalon 8.
+PDF et images : `pdf` ; fichiers Office (Markdown seul) : `office`.
 """
 
 import dataclasses
@@ -29,6 +28,7 @@ class ResultatTraitement:
     motifs: tuple[str, ...] = ()
     origine: str = ""
     pages_texte_simple: tuple[int, ...] = ()
+    revisions_commentaires: str = ""
     message: str = ""
 
 
@@ -64,11 +64,12 @@ class TraiteurNonRealise(Traiteur):
 
 
 def traiteurs_par_defaut() -> dict[str, Traiteur]:
+    from .office import TraiteurOffice
     from .pdf import TraiteurImage, TraiteurPdf
     return {
         "pdf": TraiteurPdf(),
         "image": TraiteurImage(),
-        "docx": TraiteurNonRealise(8, "conversion des fichiers Office"),
-        "xlsx": TraiteurNonRealise(8, "conversion des fichiers Office"),
-        "pptx": TraiteurNonRealise(8, "conversion des fichiers Office"),
+        "docx": TraiteurOffice("docx"),
+        "xlsx": TraiteurOffice("xlsx"),
+        "pptx": TraiteurOffice("pptx"),
     }

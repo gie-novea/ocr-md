@@ -4,6 +4,7 @@ import ast
 import importlib
 import pathlib
 import pkgutil
+import re
 import socket
 import tomllib
 
@@ -73,8 +74,10 @@ def test_reseau_neutralise_pendant_les_tests():
 
 @pytest.mark.exigence("EX-03")
 def test_aucune_telemetrie_ni_adresse_reseau_dans_le_code():
+    # Les espaces de noms XML des formats Office sont des identifiants, jamais consultés.
+    espaces_de_noms = re.compile(r"\{http://schemas\.openxmlformats\.org/[\w./-]+\}")
     for f in RACINE_SRC.rglob("*.py"):
-        texte = f.read_text(encoding="utf-8")
+        texte = espaces_de_noms.sub("", f.read_text(encoding="utf-8"))
         assert not set(imports_de(f)) & {"requests", "urllib3", "httpx", "socket", "http"}, f
         assert "http://" not in texte and "https://" not in texte, f
 

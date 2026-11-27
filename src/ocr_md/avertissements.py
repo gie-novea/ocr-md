@@ -124,12 +124,36 @@ def bloc_avertissement(pages_couche, pages_outil, repare: tuple[int, int] | None
     return "\n".join(lignes) + "\n"
 
 
+def mention_revisions(revisions: bool, commentaires: int) -> str:
+    """Mention de tête d'un .docx à révisions non acceptées ou à commentaires (section 11.3,
+    décision du commanditaire du 27/11/2026) ; chaîne vide sinon."""
+    nombre = f"{commentaires} commentaire{'s' if commentaires > 1 else ''}"
+    if revisions and commentaires:
+        return (f"Document contenant des révisions non acceptées et {nombre} : texte présenté dans son état final "
+                "(insertions acceptées, suppressions écartées), commentaires non repris.")
+    if revisions:
+        return ("Document contenant des révisions non acceptées : texte présenté dans son état final (insertions "
+                "acceptées, suppressions écartées).")
+    if commentaires:
+        return f"Document contenant {nombre} : commentaires non repris."
+    return ""
+
+
+def valeur_revisions(revisions: bool, commentaires: int) -> str:
+    """Colonne `revisions_commentaires` du rapport : « revisions », « commentaires=N », les deux
+    séparés par une espace, ou vide."""
+    return " ".join((["revisions"] if revisions else []) + ([f"commentaires={commentaires}"] if commentaires else []))
+
+
 def document_markdown(champs: dict, corps: str, *, pages_couche_douteuses=(), pages_outil_douteuses=(),
-                      repare=None) -> str:
-    """Front matter, bloc d'avertissement si le document est douteux, puis le corps."""
+                      repare=None, mention: str = "") -> str:
+    """Front matter, bloc d'avertissement si le document est douteux, mention des révisions
+    et commentaires d'un .docx s'il y a lieu, puis le corps."""
     texte = front_matter(champs) + "\n"
     if champs["qualite_texte"] == "douteuse":
         texte += bloc_avertissement(pages_couche_douteuses, pages_outil_douteuses, repare) + "\n"
+    if mention:
+        texte += "\n".join(_paragraphe(mention)) + "\n\n"
     return texte + corps
 
 

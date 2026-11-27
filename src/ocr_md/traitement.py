@@ -273,5 +273,6 @@ def _traiter_element(element, precedente, options, parametres, traiteurs, arret,
     return rapport.LigneRapport(
         element.relatif, element.type, pages=resultat.pages, statut=resultat.statut, pages_ocr=resultat.pages_ocr,
         pages_douteuses=resultat.pages_douteuses, motif_douteux=resultat.motifs,
-        pages_texte_simple=resultat.pages_texte_simple, origine_texte=resultat.origine,
+        pages_texte_simple=resultat.pages_texte_simple,
+        revisions_commentaires=resultat.revisions_commentaires, origine_texte=resultat.origine,
         sorties=tuple(noms), duree_s=duree, date_traitement=_maintenant(), message=resultat.message)
