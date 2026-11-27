@@ -223,3 +223,67 @@ Interprétations et points d'attention :
 - `--pages` hors du document : pages ignorées et signalées au journal.
 
 CI du jalon 7 (run 45945692381), verte sur les quatre plateformes (169 tests réussis sur chaque Mac, 166 sous Windows en en-US, 159 sous Linux). Temps de reconnaissance par page sous macOS : 1,48 s (Apple Silicon, moins 52 %) et 2,59 s (Intel, moins 27 %), taux de mots retrouvés inchangés. Mémoire du lot de 10 x 200 pages stable sur toutes les plateformes ; son niveau de départ a monté (160 à 233 Mo selon la plateforme) avec le chargement du lexique de 476 000 formes, une fois par processus.
+
+## Point de reprise (27/11/2026, changement de session)
+
+### État exact
+
+- Jalon 7 terminé, CI verte (run 45945692381 sur le commit `5eb26aa`, poussé). Le jalon 7 n'a pas encore été validé explicitement par le commanditaire.
+- Commits locaux non poussés : `1fd4879` (résultats de CI du jalon 7, temps de reconnaissance sous macOS) et le commit qui ajoute cette rubrique. Ils partiront avec le jalon 8.
+- Arbre de travail propre ; branche `main`, remote `origin` = `github.com/gie-novea/ocr-md` (public).
+- Dernière question posée au commanditaire, sans réponse : « Je lance le jalon 8 (fichiers Office, classeur avec formules en cache) ? ».
+
+### Décisions prises et non encore consignées plus haut
+
+- Distribution (Q10) : la source de distribution est le dépôt GitHub `gie-novea/ocr-md` ; installation par uv depuis l'adresse Git. Cette adresse est celle affichée par `ocr-md --version` (obligation AGPL).
+- Outil existant (EX-01) : `C:\Users\Thibaud\Desktop\Outils\Convertisseur MD`. Pour le jalon 8, en reprendre la lecture des classeurs (`data_only`, `read_only`) et des présentations (avec les notes).
+- Envois vers le dépôt distant : autorisés depuis le premier passage de la CI ; l'usage est de pousser à chaque jalon. Toute autre action distante reste soumise à accord.
+- Identité Git : auteur et committer de chaque commit `Thibaud PROST <311419768+pro-st@users.noreply.github.com>`, réglée par `user.email` local (pas global). L'adresse professionnelle ne doit apparaître dans aucun commit.
+- kDrive : le commanditaire créera un dossier de test dédié et ajoutera une exception limitée à ce seul dossier dans `CLAUDE.md` et `settings.json`. D'ici là, ne rien lire sous `F:\`.
+- Journal PV-02 : supprimé par le commanditaire ; ne jamais reproduire les chemins ni les noms qu'il contenait.
+- Ticket PyMuPDF4LLM : le commanditaire le dépose lui-même ; ne rien publier sur le dépôt de PyMuPDF4LLM.
+- PV-14 : pas de mesure supplémentaire demandée.
+
+### Travaux demandés, faits mais non encore confirmés par le commanditaire
+
+- Encadrement du correctif PyMuPDF4LLM (commit `b547ee9`, poussé, CI verte) :
+  - module isolé `src/ocr_md/correctifs.py`, appliqué au lancement par `correctifs.appliquer()`, sans copie modifiée de la bibliothèque ;
+  - n'agit que si la version installée est 1.28.2 ; sinon il n'est pas appliqué et la raison (`ETAT.raison`) est journalisée ;
+  - `tests/test_correctifs.py` échoue si le défaut disparaît (correctif devenu inutile) ou si le correctif n'agit plus ;
+  - texte du ticket, en anglais, avec exemple minimal reproductible : `docs/ticket-pymupdf4llm-espaces-cellules.md`.
+- Colonne `pages_texte_simple` (commit `b547ee9`) : 15e colonne du rapport, après `motif_douteux` ; EX-82 mis à jour ; un rapport existant à 14 colonnes n'est plus relu (fichiers retraités à la relance).
+- Ventilation du temps par page sous Mac et proposition d'optimisation : faite et mesurée (PNG en niveaux de gris, compression rapide) ; résultats dans `docs/verifications.md`.
+- Essai de recette TM-11 ajouté au cahier.
+
+### Travaux demandés et non faits
+
+- Jalon 8 (voir prochaine étape).
+- Jalon 9 :
+  - signaler dans la fenêtre de fin et dans le rapport une sélection qui approche la limite de longueur de la ligne de commande Windows ;
+  - vérifier que `uv python install` a réellement réussi (il peut afficher une erreur en réussissant).
+- Jalon 10 : performance, guides, `LICENCES-TIERCES.md` généré, `TRACABILITE.md`, fiches de recette ; puis arrêt obligatoire de fin de v1.
+- Essais manuels : PV-02 (SendTo, 200 éléments), PV-09 et PV-10 (dossier kDrive de test, à fournir).
+- Questions ouvertes : Q14 (PC SODEB sous compte standard, versions de macOS du parc).
+
+### Pièges et constats utiles
+
+- PyMuPDF4LLM 1.28.2 :
+  - les cellules de tableau perdent les espaces entre fragments : d'où une espace réelle après chaque mot non final du calque et le correctif de `correctifs.py` ;
+  - une page scannée portant du texte visible voit son calque absorbé par l'« illustration » : repli en texte simple si le Markdown garde moins de 90 % des mots du calque ou contient plus de 10 % de mots absents du calque ; pages concernées dans `pages_texte_simple` ;
+  - tableaux scannés fusionnés : nombres coupés, même repli ;
+  - le HTML de la bibliothèque ne garde pas les fusions : l'outil produit lui-même le HTML des tableaux natifs fusionnés.
+- Versions : PyMuPDF, pymupdf4llm et pymupdf-layout figés en 1.28.2 et onnxruntime en 1.23.2 pour garder le Mac Intel ; toute montée de version doit vérifier la publication macOS Intel et relancer `tests/test_correctifs.py`.
+- Seuils de qualité calibrés sur le jeu synthétique (mots inconnus 0,19, caractères aberrants 0,06, mots fragmentés 0,19, densité 0,11) : plus sévères que le cahier ; recalibrage en recette (TM-08) avec `tests/calibrage.py`.
+- Mémoire : le lexique (476 000 formes) porte la mémoire de base à 160 à 233 Mo ; stable d'un fichier à l'autre. Ne pas assouplir EX-59 : corriger si la marge passe sous 20 %. Le test de lot ne refuse qu'une hausse (macOS rend la mémoire en différé).
+- CI Windows : moteur réel en en-US à chaque envoi (seuil de fonctionnement 50 %) ; installation du module fr-FR (environ 15 min), tests réels en français et lot de 20 x 500 pages la nuit, sur les étiquettes `v*` et à la demande. Le module fr-FR reste vérifié sur le poste du commanditaire à chaque jalon.
+- WinRT : attendre l'opération par `threading.Event`, pas par `asyncio` (qui ouvre des sockets, interdits pendant les tests).
+- Noto Sans n'a pas de glyphe U+FFFD : caractères aberrants du jeu de test en cyrillique.
+- openpyxl n'écrit pas de valeurs en cache : le classeur à formules du jalon 8 doit être écrit directement en XML.
+- Écriture de code : éviter les heredocs Python avec échappements `\n` dans le shell ; utiliser les outils d'édition de fichiers.
+
+### Prochaine étape : jalon 8 (fichiers Office, EX-45)
+
+- Conversion .docx, .xlsx, .pptx par python-docx, openpyxl et python-pptx ; les traiteurs Office renvoient encore `TraiteurNonRealise(8, ...)`.
+- Classeur de test (obligatoire) avec formules et valeurs en cache, XML écrit directement ; une formule sans valeur en cache s'écrit `[formule non calculée : =…]`, jamais une cellule vide.
+- Repères `<!-- feuille N : "Nom" -->` et `<!-- diapositive N -->`, plafond `xlsx_lignes_max`, feuilles masquées signalées, notes des diapositives, front matter Office (`pages: null` pour docx et xlsx).
+- En fin de jalon : tests verts, mise à jour de ce fichier, commit, envoi avec `1fd4879`, suivi de la CI.
