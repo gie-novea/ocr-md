@@ -72,8 +72,9 @@ def test_memoire_rendue_entre_les_fichiers_d_un_lot(tmp_path):
     print(f"lot de {nb_fichiers} fichiers de {nb_pages} pages : mémoire après chaque fichier {apres} Mo ; "
           f"pic pendant chaque fichier {pics} Mo")
     assert m["code"] == 0 and len(apres) == nb_fichiers
-    # Pas d'accumulation : du 2e au dernier fichier, la mémoire résiduelle varie de moins de 15 Mo.
-    assert max(apres[1:]) - min(apres[1:]) < 15, apres
+    # Pas d'accumulation : du 2e au dernier fichier, la mémoire résiduelle ne monte pas de plus
+    # de 15 Mo (elle peut baisser : macOS rend la mémoire de façon différée).
+    assert max(apres[1:]) - apres[1] < 15, apres
     # Ce qu'un fichier prend est rendu : le pic d'un fichier dépasse la mémoire résiduelle
     # de moins de 100 Ko par page.
     assert max(p - a for p, a in zip(pics[1:], apres[1:])) < nb_pages * 0.1, (pics, apres)

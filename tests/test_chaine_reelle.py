@@ -131,3 +131,26 @@ def test_ventilation_de_la_reconnaissance_vision(jeu_de_test):
     c = {k: v / pages for k, v in moteur.chronos.items()}
     total = sum(c.values())
     print("ventilation Vision par page : " + ", ".join(f"{k} {v:.3f} s ({v / total:.0%})" for k, v in c.items()))
+
+
+@pytest.mark.windows
+@pytest.mark.macos
+@pytest.mark.exigence("EX-35", "EX-36")
+def test_verdicts_avec_le_moteur_reel(jeu_de_test, tmp_path, parametres):
+    """Page illisible du fichier 5 douteuse, fichiers 2 et 18 (ligatures) sains, sous les deux
+    moteurs. En en-US (CI Windows hors passe complète), la qualité n'est pas jugée."""
+    from tests.test_moteurs_reels import EN_FRANCAIS
+    if not EN_FRANCAIS:
+        pytest.skip("verdicts jugés en fr-FR seulement (passe complète)")
+    racine, _ = jeu_de_test
+    moteur_ou_saut()
+    parent = tmp_path / "P"
+    (parent / "pdf").mkdir(parents=True)
+    for rel in ("pdf/02_scanne.pdf", "pdf/05_illisible.pdf", "pdf/18_ligatures.pdf"):
+        shutil.copyfile(racine / rel, parent / rel)
+    traitement.executer(cli.analyser(["--sortie", "pdf", str(parent / "pdf")]), parametres)
+    lignes = rapport.lire(parent / "_OCR")
+    print({k: (l.statut, l.pages_douteuses, l.motif_douteux) for k, l in lignes.items()})
+    assert lignes["pdf/05_illisible.pdf"].pages_douteuses == (2,)
+    assert lignes["pdf/02_scanne.pdf"].pages_douteuses == () and lignes["pdf/02_scanne.pdf"].statut == "ocrise"
+    assert lignes["pdf/18_ligatures.pdf"].pages_douteuses == ()

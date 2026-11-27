@@ -202,3 +202,22 @@ CI du jalon 6 (run 45897735605), verte sur les quatre plateformes : 149 tests r�
 - Correctif de PyMuPDF4LLM isolé dans `correctifs.py`, avec contrôle de version, journalisation et tests ; ticket prêt dans `docs/ticket-pymupdf4llm-espaces-cellules.md`.
 - Ventilation du temps par page (rendu, reconnaissance, calque) au journal, débit global en fin de lot (EX-57).
 - Rapport : nouvelle colonne `pages_texte_simple` (pages du Markdown reprises en texte simple), insérée après `motif_douteux` ; EX-82 mis à jour (15 colonnes). Un rapport existant à 14 colonnes n'est plus relu : les fichiers concernés sont retraités à la relance suivante.
+
+## Jalon 7 : qualité du texte, front matter et avertissements (27/11/2026)
+
+Fait :
+- `qualite` : indicateurs de EX-36 (mots inconnus après normalisation des équivalences et des élisions, caractères aberrants, mots fragmentés, mélanges chiffres et lettres hors références et unités, densité) et de EX-35 (confiance moyenne pondérée et part de texte peu sûr sous Vision ; `aucun_texte_reconnu` sur une page non blanche) ; verdict par page, motifs au rapport, nombres seuls au journal ;
+- calibrage (EX-76) : `tests/calibrage.py`, tableau dans `docs/calibrage.md` ; zéro erreur de verdict sur le jeu avec le moteur factice et avec `Windows.Media.Ocr` réel ; seuils par défaut fixés aux valeurs de marge maximale : mots inconnus 0,19, caractères aberrants 0,06, mots fragmentés 0,19, densité minimale 0,11 (les autres inchangés) ;
+- pas d'OCR d'office sur une couche existante (EX-38) ; `--refaire-ocr` (pages douteuses), `--refaire-ocr=tout` et `--pages` (EX-39) : page remplacée dans la copie par son image rendue à `ocr_dpi` (JPEG qualité 90), reconnue puis réévaluée ;
+- front matter (EX-46, section 11.1) conforme au schéma `schema/front-matter-v1.json`, champs dans l'ordre, chaînes libres entre guillemets et énumérations sans guillemets ; bloc d'avertissement (EX-47, paragraphes A, B et C) ; repères de page douteux (EX-41) ; métadonnées (EX-33) ; `_AVERTISSEMENTS.md` régénéré depuis le rapport après chaque fichier (EX-48), avec la commande de reprise pour chaque pièce douteuse ; cohérence des six emplacements vérifiée (EX-49) ;
+- PDF réparé partiellement récupérable : reconstruit page par page à l'ouverture (sans quoi le PDF consultable ne se relisait pas) ; une page qui ne se recopie pas est rendue en image puis reconnue ;
+- macOS : image transmise à Vision en niveaux de gris et PNG rapide (voir `docs/verifications.md`, temps par page) ;
+- test mémoire de lot : seule une hausse de la mémoire entre fichiers est refusée (macOS rend la mémoire de façon différée : 180 puis 146 Mo sur Apple Silicon) ;
+- tests : 168 réussis, 6 sautés sous Windows (fr-FR) ; verdicts vérifiés avec le moteur réel (fichier 5 page 2 douteuse, fichiers 2 et 18 sains).
+
+Interprétations et points d'attention :
+- seuils calibrés plus sévères que les valeurs de départ du cahier, sur un jeu synthétique très propre : risque de pages signalées à tort sur des documents réels ; recalibrage prévu en recette (TM-08) avec `tests/calibrage.py` ;
+- PDF réparé : toutes ses pages sont douteuses ; le bloc d'avertissement ne contient que le paragraphe C (il ne cite pas de pages) ;
+- les motifs de toutes les pages douteuses d'un document sont réunis (colonne `motif_douteux`, champ `motifs_douteux`) ;
+- `_AVERTISSEMENTS.md` liste, en plus du modèle, la commande `--refaire-ocr` avec le chemin réel de chaque pièce douteuse (REC-04) ;
+- `--pages` hors du document : pages ignorées et signalées au journal.

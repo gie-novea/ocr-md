@@ -49,6 +49,9 @@ dev = [
     "pymupdf-fonts>=1.0",
     # Mesures de mémoire (EX-59).
     "psutil>=5.9",
+    # Lecture et validation du front matter (EX-46).
+    "pyyaml>=6",
+    "jsonschema>=4",
 ]
 
 [build-system]

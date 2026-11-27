@@ -106,7 +106,7 @@ def test_statuts_et_origines(jeu, parametres):
     repare = par_chemin(m, "erreurs/13b_tronque_recuperable.pdf")
     assert l["erreurs/13b_tronque_recuperable.pdf"].message == repare["message_attendu"]
     assert l["erreurs/13b_tronque_recuperable.pdf"].pages_douteuses == tuple(repare["pages_douteuses"])
-    assert l["erreurs/13b_tronque_recuperable.pdf"].motif_douteux == ("pdf_repare",)
+    assert l["erreurs/13b_tronque_recuperable.pdf"].motif_douteux[0] == "pdf_repare"
 
 
 # ------------------------------------------------------------------------------ EX-24

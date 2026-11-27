@@ -16,7 +16,7 @@ import sys
 import threading
 import time
 
-from . import __version__, correctifs, inventaire, ocr, plateforme, rapport, sorties
+from . import __version__, avertissements, correctifs, inventaire, ocr, plateforme, rapport, sorties
 from .inventaire import ErreurFichier
 from .traiteurs import Annulation, Contexte, traiteurs_par_defaut
 
@@ -162,7 +162,7 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
             lignes[relatif] = ligne
             bilan.lignes.append(ligne)
         if groupe.introuvables:
-            rapport.ecrire(dossier_ocr, lignes, parametres.tentatives_ecriture, parametres.intervalle_tentatives_s)
+            _ecrire_rapports(groupe, lignes, parametres)
         for element in groupe.elements:
             rang += 1
             if options.sans_interface:
@@ -171,7 +171,7 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
                                      arret, moteur, journal)
             lignes[element.relatif] = ligne
             bilan.lignes.append(ligne)
-            rapport.ecrire(dossier_ocr, lignes, parametres.tentatives_ecriture, parametres.intervalle_tentatives_s)
+            _ecrire_rapports(groupe, lignes, parametres)
         _signaler_sources_disparues(groupe, lignes, journal)
         b = rapport.bilan(l for l in bilan.lignes if l.chemin_relatif in lignes)
         journal.info(f"fin du lot : {b}")
@@ -182,6 +182,13 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
     finally:
         journal.fermer()
     return rang
+
+
+def _ecrire_rapports(groupe, lignes, parametres) -> None:
+    """Rapport puis _AVERTISSEMENTS.md, régénéré depuis les lignes du rapport (EX-48, EX-61)."""
+    rapport.ecrire(groupe.dossier_ocr, lignes, parametres.tentatives_ecriture, parametres.intervalle_tentatives_s)
+    avertissements.ecrire_avertissements(groupe.dossier_ocr, groupe.parent, lignes.values(),
+                                         parametres.tentatives_ecriture, parametres.intervalle_tentatives_s)
 
 
 def _signaler_sources_disparues(groupe, lignes, journal) -> None:

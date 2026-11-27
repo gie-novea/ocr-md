@@ -9,6 +9,8 @@
 - Jalon 4 : classification des pages, OCR des seules pages-images, calque texte invisible (police Noto Sans embarquée), PDF consultable et métadonnées d'avertissement, conversion des images en PDF, PDF temporaire en sortie Markdown seule, PDF réparés partiellement récupérables, mémoire constante sur les gros documents.
 - Jalon 5 : moteurs OCR natifs vérifiés de bout en bout, code de retour 3 lorsque le moteur OCR manque et qu'aucun fichier n'a pu être traité, mémoire rendue entre les fichiers d'un lot, CI Windows en deux passes (en-US à chaque envoi, fr-FR la nuit).
 - Jalon 6 : Markdown des PDF et des images par PyMuPDF4LLM, repères de page, en-têtes et pieds conservés, tableaux fusionnés en HTML, repère des tableaux reconnus par OCR, repli en texte simple pour les pages reconnues mal restituées par la bibliothèque, boîtes par mot avec Apple Vision (PV-14).
+- Avant le jalon 7 : correctif PyMuPDF4LLM isolé et testé, ticket préparé, ventilation du temps par page, colonne `pages_texte_simple` du rapport.
+- Jalon 7 : évaluation de la qualité par page, seuils calibrés, reprise d'OCR (`--refaire-ocr`, `--pages`), front matter et schéma JSON, bloc d'avertissement, `_AVERTISSEMENTS.md`, reconstruction des PDF réparés, conversion plus rapide de l'image transmise à Vision.
 
 ### Reprise de l'existant
 - Le code de l'outil existant (« Convertisseur MD », PC) a été fourni et lu. Aucun fichier n'en est copié et l'outil livré n'en dépend pas. Éléments de logique repris :

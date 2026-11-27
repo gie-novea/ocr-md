@@ -218,4 +218,14 @@ Voir `docs/avancement.md`, jalon 6 : espaces retirés dans les cellules de table
 
 - Instrumentation : pour chaque fichier, le journal indique la durée moyenne par page reconnue, ventilée entre rendu de la page, reconnaissance et écriture du calque, et, en fin de lot, le débit global en pages par minute (EX-57). Sous macOS, la reconnaissance est elle-même ventilée en conversion de l'image en PNG, appel de Vision et récupération des boîtes des mots (`tests/test_chaine_reelle.py`).
 - Poste de développement (Windows 11, `Windows.Media.Ocr` fr-FR, 300 dpi, fichiers 2, 18 et 6b) : rendu 0,046 s (23 %), reconnaissance 0,129 s (63 %), calque 0,029 s (14 %).
-- Mac Intel et Apple Silicon : relevé de la CI à consigner ci-dessous.
+- CI du 26/11/2026 (run 45901094203), fichiers 2, 18 et 6b, 300 dpi, moyennes par page reconnue :
+
+| Plateforme | Rendu | Reconnaissance | Calque |
+|---|---|---|---|
+| Windows (CI, en-US) | 0,056 s (21 %) | 0,179 s (68 %) | 0,027 s (10 %) |
+| Mac Apple Silicon (fr-FR) | 0,061 s (2 %) | 3,086 s (96 %) | 0,052 s (2 %) |
+| Mac Intel (fr-FR) | 0,077 s (2 %) | 3,555 s (96 %) | 0,071 s (2 %) |
+
+- Ventilation de la reconnaissance sous macOS (fichiers 2 et 18) : conversion de l'image en PNG 0,740 s (23 %) sur Apple Silicon et 0,992 s (24 %) sur Intel ; appel de Vision 2,393 s (75 %) et 3,021 s (73 %) ; boîtes des mots 0,007 et 0,016 s (moins de 1 %).
+- Lecture : le rendu et le calque pèsent peu (2 % sous macOS). En revanche, la conversion de l'image transmise à Vision coûte près d'un quart du temps : l'image était convertie en RVB puis compressée en PNG au niveau par défaut.
+- Optimisation appliquée (27/11/2026) : image transmise en niveaux de gris, PNG sans perte compressé au niveau 1. Sur le poste de développement, la conversion passe de 0,83 s à 0,11 s par page (gain attendu sous macOS : environ 0,6 à 0,9 s par page, soit 20 % du temps). Autre piste, non retenue à ce stade : transmettre l'image non compressée (BMP, 0,016 s), sous réserve de vérifier sa prise en charge par Vision. Gain réel et absence d'effet sur la reconnaissance : à constater par la CI du jalon 7.
