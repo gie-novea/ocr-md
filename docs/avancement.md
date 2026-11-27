@@ -221,3 +221,5 @@ Interprétations et points d'attention :
 - les motifs de toutes les pages douteuses d'un document sont réunis (colonne `motif_douteux`, champ `motifs_douteux`) ;
 - `_AVERTISSEMENTS.md` liste, en plus du modèle, la commande `--refaire-ocr` avec le chemin réel de chaque pièce douteuse (REC-04) ;
 - `--pages` hors du document : pages ignorées et signalées au journal.
+
+CI du jalon 7 (run 45945692381), verte sur les quatre plateformes (169 tests réussis sur chaque Mac, 166 sous Windows en en-US, 159 sous Linux). Temps de reconnaissance par page sous macOS : 1,48 s (Apple Silicon, moins 52 %) et 2,59 s (Intel, moins 27 %), taux de mots retrouvés inchangés. Mémoire du lot de 10 x 200 pages stable sur toutes les plateformes ; son niveau de départ a monté (160 à 233 Mo selon la plateforme) avec le chargement du lexique de 476 000 formes, une fois par processus.

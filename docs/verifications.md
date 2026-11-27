@@ -228,4 +228,11 @@ Voir `docs/avancement.md`, jalon 6 : espaces retirés dans les cellules de table
 
 - Ventilation de la reconnaissance sous macOS (fichiers 2 et 18) : conversion de l'image en PNG 0,740 s (23 %) sur Apple Silicon et 0,992 s (24 %) sur Intel ; appel de Vision 2,393 s (75 %) et 3,021 s (73 %) ; boîtes des mots 0,007 et 0,016 s (moins de 1 %).
 - Lecture : le rendu et le calque pèsent peu (2 % sous macOS). En revanche, la conversion de l'image transmise à Vision coûte près d'un quart du temps : l'image était convertie en RVB puis compressée en PNG au niveau par défaut.
-- Optimisation appliquée (27/11/2026) : image transmise en niveaux de gris, PNG sans perte compressé au niveau 1. Sur le poste de développement, la conversion passe de 0,83 s à 0,11 s par page (gain attendu sous macOS : environ 0,6 à 0,9 s par page, soit 20 % du temps). Autre piste, non retenue à ce stade : transmettre l'image non compressée (BMP, 0,016 s), sous réserve de vérifier sa prise en charge par Vision. Gain réel et absence d'effet sur la reconnaissance : à constater par la CI du jalon 7.
+- Optimisation appliquée (27/11/2026) : image transmise en niveaux de gris, PNG sans perte compressé au niveau 1. Sur le poste de développement, la conversion passe de 0,83 s à 0,11 s par page (gain attendu sous macOS : environ 0,6 à 0,9 s par page, soit 20 % du temps). Autre piste, non retenue à ce stade : transmettre l'image non compressée (BMP, 0,016 s), sous réserve de vérifier sa prise en charge par Vision. Résultat (CI du jalon 7, run 45945692381) :
+
+| Mac | Conversion de l'image | Appel de Vision | Reconnaissance par page (avant, après) | Mots retrouvés (fichier 2, page 1) |
+|---|---|---|---|---|
+| Apple Silicon | 0,740 s, puis 0,087 s | 2,393 s, puis 1,481 s | 3,09 s, puis 1,48 s (moins 52 %) | 98,5 %, inchangé |
+| Intel | 0,992 s, puis 0,130 s | 3,021 s, puis 2,287 s | 3,56 s, puis 2,59 s (moins 27 %) | 97,8 %, inchangé |
+
+Vision traite aussi plus vite une image en niveaux de gris qu'en couleur. PV-14 inchangé : boîtes Vision pour 100 % des mots, critère EX-30 (b) réussi sur 6 pages sur 6.
