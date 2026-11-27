@@ -265,6 +265,22 @@ def causes_image(q: QualiteImage | None, p) -> list[str]:
 IMAGE_BONNE, IMAGE_MEDIOCRE = "bonne", "mediocre"
 
 
+def causes_abregees(causes) -> str:
+    """Causes d'une image médiocre pour le repère de page : « 150 dpi », « flou », « bruit »,
+    « contraste faible »."""
+    abregees = []
+    for c in causes:
+        if c.startswith("résolution "):
+            abregees.append(c.removeprefix("résolution "))
+        elif c == "image floue ou trait grisé":
+            abregees.append("flou")
+        elif c == "image bruitée":
+            abregees.append("bruit")
+        elif c == "contraste faible":
+            abregees.append(c)
+    return ", ".join(abregees)
+
+
 def seuil_mots_inconnus_limite(p, origine: str) -> float:
     """Seuil « limite » des mots inconnus pour une page reconnue par l'outil : au-delà, une
     image médiocre rend la page douteuse (règle de recette, 27/11/2026)."""

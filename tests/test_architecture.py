@@ -78,6 +78,8 @@ def test_aucune_telemetrie_ni_adresse_reseau_dans_le_code():
     espaces_de_noms = re.compile(r"\{http://schemas\.openxmlformats\.org/[\w./-]+\}")
     for f in RACINE_SRC.rglob("*.py"):
         texte = espaces_de_noms.sub("", f.read_text(encoding="utf-8"))
+        # Adresse du code source affichée par --version (EX-78), jamais consultée.
+        texte = texte.replace(f'ADRESSE_CODE_SOURCE = "{ocr_md.ADRESSE_CODE_SOURCE}"', "")
         assert not set(imports_de(f)) & {"requests", "urllib3", "httpx", "socket", "http"}, f
         assert "http://" not in texte and "https://" not in texte, f
 

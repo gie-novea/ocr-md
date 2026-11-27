@@ -11,15 +11,19 @@ Seconde version candidate, non étiquetée : l'étiquette `v1.0.0-rc2` sera cré
 - Information secondaire `qualite_image` (`bonne` ou `mediocre`) au front matter et en colonne du rapport (17 colonnes).
 - `tests/recalibrage.py` : gabarit CSV de vérité terrain prérempli depuis le journal, recalibrage des seuils de l'image et du texte sur ce gabarit ; gabarit vide `docs/gabarit-verite-terrain.csv`.
 - `tests/perf/ventiler.py` : ventilation du temps de conversion d'un PDF par étape.
+- Version des règles (EX-52) : constante incrémentée à chaque changement de verdict ou de format de sortie, en colonne `version_regles` du rapport (18 colonnes) et au front matter ; un fichier traité sous d'autres règles est retraité à la relance ; un rapport d'une version antérieure est relu.
+- Repère léger des pages reconnues sur une image médiocre non douteuses : `<!-- page N : OCR sur image médiocre (150 dpi) ; vérifier chiffres et références sur l'original -->` (section 11.4).
+- Archive .zip inchangée (taille, date, version des règles) ignorée en bloc à la relance, sans réextraction (EX-83).
 
 ### Corrections
 - Règle de `qualite_image` : l'image seule ne rend une page douteuse qu'en dessous de 120 dpi (`image_resolution_severe_dpi`) ; une image médiocre ne le fait qu'avec un texte reconnu limite (`mots_inconnus_limite_windows` 0,10, `mots_inconnus_limite_vision` 0,055) ; résolution médiocre sous 200 dpi au lieu de 250. En recette, l'image seule signalait 494 pages sur 700 à tort.
 - Fenêtre de fin et journal à la relance : les fichiers signalés et en erreur sont comptés d'après le rapport, y compris les fichiers ignorés car à jour.
 - Tableaux natifs : détection par la méthode classique de PyMuPDF, sans relancer le modèle de mise en page déjà appliqué par PyMuPDF4LLM (environ 40 % de temps en moins sur un document riche en tableaux, mêmes tableaux sur le jeu de test).
+- `ocr-md --version` donne l'adresse du code source (https://github.com/gie-novea/ocr-md) au lieu de « à définir » (EX-78).
 - Lanceurs Windows : `PSModulePath` vidé avant d'appeler Windows PowerShell, pour que l'installation fonctionne aussi lancée depuis PowerShell 7.
 
 ### Écarts au cahier des charges
-Aucun : le cahier est mis à jour (EX-16, EX-18, EX-19, EX-21, EX-35, EX-76, EX-82, EX-83, section 7.1, section 11.1).
+Aucun : le cahier est mis à jour (EX-16, EX-18, EX-19, EX-21, EX-35, EX-52, EX-76, EX-82, EX-83, sections 7.1, 11.1 et 11.4).
 
 ## [1.0.0rc1] : 27/11/2026, version candidate pour la recette
 

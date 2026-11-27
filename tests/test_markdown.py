@@ -11,7 +11,8 @@ from ocr_md import cli, config, markdown_pdf, traitement
 from ocr_md.ocr.factice import MoteurFactice
 from ocr_md.qualite import forme_comparable
 
-REPERE = re.compile(r"^<!-- page (\d+)( : TEXTE DOUTEUX, ne pas citer sans vérification sur l'original)? -->$")
+REPERE = re.compile(r"^<!-- page (\d+)( : TEXTE DOUTEUX, ne pas citer sans vérification sur l'original"
+                    r"| : OCR sur image médiocre \([^)]+\) ; vérifier chiffres et références sur l'original)? -->$")
 
 
 @pytest.fixture

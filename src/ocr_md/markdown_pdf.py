@@ -30,9 +30,16 @@ TAILLE_LOT = 50  # pages converties par appel (mémoire constante sur les gros d
 COUVERTURE_MIN_PAGE_OCR = 0.90
 
 
-def repere_page(numero: int, douteuse: bool) -> str:
+def repere_page(numero: int, douteuse: bool, image_mediocre: str | None = None) -> str:
+    """Repère de page (section 11.4). `image_mediocre` : causes abrégées d'une page reconnue
+    sur une image médiocre mais non douteuse (« 150 dpi », « flou »...) : repère léger, sans
+    bloc d'avertissement (décision du commanditaire du 27/11/2026 : les pages courtes, RIB,
+    Kbis, attestations, n'atteignent pas 40 mots évaluables et portent les chiffres qui comptent)."""
     if douteuse:
         return f"<!-- page {numero} : TEXTE DOUTEUX, ne pas citer sans vérification sur l'original -->"
+    if image_mediocre:
+        return (f"<!-- page {numero} : OCR sur image médiocre ({image_mediocre}) ; vérifier chiffres et "
+                "références sur l'original -->")
     return f"<!-- page {numero} -->"
 
 
@@ -118,7 +125,7 @@ def texte_simple(page) -> str:
     return "\n\n".join(" ".join(b[4].split()) for b in blocs if b[6] == 0 and b[4].strip())
 
 
-def convertir(chemin_pdf: str, *, tableaux: str = "auto", pages_ocr=(), pages_douteuses=(),
+def convertir(chemin_pdf: str, *, tableaux: str = "auto", pages_ocr=(), pages_douteuses=(), images_mediocres=None,
               adaptateur: AdaptateurOcr | None = None, arret=None, pages_repli: list | None = None) -> str:
     """Corps du Markdown (repères de page compris, sans front matter).
 
@@ -156,7 +163,7 @@ def convertir(chemin_pdf: str, *, tableaux: str = "auto", pages_ocr=(), pages_do
                     texte = _marquer_tableaux_ocr(texte)
             elif tableaux != "md" and _blocs_tableaux(texte.split("\n")):
                 texte = _rendre_tableaux_natifs(doc[index], texte, tableaux, chemin_pdf, index, adaptateur)
-            sortie.append(repere_page(numero, numero in pages_douteuses))
+            sortie.append(repere_page(numero, numero in pages_douteuses, (images_mediocres or {}).get(numero)))
             sortie.append(texte if texte else PAGE_SANS_TEXTE)
         pymupdf.TOOLS.store_shrink(100)
     doc.close()

@@ -286,7 +286,9 @@ Ces fichiers sont comptés dans les « signalés » de la fenêtre de fin et lis
 - chemins absolus, remontées (« .. »), caractères interdits sous Windows, fichiers cachés et métadonnées du Finder (`__MACOSX`) neutralisés ou écartés ;
 - archive entièrement chiffrée : `non_pris_en_charge`, message « archive chiffrée par mot de passe : l'extraire avec son mot de passe, puis traiter le dossier extrait » ; fichier chiffré dans une archive qui ne l'est pas entièrement : sa propre ligne `non_pris_en_charge` ; méthode de compression non prise en charge : `non_pris_en_charge` ; archive illisible : `erreur` (« archive .zip endommagée »).
 Aucun fichier d'une archive n'est exécuté. Une archive extraite n'a pas de ligne propre dans le rapport ; une archive en erreur ou non prise en charge en a une (type `zip`).
-- CA : test automatisé sur le fichier 22 du jeu de test : source inchangée octet pour octet, sorties et lignes attendues, nom cp850 restitué, remontée et `__MACOSX` écartés, archive chiffrée, fichier chiffré et troisième niveau `non_pris_en_charge`, faux .zip en `erreur`, dossier de travail supprimé ; relance à jour puis retraitement après modification de l'archive ; archive dépassant la taille maximale ; archive mentant sur ses tailles.
+
+**Relance d'une archive inchangée** (décision du commanditaire du 27/11/2026). L'outil garde, dans un fichier caché du dossier `_OCR` (`.ocr-md-archives.json`), la taille, la date de modification et la version des règles de chaque archive extraite, avec la liste des lignes du rapport de son contenu. À la relance, une archive de même taille, même date et même version des règles est ignorée en bloc, sans réextraction, si chaque fichier de son contenu a sa ligne (ni en erreur, ni annulée, à la version des règles en vigueur) et des sorties demandées plus récentes que l'archive : les lignes passent à `ignore_a_jour`. Sinon (archive modifiée, autre sortie demandée, `--forcer`, `--refaire-ocr`), elle est extraite et son contenu examiné fichier par fichier selon EX-52.
+- CA : test automatisé sur le fichier 22 du jeu de test : source inchangée octet pour octet, sorties et lignes attendues, nom cp850 restitué, remontée et `__MACOSX` écartés, archive chiffrée, fichier chiffré et troisième niveau `non_pris_en_charge`, faux .zip en `erreur`, dossier de travail supprimé ; relance d'une archive inchangée sans extraction, puis extraction après changement de la sortie demandée, de la date ou de la taille ; archive dépassant la taille maximale ; archive mentant sur ses tailles.
 
 ### 4.4 Analyse des PDF page par page
 
@@ -454,6 +456,9 @@ Les éléments d'une même sélection qui ont des parents différents donnent ch
 - CA : un dossier de test contenant `A.pdf`, `A.docx`, `A.png` produit `A.pdf`, `A.pdf.md`, `A.docx.md`, `A.png.pdf`, `A.png.md` sans écrasement.
 
 **EX-52. Règle de relance.** Lors d'une relance, un fichier source doit être **ignoré** si toutes les sorties demandées existent et sont plus récentes que la source (date de modification), sauf si `--forcer` ou `--refaire-ocr` le concerne. Sinon, il est retraité et ses sorties sont écrasées. Justification : sur un lot de 50 à 100 plis, la relance après interruption ou après ajout de pièces ne doit retraiter que le nécessaire ; l'écrasement systématique gaspille le temps d'OCR, et le suffixage multiplie des versions concurrentes que les skills d'analyse ne sauraient départager. Un fichier ignoré conserve sa ligne dans le rapport, avec la colonne `action` à `ignore_a_jour`. Une sortie dont la source a disparu n'est pas supprimée ; elle est mentionnée dans le journal.
+
+**Version des règles** (décision du commanditaire du 27/11/2026). L'outil porte une constante entière, la version des règles, incrémentée à chaque changement de verdict (seuils par défaut, indicateurs, règle de qualité) ou de format de sortie (front matter, repères, colonnes du rapport). Elle est inscrite dans le rapport (colonne `version_regles`) et dans le front matter (champ `version_regles`). Un fichier dont la ligne du rapport porte une autre version des règles, ou n'en porte pas (rapport d'une version antérieure, relu avec ses colonnes connues), est retraité automatiquement, même si ses sorties sont plus récentes que lui ; un changement de version de l'outil sans changement des règles ne déclenche aucun retraitement. Version 1 : 1.0.0rc1 ; version 2 : 1.0.0rc2.
+- CA : test automatisé : ligne à version de l'outil différente et mêmes règles, ignorée ; ligne à version des règles différente, retraitée ; rapport sans la colonne, relu et ses fichiers retraités.
 
 **Relance d'un fichier qui passe en erreur** (décision du commanditaire du 26/11/2026). Si le retraitement d'un fichier échoue alors que des sorties d'un traitement précédent existent : elles sont supprimées si la source est plus récente qu'elles (elles ne correspondent plus à la source) ; sinon elles sont conservées, la ligne du rapport porte le statut `erreur`, la colonne `sorties` les énumère et le message se termine par « ; sorties précédentes conservées (traitement du AAAA-MM-JJ HH:MM:SS) ».
 - CA : deuxième lancement à l'identique : zéro appel au moteur OCR, toutes les lignes en `ignore_a_jour`, sorties inchangées (dates de modification identiques) ; après modification de la date d'une source, seule celle-ci est retraitée ; avec `--forcer`, tout est retraité.
@@ -861,6 +866,7 @@ Le front matter est un bloc YAML délimité par deux lignes `---`, en tête de f
 | `pages` | entier ou `null` | oui | nombre de pages du PDF ou de trames de l'image ; nombre de diapositives pour un .pptx ; `null` pour .docx et .xlsx |
 | `date_conversion` | chaîne | oui | date et heure locales au format ISO 8601 avec décalage horaire, par exemple `"2026-11-26T14:32:05+01:00"` |
 | `outil` | chaîne | oui | `"ocr-md <version>"` (ajout du rédacteur) |
+| `version_regles` | entier | oui | version des règles de verdict et de format ayant produit le fichier (EX-52, décision du commanditaire du 27/11/2026) |
 | `moteur_md` | chaîne | oui | `"pymupdf4llm <version>"`, `"docling <version>"`, ou nom et version de la bibliothèque de conversion Office |
 | `moteur_ocr` | chaîne | oui | `apple-vision`, `windows-media-ocr`, `aucun` (aucune page reconnue par l'outil) ; en mode qualité, moteur réellement à l'origine du texte |
 | `pages_ocr` | liste d'entiers | oui | pages reconnues par l'outil, numérotées à partir de 1, triées ; `[]` si aucune |
@@ -959,6 +965,7 @@ Si plusieurs origines coexistent, les paragraphes se suivent dans l'ordre C, A, 
 |---|---|
 | page de PDF ou d'image, saine | `<!-- page N -->` |
 | page douteuse | `<!-- page N : TEXTE DOUTEUX, ne pas citer sans vérification sur l'original -->` |
+| page reconnue par l'outil sur une image médiocre (EX-35), non douteuse | `<!-- page N : OCR sur image médiocre (CAUSES) ; vérifier chiffres et références sur l'original -->`, où CAUSES reprend les causes abrégées séparées par des virgules : résolution (`150 dpi`), `flou`, `bruit`, `contraste faible`. Pas de bloc d'avertissement ni de statut douteux. Justification (décision du commanditaire du 27/11/2026) : les pages courtes (RIB, extrait Kbis, attestations) n'atteignent jamais 40 mots évaluables, n'entrent donc pas dans la règle du texte limite, et portent pourtant les chiffres qui comptent |
 | feuille de classeur | `<!-- feuille N : "Nom de la feuille" -->` |
 | diapositive | `<!-- diapositive N -->`, suivi de la ligne `*(diapositive masquée)*` si la diapositive est masquée |
 | zone de texte d'un .docx | `<!-- zone de texte -->`, placé après le paragraphe qui porte la zone (son ancrage), avant le texte de la zone |
@@ -1046,9 +1053,10 @@ Lorsqu'une rubrique est vide, son tableau est remplacé par la phrase « Aucune.
 | `date_traitement` | date et heure locales du dernier traitement effectif, format `AAAA-MM-JJ HH:MM:SS` |
 | `message` | message d'erreur ou d'information, en français, sur une seule ligne |
 | `version_outil` | version de l'outil ayant produit les sorties |
+| `version_regles` | version des règles ayant produit les sorties (EX-52, décision du commanditaire du 27/11/2026) |
 
 Lors d'une relance portant sur une partie seulement des éléments d'un dossier parent, les lignes des fichiers non concernés sont conservées ; les lignes des fichiers concernés sont remplacées.
-- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 17 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
+- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 18 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
 
 ### 11.7 Exemples complets
 

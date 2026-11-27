@@ -15,7 +15,7 @@ import os
 import pathlib
 import traceback
 
-from . import __version__
+from . import VERSION_REGLES, __version__
 from .sorties import NOM_DOSSIER_OCR, chemin_systeme, ecrire_atomique
 
 NOM_RAPPORT = "ocr_rapport.csv"
@@ -24,7 +24,7 @@ TAILLE_MAX_JOURNAL = 5 * 1024 * 1024
 
 COLONNES = ("chemin_relatif", "type", "pages", "statut", "pages_ocr", "pages_douteuses", "motif_douteux",
             "qualite_image", "pages_texte_simple", "revisions_commentaires", "origine_texte", "sorties", "action",
-            "duree_s", "date_traitement", "message", "version_outil")
+            "duree_s", "date_traitement", "message", "version_outil", "version_regles")
 
 
 @dataclasses.dataclass
@@ -46,6 +46,7 @@ class LigneRapport:
     date_traitement: str = ""
     message: str = ""
     version_outil: str = __version__
+    version_regles: str = str(VERSION_REGLES)  # vide pour une ligne d'un rapport antérieur à la colonne
 
     def vers_csv(self) -> list[str]:
         return [
@@ -54,11 +55,14 @@ class LigneRapport:
             " ".join(self.motif_douteux), self.qualite_image, " ".join(map(str, self.pages_texte_simple)),
             self.revisions_commentaires, self.origine_texte, " | ".join(self.sorties), self.action,
             "" if self.duree_s is None else f"{self.duree_s:.1f}".replace(".", ","),
-            self.date_traitement, " ".join(self.message.split()), self.version_outil,
+            self.date_traitement, " ".join(self.message.split()), self.version_outil, self.version_regles,
         ]
 
     @classmethod
     def depuis_csv(cls, valeurs: dict) -> "LigneRapport":
+        # Rapport d'une version antérieure : colonnes absentes lues vides (une ligne sans
+        # version des règles sera retraitée, EX-52).
+        valeurs = {c: valeurs.get(c) or "" for c in COLONNES}
         def entiers(t):
             return tuple(int(x) for x in t.split()) if t else ()
         return cls(
@@ -71,7 +75,7 @@ class LigneRapport:
             sorties=tuple(s for s in valeurs["sorties"].split(" | ") if s), action=valeurs["action"],
             duree_s=float(valeurs["duree_s"].replace(",", ".")) if valeurs["duree_s"] else None,
             date_traitement=valeurs["date_traitement"], message=valeurs["message"],
-            version_outil=valeurs["version_outil"])
+            version_outil=valeurs["version_outil"], version_regles=valeurs["version_regles"])
 
 
 def chemin_rapport(dossier_ocr: pathlib.Path) -> pathlib.Path:
@@ -86,7 +90,7 @@ def lire(dossier_ocr: pathlib.Path) -> dict[str, LigneRapport]:
     try:
         with open(chemin, encoding="utf-8-sig", newline="") as f:
             lecteur = csv.DictReader(f, delimiter=";")
-            if tuple(lecteur.fieldnames or ()) != COLONNES:
+            if "chemin_relatif" not in (lecteur.fieldnames or ()):
                 return {}
             return {l["chemin_relatif"]: LigneRapport.depuis_csv(l) for l in lecteur}
     except (OSError, ValueError, KeyError, csv.Error):

@@ -265,6 +265,13 @@ class Traitement:
         return {n: list(v.causes) for n, v in self.images.items() if v.douteuse}
 
     @property
+    def images_mediocres(self) -> dict:
+        """Pages reconnues sur une image médiocre mais non douteuses par l'image -> causes
+        abrégées, pour le repère léger de la section 11.4."""
+        return {n: qualite.causes_abregees(v.causes) for n, v in self.images.items()
+                if v.niveau == qualite.IMAGE_MEDIOCRE and not v.douteuse}
+
+    @property
     def qualite_image(self) -> str | None:
         """« mediocre » si au moins une page reconnue a une image médiocre, « bonne » sinon ;
         None si l'outil n'a reconnu aucune page."""
@@ -496,6 +503,7 @@ class TraiteurPdf(Traiteur):
                 "pages_couche_douteuses": [] if repare else [n for n in douteuses if n in couche],
                 "pages_outil_douteuses": [] if repare else [n for n in douteuses if n in t.pages_ocr],
                 "repare": (info.pages_avec_contenu, info.pages) if repare else None,
+                "images_mediocres": {n: c for n, c in t.images_mediocres.items() if n not in douteuses and c},
             }
             adaptateur = calque.AdaptateurOcr()
             repli: list[int] = []
@@ -537,6 +545,7 @@ class TraiteurPdf(Traiteur):
             ctx.verifier_arret()
             corps = markdown_pdf.convertir(chemin_pdf, tableaux=ctx.options.tableaux, pages_ocr=pages_reconnues,
                                            pages_douteuses=douteuses, adaptateur=adaptateur,
+                                           images_mediocres=entete["images_mediocres"],
                                            arret=ctx.verifier_arret, pages_repli=repli)
             if repli:
                 ctx.journal.info(f"{ctx.element.relatif} : Markdown en texte simple (repli de PV-05) pour les "

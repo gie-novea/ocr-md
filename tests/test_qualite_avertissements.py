@@ -368,3 +368,27 @@ def test_qualite_image_au_front_matter_et_au_rapport(copie, parametres):
         assert champs.get("qualite_image") == attendu
         if attendu:
             assert brut.rstrip().endswith(f"qualite_image: {attendu}")  # dernier champ (section 11.1)
+
+
+@pytest.mark.exigence("EX-41", "EX-35")
+def test_repere_leger_des_pages_d_image_mediocre(copie, tmp_path):
+    """Décision du 27/11/2026 : une page reconnue sur une image médiocre mais non douteuse porte
+    un repère léger, sans bloc d'avertissement ni statut douteux. Ici, un seuil de part de gris
+    abaissé rend médiocres les pages saines du fichier 2."""
+    c, m = copie
+    p = parametres_avec(tmp_path, "image_part_gris_max = 0.1\n")
+    lancer(p, moteur_de(m), "--sortie", "md", c / "pdf" / "02_scanne.pdf")
+    l = rapport.lire(c / "pdf" / "_OCR")["02_scanne.pdf"]
+    assert (l.statut, l.pages_douteuses, l.qualite_image) == ("ocrise", (), "mediocre")
+    champs, _, corps = lire_md(c / "pdf" / "_OCR" / "02_scanne.pdf.md")
+    assert champs["qualite_texte"] == "bonne" and avertissements.TITRE not in corps
+    assert ("<!-- page 1 : OCR sur image médiocre (flou) ; vérifier chiffres et références sur l'original -->"
+            in corps.split("\n"))
+
+
+def test_causes_abregees():
+    assert qualite.causes_abregees(["résolution 150 dpi", "image floue ou trait grisé", "image bruitée"]) == \
+        "150 dpi, flou, bruit"
+    assert markdown_pdf.repere_page(3, False, "150 dpi") == (
+        "<!-- page 3 : OCR sur image médiocre (150 dpi) ; vérifier chiffres et références sur l'original -->")
+    assert markdown_pdf.repere_page(3, True, "150 dpi").startswith("<!-- page 3 : TEXTE DOUTEUX")

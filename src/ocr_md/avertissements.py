@@ -9,7 +9,7 @@ import datetime
 import pathlib
 import textwrap
 
-from . import __version__
+from . import VERSION_REGLES, __version__
 
 MARQUE = "ocr-md"
 NOM_AVERTISSEMENTS = "_AVERTISSEMENTS.md"
@@ -52,7 +52,7 @@ def _valeur(valeur, libre: bool) -> str:
 
 # Champs dans l'ordre de la section 11.1 ; True : chaîne libre (entre guillemets).
 CHAMPS = (("version_schema", False), ("source", True), ("type_source", False), ("pages", False),
-          ("date_conversion", True), ("outil", True), ("moteur_md", True), ("moteur_ocr", False),
+          ("date_conversion", True), ("outil", True), ("version_regles", False), ("moteur_md", True), ("moteur_ocr", False),
           ("pages_ocr", False), ("qualite_texte", False), ("pages_douteuses", False), ("origine_texte", True),
           ("pages_couche_existante", False), ("motifs_douteux", False), ("pages_recuperees", False),
           ("pages_totales", False), ("qualite_image", False))
@@ -75,7 +75,8 @@ def champs_document(*, source: str, type_source: str, pages, moteur_md: str, mot
                     pages_totales=None, qualite_image=None) -> dict:
     return {
         "version_schema": 1, "source": source, "type_source": type_source, "pages": pages,
-        "date_conversion": date_iso(), "outil": f"ocr-md {__version__}", "moteur_md": moteur_md,
+        "date_conversion": date_iso(), "outil": f"ocr-md {__version__}", "version_regles": VERSION_REGLES,
+        "moteur_md": moteur_md,
         "moteur_ocr": moteur_ocr, "pages_ocr": sorted(pages_ocr),
         "qualite_texte": "douteuse" if pages_douteuses else "bonne", "pages_douteuses": sorted(pages_douteuses),
         "origine_texte": origine, "pages_couche_existante": sorted(pages_couche_existante),

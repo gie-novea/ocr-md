@@ -260,14 +260,15 @@ def test_relance(lot, parametres):
 
 
 @pytest.mark.exigence("EX-52", "EX-82")
-def test_rapport_d_une_version_precedente_non_relu(lot, parametres):
-    """Un rapport aux colonnes d'une version précédente (ici sans `pages_texte_simple`, soit
-    les 14 colonnes d'avant le jalon 7) n'est pas relu : tous les fichiers sont retraités et
-    le rapport est réécrit avec les colonnes en vigueur."""
+def test_rapport_d_une_version_precedente(lot, parametres):
+    """Un rapport aux colonnes d'une version précédente (ici les 16 colonnes de la 1.0.0rc1,
+    sans `qualite_image` ni `version_regles`) est relu, mais ses lignes ne portent pas la
+    version des règles en vigueur : tous les fichiers sont retraités (EX-52) et le rapport est
+    réécrit avec les colonnes en vigueur."""
     parent, racine = lot
     lancer(parametres, racine)
     chemin = parent / "_OCR" / rapport.NOM_RAPPORT
-    anciennes = [c for c in rapport.COLONNES if c != "pages_texte_simple"]
+    anciennes = [c for c in rapport.COLONNES if c not in ("qualite_image", "version_regles")]
     lignes = lignes_csv(parent / "_OCR")
     with open(chemin, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f, delimiter=";", lineterminator="\r\n")
@@ -479,7 +480,7 @@ def test_format_du_rapport(tmp_path, parametres):
     brut = (tmp_path / "P" / "_OCR" / rapport.NOM_RAPPORT).read_bytes()
     assert brut.startswith(b"\xef\xbb\xbf") and b"\r\n" in brut and b"\n" not in brut.replace(b"\r\n", b"")
     lignes = lignes_csv(tmp_path / "P" / "_OCR")
-    assert list(lignes[0].keys()) == list(rapport.COLONNES) and len(rapport.COLONNES) == 17
+    assert list(lignes[0].keys()) == list(rapport.COLONNES) and len(rapport.COLONNES) == 18
     assert lignes[0]["chemin_relatif"] == "D/Offre; « finale ».pdf"
     assert "," in lignes[0]["duree_s"] or lignes[0]["duree_s"] == "0,0"
     assert lignes[1]["sorties"] == "Simple.pdf | Simple.pdf.md"
@@ -539,3 +540,30 @@ def test_bilan_de_relance_compte_les_fichiers_a_jour_selon_leur_statut():
               rapport.LigneRapport("c.doc", "autre", statut="non_pris_en_charge"),
               rapport.LigneRapport("d.pdf", "pdf", statut="ocrise", sorties=("d.pdf",))]
     assert rapport.bilan(lignes) == {"traites": 1, "signales": 2, "erreurs": 0, "ignores_a_jour": 2, "annules": 0}
+
+
+@pytest.mark.exigence("EX-52")
+def test_version_des_regles(tmp_path, parametres, monkeypatch):
+    """Décision du 27/11/2026 : un fichier dont la ligne porte une autre version des règles est
+    retraité ; un changement de version de l'outil seul ne déclenche rien."""
+    d = tmp_path / "P" / "D"
+    pdf_natif(d / "a.pdf")
+    lancer(parametres, d)
+    ocr = tmp_path / "P" / "_OCR"
+    lignes = rapport.lire(ocr)
+    assert lignes["D/a.pdf"].version_regles == str(traitement.VERSION_REGLES)
+    lignes["D/a.pdf"].version_outil = "0.0.1"  # autre version de l'outil, mêmes règles
+    rapport.ecrire(ocr, lignes, 0, 0)
+    _, _, bilan = lancer(parametres, d)
+    assert bilan.lignes[0].action == "ignore_a_jour"
+    lignes["D/a.pdf"].version_regles = "1"  # règles antérieures
+    rapport.ecrire(ocr, lignes, 0, 0)
+    _, _, bilan = lancer(parametres, d)
+    assert bilan.lignes[0].action == "traite"
+    # rapport d'une version sans la colonne : lu, et le fichier est retraité
+    texte = (ocr / rapport.NOM_RAPPORT).read_text(encoding="utf-8-sig").splitlines()
+    ancien = [";".join(l.split(";")[:-1]) for l in texte]
+    (ocr / rapport.NOM_RAPPORT).write_text("\r\n".join(ancien) + "\r\n", encoding="utf-8-sig")
+    assert rapport.lire(ocr)["D/a.pdf"].version_regles == ""
+    _, _, bilan = lancer(parametres, d)
+    assert bilan.lignes[0].action == "traite"

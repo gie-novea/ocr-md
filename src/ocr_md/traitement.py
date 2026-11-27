@@ -10,13 +10,15 @@ erreur n'arrête jamais le lot (EX-60) ; un arrêt demandé laisse les fichiers 
 
 import dataclasses
 import datetime
+import json
 import os
+import pathlib
 import shutil
 import sys
 import threading
 import time
 
-from . import __version__, archives, avertissements, correctifs, inventaire, ocr, plateforme, rapport, sorties
+from . import VERSION_REGLES, __version__, archives, avertissements, correctifs, inventaire, ocr, plateforme, rapport, sorties
 from .inventaire import ErreurFichier
 from .suivi import Suivi, SuiviConsole
 from .traiteurs import Annulation, Contexte, traiteurs_par_defaut
@@ -174,6 +176,7 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
         if groupe.introuvables:
             _ecrire_rapports(groupe, lignes, parametres)
         etat = {"rang": rang, "total": total}
+        etat_archives = lire_etat_archives(dossier_ocr)
         presents: set[str] = set()
 
         def enregistrer(ligne):
@@ -191,9 +194,23 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
                 enregistrer(_traiter_element(element, lignes.get(element.relatif), options, parametres, traiteurs,
                                              arret, moteur, journal, suivi=suivi))
                 return
+            inchangees = None
+            if not options.forcer and options.refaire_ocr is None and not arret.is_set():
+                inchangees = archive_a_jour(element, lignes, etat_archives.get(element.relatif), options)
+            if inchangees is not None:  # EX-83 : archive inchangée, ignorée en bloc sans extraction
+                journal.info(f"{element.relatif} : archive inchangée, ignorée sans extraction "
+                              f"({len(inchangees)} fichier(s) à jour)")
+                for ligne in inchangees:
+                    presents.add(ligne.chemin_relatif)
+                    lignes[ligne.chemin_relatif] = ligne
+                    bilan.lignes.append(ligne)
+                _ecrire_rapports(groupe, lignes, parametres)
+                return
             developpement, ligne = _developper_archive(element, lignes.get(element.relatif), parametres, arret,
                                                        journal)
             if ligne is not None:
+                if etat_archives.pop(element.relatif, None) is not None:
+                    ecrire_etat_archives(dossier_ocr, etat_archives, parametres)
                 enregistrer(ligne)
                 return
             if lignes.pop(element.relatif, None) is not None:  # ligne d'un échec précédent de l'archive
@@ -204,6 +221,13 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
                     traiter(contenu)
             finally:
                 developpement.nettoyer()
+            if not arret.is_set():
+                prefixe = element.relatif + "/"
+                st = os.stat(sorties.chemin_systeme(element.source))
+                etat_archives[element.relatif] = {
+                    "taille": st.st_size, "date": st.st_mtime, "version_regles": VERSION_REGLES,
+                    "membres": sorted(r for r in presents if r.startswith(prefixe) and r in lignes)}
+                ecrire_etat_archives(dossier_ocr, etat_archives, parametres)
 
         for element in groupe.elements:
             traiter(element)
@@ -262,6 +286,70 @@ def _developper_archive(element, precedente, parametres, arret, journal):
     return developpement, None
 
 
+# ------------------------------------------------------------------------------ archives inchangées
+NOM_ETAT_ARCHIVES = ".ocr-md-archives.json"  # état des archives extraites, dans le dossier _OCR
+
+
+def lire_etat_archives(dossier_ocr) -> dict:
+    """Pour chaque archive extraite : taille, date, version des règles, lignes de son contenu."""
+    try:
+        with open(sorties.chemin_systeme(dossier_ocr / NOM_ETAT_ARCHIVES), encoding="utf-8") as f:
+            etat = json.load(f)
+        return etat if isinstance(etat, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def ecrire_etat_archives(dossier_ocr, etat: dict, parametres) -> None:
+    octets = json.dumps(etat, ensure_ascii=False, indent=1).encode("utf-8")
+
+    def producteur(chemin):
+        with open(chemin, "wb") as f:
+            f.write(octets)
+
+    sorties.ecrire_atomique(dossier_ocr / NOM_ETAT_ARCHIVES, producteur, parametres.tentatives_ecriture,
+                            parametres.intervalle_tentatives_s)
+
+
+def archive_a_jour(element, lignes: dict, entree: dict | None, options):
+    """Lignes « ignore_a_jour » du contenu d'une archive inchangée depuis son dernier
+    traitement (même taille, même date, même version des règles), dont chaque fichier a sa
+    ligne, sans erreur ni annulation, et des sorties demandées plus récentes que l'archive ;
+    None si l'archive doit être extraite et son contenu examiné (EX-83)."""
+    if not entree or entree.get("version_regles") != VERSION_REGLES or not entree.get("membres"):
+        return None
+    try:
+        st = os.stat(sorties.chemin_systeme(element.source))
+    except OSError:
+        return None
+    if entree.get("taille") != st.st_size or entree.get("date") != st.st_mtime:
+        return None
+    resultat = []
+    for relatif in entree["membres"]:
+        ligne = lignes.get(relatif)
+        if ligne is None or ligne.action == "annule" or ligne.statut == "erreur" or not regles_a_jour(ligne):
+            return None
+        if ligne.statut != "non_pris_en_charge":
+            contenu = inventaire.Element(element.parent / pathlib.PurePosixPath(relatif).name, element.parent,
+                                         relatif, ligne.type)
+            prevues = sorties.sorties_prevues(contenu, options.sortie)
+            if not prevues:
+                return None
+            try:
+                if not all(os.stat(sorties.chemin_systeme(c)).st_mtime > st.st_mtime for c in prevues.values()):
+                    return None
+            except OSError:
+                return None
+        resultat.append(dataclasses.replace(ligne, action="ignore_a_jour", duree_s=None))
+    return resultat
+
+
+def regles_a_jour(precedente) -> bool:
+    """La ligne du rapport existe et a été produite avec la version des règles en vigueur
+    (EX-52) : sinon le fichier est retraité, même si ses sorties sont plus récentes que lui."""
+    return precedente is not None and precedente.version_regles == str(VERSION_REGLES)
+
+
 def _ligne_precedente_ou_nouvelle(element, precedente):
     if precedente is not None:
         return dataclasses.replace(precedente)
@@ -298,7 +386,7 @@ def _traiter_element(element, precedente, options, parametres, traiteurs, arret,
         return rapport.LigneRapport(element.relatif, element.type, statut="natif", message=MESSAGE_PDF_OFFICE,
                                     origine_texte="texte natif du document", date_traitement=_maintenant())
     concerne = options.forcer or (options.refaire_ocr is not None and element.type in ("pdf", "image"))
-    if not concerne and precedente is not None and sorties.a_jour(element, prevues):
+    if not concerne and regles_a_jour(precedente) and sorties.a_jour(element, prevues):
         ligne = dataclasses.replace(precedente, action="ignore_a_jour", duree_s=None)
         journal.info(f"{element.relatif} : sorties à jour, ignoré")
         return ligne

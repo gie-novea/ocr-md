@@ -142,3 +142,34 @@ def test_classeur_a_macros_lu_comme_un_xlsx(jeu_de_test, tmp_path, parametres):
         assert t in texte
     for t in f["textes_absents"]:
         assert t not in texte
+
+
+@pytest.mark.exigence("EX-83", "EX-52")
+def test_archive_inchangee_ignoree_sans_extraction(dossier_archives, parametres, monkeypatch):
+    c, m = dossier_archives
+    lancer(parametres, "--sortie", "md", "--sans-interface", c)
+    extraites = []
+    origine = archives.developper
+
+    def espion(element, *a, **k):
+        extraites.append(element.relatif)
+        return origine(element, *a, **k)
+
+    monkeypatch.setattr(archives, "developper", espion)
+    _, bilan = lancer(parametres, "--sortie", "md", "--sans-interface", c)
+    assert "archives/22_dossier.zip" not in extraites  # inchangée : ni extraction ni examen du contenu
+    lignes = {l.chemin_relatif: l for l in bilan.lignes if l.chemin_relatif.startswith("archives/22_dossier.zip/")}
+    assert set(lignes) == {k for k in m["archives"] if k.startswith("archives/22_dossier.zip/")}
+    assert {l.action for l in lignes.values()} == {"ignore_a_jour"}
+    # autre sortie demandée : l'archive est de nouveau extraite
+    extraites.clear()
+    lancer(parametres, "--sortie", "les-deux", "--sans-interface", c)
+    assert "archives/22_dossier.zip" in extraites
+    # archive remplacée par une autre de même date : la taille diffère, elle est extraite
+    extraites.clear()
+    source = c / "22_dossier.zip"
+    date = source.stat().st_mtime
+    source.write_bytes(source.read_bytes() + b"\0")
+    os.utime(source, (date, date))
+    lancer(parametres, "--sortie", "les-deux", "--sans-interface", c)
+    assert "archives/22_dossier.zip" in extraites

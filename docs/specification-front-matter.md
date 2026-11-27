@@ -16,6 +16,7 @@ Le front matter est un bloc YAML délimité par deux lignes `---`, en tête de f
 | `pages` | entier ou `null` | oui | nombre de pages du PDF ou de trames de l'image ; nombre de diapositives pour un .pptx ; `null` pour .docx et .xlsx |
 | `date_conversion` | chaîne | oui | date et heure locales au format ISO 8601 avec décalage horaire, par exemple `"2026-11-26T14:32:05+01:00"` |
 | `outil` | chaîne | oui | `"ocr-md <version>"` (ajout du rédacteur) |
+| `version_regles` | entier | oui | version des règles de verdict et de format ayant produit le fichier (EX-52, décision du commanditaire du 27/11/2026) |
 | `moteur_md` | chaîne | oui | `"pymupdf4llm <version>"`, `"docling <version>"`, ou nom et version de la bibliothèque de conversion Office |
 | `moteur_ocr` | chaîne | oui | `apple-vision`, `windows-media-ocr`, `aucun` (aucune page reconnue par l'outil) ; en mode qualité, moteur réellement à l'origine du texte |
 | `pages_ocr` | liste d'entiers | oui | pages reconnues par l'outil, numérotées à partir de 1, triées ; `[]` si aucune |
@@ -114,6 +115,7 @@ Si plusieurs origines coexistent, les paragraphes se suivent dans l'ordre C, A, 
 |---|---|
 | page de PDF ou d'image, saine | `<!-- page N -->` |
 | page douteuse | `<!-- page N : TEXTE DOUTEUX, ne pas citer sans vérification sur l'original -->` |
+| page reconnue par l'outil sur une image médiocre (EX-35), non douteuse | `<!-- page N : OCR sur image médiocre (CAUSES) ; vérifier chiffres et références sur l'original -->`, où CAUSES reprend les causes abrégées séparées par des virgules : résolution (`150 dpi`), `flou`, `bruit`, `contraste faible`. Pas de bloc d'avertissement ni de statut douteux. Justification (décision du commanditaire du 27/11/2026) : les pages courtes (RIB, extrait Kbis, attestations) n'atteignent jamais 40 mots évaluables, n'entrent donc pas dans la règle du texte limite, et portent pourtant les chiffres qui comptent |
 | feuille de classeur | `<!-- feuille N : "Nom de la feuille" -->` |
 | diapositive | `<!-- diapositive N -->`, suivi de la ligne `*(diapositive masquée)*` si la diapositive est masquée |
 | zone de texte d'un .docx | `<!-- zone de texte -->`, placé après le paragraphe qui porte la zone (son ancrage), avant le texte de la zone |

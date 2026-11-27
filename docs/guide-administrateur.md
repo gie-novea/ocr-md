@@ -50,6 +50,8 @@ L'étiquette installée est un paramètre unique, en tête de `installation/comm
 
 Une nouvelle version candidate (`v1.0.0-rc2`, version `1.0.0rc2`) suit les mêmes étapes, publiée en « pre-release ».
 
+**Version des règles et retraitement.** Chaque version de l'outil porte une version des règles (colonne `version_regles` du rapport, champ du front matter), incrémentée à chaque changement de verdict ou de format de sortie. Après une mise à jour qui la change, la relance d'un dossier déjà traité retraite tous ses fichiers, sans `--forcer` ; une mise à jour qui ne la change pas ne retraite rien. Les archives .zip inchangées (même taille, même date) sont ignorées en bloc à la relance, sans réextraction.
+
 ## 5. Désinstallation
 
 `installation\desinstaller-windows.cmd` ou `installation/desinstaller-macos.command` : retrait des trois raccourcis, désinstallation de l'outil (`uv tool uninstall`), suppression du dossier temporaire ; suppression du fichier de configuration après confirmation ; désinstallation de `uv` et de ses Pythons proposée, jamais imposée (d'autres outils peuvent en dépendre). Les dossiers `_OCR` produits ne sont jamais touchés (EX-73).

@@ -5,7 +5,7 @@
   "description": "Section 11.1 du cahier des charges. L'ordre des champs est vérifié séparément (les schémas JSON ne contraignent pas l'ordre).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version_schema", "source", "type_source", "pages", "date_conversion", "outil", "moteur_md",
+  "required": ["version_schema", "source", "type_source", "pages", "date_conversion", "outil", "version_regles", "moteur_md",
                "moteur_ocr", "pages_ocr", "qualite_texte", "pages_douteuses", "origine_texte",
                "pages_couche_existante"],
   "properties": {
@@ -15,6 +15,7 @@
     "pages": {"type": ["integer", "null"], "minimum": 0},
     "date_conversion": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$"},
     "outil": {"type": "string", "pattern": "^ocr-md \\S+$"},
+    "version_regles": {"type": "integer", "minimum": 1},
     "moteur_md": {"type": "string", "minLength": 1},
     "moteur_ocr": {"enum": ["apple-vision", "windows-media-ocr", "aucun"]},
     "pages_ocr": {"$ref": "#/$defs/pages"},

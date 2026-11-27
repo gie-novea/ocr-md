@@ -462,3 +462,11 @@ Reste à faire :
 - recette TM-01 à TM-11, PV-01, PV-02, PV-08 d, PV-09, PV-10, Q14.
 
 Écarts au cahier des charges : aucun nouveau (cahier mis à jour).
+
+### Ajouts demandés pour la rc2 (27/11/2026, suite)
+
+- Version des règles (EX-52) : constante `VERSION_REGLES` (2 pour la rc2, 1 pour la rc1), colonne `version_regles` du rapport (18 colonnes) et champ du front matter. Un fichier dont la ligne porte une autre version, ou aucune, est retraité à la relance ; un changement de version de l'outil seul ne déclenche rien. Un rapport d'une version antérieure est désormais relu (colonnes connues), au lieu d'être ignoré : ses fichiers sont retraités, ses autres lignes conservées.
+- Repère léger (section 11.4) : `<!-- page N : OCR sur image médiocre (150 dpi) ; vérifier chiffres et références sur l'original -->` pour une page reconnue sur une image médiocre et non douteuse ; causes abrégées : résolution, `flou`, `bruit`, `contraste faible`.
+- Archive inchangée (EX-83) : état des archives extraites dans `_OCR/.ocr-md-archives.json` (taille, date, version des règles, lignes du contenu) ; archive de même taille, même date et mêmes règles, dont le contenu est à jour pour la sortie demandée : ignorée en bloc, sans extraction.
+- Détection des tableaux sans le modèle de mise en page : acceptée par le commanditaire, à vérifier sur un lot d'offres réel.
+- Correction trouvée en passant : `ocr-md --version` affichait « Code source : à définir » ; il affiche https://github.com/gie-novea/ocr-md (EX-78).
