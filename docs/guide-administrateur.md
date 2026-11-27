@@ -15,7 +15,7 @@ ocr-md rend lisibles les pièces d'un pli de candidature : il produit, dans un d
 | Processeur Mac | Apple Silicon et Intel | vérifiés en intégration continue |
 | Droits | compte standard : tout s'installe dans le profil, sans élévation (EX-02) | à confirmer en recette (TM-01, PV-01) |
 | Réseau | à l'installation et à la mise à jour seulement (section 6) | |
-| Espace disque | environ 600 Mo dans le profil (section 13) | |
+| Espace disque | environ 350 Mo dans le profil (section 13) | |
 
 ## 3. Installation
 
@@ -206,7 +206,8 @@ Les points à vérifier du cahier des charges (PV-01 à PV-15) et leurs résulta
 | Poste | Moteur | Durée | Pages par minute | Relance | Mémoire maximale |
 |---|---|---|---|---|---|
 | PC de développement, Windows 11 | `Windows.Media.Ocr` (fr-FR) | 2 min 10 s | 231 | 0,4 s | 413 Mo |
+| Intégration continue, Windows Server 2025 | `Windows.Media.Ocr` (fr-FR) | 1 min 40 s | 300 | 0,2 s | 403 Mo |
 
 Sous macOS, la reconnaissance est plus lente (environ 1,9 s par page sur Apple Silicon et 1,8 à 2,6 s sur Intel en intégration continue, contre 0,15 à 0,2 s sous Windows) : compter de 10 à 15 minutes pour le lot type. Les relevés des Mac sont produits par la passe complète de l'intégration continue (étape « Performance sur le lot type ») et seront à refaire sur les postes de la SODEB (TM-08).
 
-**Poids de l'installation.** Paquets de l'outil et de ses dépendances : environ 250 Mo (PyMuPDF et PyMuPDF Layout, numpy, onnxruntime) ; Python 3.12 géré par `uv` : environ 100 à 200 Mo ; `uv` lui-même : environ 40 Mo. Relevé exact affiché par l'intégration continue (lignes « poids »).
+**Poids de l'installation** (relevé de l'intégration continue sous Windows) : environnement de l'outil 238 Mo (PyMuPDF et PyMuPDF Layout, numpy, onnxruntime pour l'essentiel) ; Python 3.12 géré par `uv` : 62 Mo ; `uv` lui-même : environ 40 Mo ; soit environ 340 Mo dans le profil. Sous macOS, relevé affiché par l'intégration continue (lignes « poids »).

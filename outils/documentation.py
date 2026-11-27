@@ -241,9 +241,18 @@ def main(arguments=None) -> int:
     perimes = []
     for chemin, contenu in documents().items():
         actuel = chemin.read_text(encoding="utf-8") if chemin.exists() else ""
+        if chemin == LICENCES and verifier and sys.platform != "win32":
+            # L'inventaire est généré sous Windows : ailleurs, les métadonnées des paquets propres à
+            # une plateforme diffèrent ; seuls les paquets et leurs versions sont comparés.
+            def paquets(texte):
+                return re.findall(r"^\| ([^|]+) \| ([^|]+) \| ([^|]+) \|", texte, re.MULTILINE)
+            actuel, contenu = paquets(actuel), paquets(contenu)
         if actuel != contenu:
             perimes.append(chemin.relative_to(RACINE).as_posix())
             if not verifier:
+                if chemin == LICENCES and sys.platform != "win32":
+                    print("LICENCES-TIERCES.md se génère sous Windows : non réécrit")
+                    continue
                 chemin.write_text(contenu, encoding="utf-8", newline="\n")
     if verifier and perimes:
         print("documents à régénérer (uv run python outils/documentation.py) : " + ", ".join(perimes))
