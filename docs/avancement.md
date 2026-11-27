@@ -404,3 +404,12 @@ Fait :
 - tests : 227 réussis, 8 sautés sous Windows.
 
 Reste à faire à la livraison (actions du commanditaire ou à autoriser) : passer la version à 1.0.0 (`pyproject.toml`, `src/ocr_md/__init__.py`, CHANGELOG), créer et envoyer l'étiquette `v1.0.0` (les scripts et les guides la désignent) ; recette TM-01 à TM-11 ; captures des guides.
+
+CI du jalon 10 (passe complète, run 46013581544), verte sur les quatre plateformes : 228 tests réussis sous Windows (fr-FR), 230 sur chaque Mac, 212 sous Linux ; Vision : aucune erreur de verdict sur 33 pages. Lot type (EX-58), objectifs tenus partout : Windows Server 1 min 40 s (300 pages par minute, 404 Mo) ; Mac Apple Silicon 8 min 36 s (58 pages par minute, 714 Mo) ; Mac Intel 13 min 55 s (36 pages par minute, 530 Mo) ; relance sous 0,3 s. Poids de l'installation : 340 à 410 Mo dans le profil. Lot mémoire de 20 fichiers de 500 pages : stable. Correction en cours de CI : l'inventaire des licences dépend des métadonnées installées sur la plateforme ; il est généré sous Windows et, ailleurs, seules ses listes de paquets et de versions sont vérifiées.
+
+## Fin de la v1 : arrêt obligatoire (27/11/2026)
+
+Les jalons 0 à 10 sont réalisés ; la CI est verte sur Windows, macOS Apple Silicon et Intel, Linux. Reste, hors du périmètre de Claude Code ou à autoriser :
+- livraison : version 1.0.0 dans `pyproject.toml`, `src/ocr_md/__init__.py` et le CHANGELOG, puis étiquette `v1.0.0` créée et envoyée (les scripts et les guides la désignent) ;
+- recette TM-01 à TM-11 par le référent (`docs/recette-manuelle.md`), dont le recalibrage des seuils sur documents réels (TM-08) et les captures des guides ;
+- points à vérifier ouverts : PV-01 (poste de la SODEB), PV-02 (200 éléments, Finder), PV-08 d (versions de macOS du parc), PV-09 et PV-10 (dossier kDrive de test) ; question Q14.

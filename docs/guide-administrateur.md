@@ -15,7 +15,7 @@ ocr-md rend lisibles les pièces d'un pli de candidature : il produit, dans un d
 | Processeur Mac | Apple Silicon et Intel | vérifiés en intégration continue |
 | Droits | compte standard : tout s'installe dans le profil, sans élévation (EX-02) | à confirmer en recette (TM-01, PV-01) |
 | Réseau | à l'installation et à la mise à jour seulement (section 6) | |
-| Espace disque | environ 350 Mo dans le profil (section 13) | |
+| Espace disque | 340 à 410 Mo dans le profil (section 13) | |
 
 ## 3. Installation
 
@@ -206,8 +206,10 @@ Les points à vérifier du cahier des charges (PV-01 à PV-15) et leurs résulta
 | Poste | Moteur | Durée | Pages par minute | Relance | Mémoire maximale |
 |---|---|---|---|---|---|
 | PC de développement, Windows 11 | `Windows.Media.Ocr` (fr-FR) | 2 min 10 s | 231 | 0,4 s | 413 Mo |
-| Intégration continue, Windows Server 2025 | `Windows.Media.Ocr` (fr-FR) | 1 min 40 s | 300 | 0,2 s | 403 Mo |
+| Intégration continue, Windows Server 2025 | `Windows.Media.Ocr` (fr-FR) | 1 min 40 s | 300 | 0,2 s | 404 Mo |
+| Intégration continue, Mac Apple Silicon, macOS 26.7.2 | Apple Vision | 8 min 36 s | 58 | 0,1 s | 714 Mo |
+| Intégration continue, Mac Intel, macOS 15.7.9 | Apple Vision | 13 min 55 s | 36 | 0,3 s | 530 Mo |
 
-Sous macOS, la reconnaissance est plus lente (environ 1,9 s par page sur Apple Silicon et 1,8 à 2,6 s sur Intel en intégration continue, contre 0,15 à 0,2 s sous Windows) : compter de 10 à 15 minutes pour le lot type. Les relevés des Mac sont produits par la passe complète de l'intégration continue (étape « Performance sur le lot type ») et seront à refaire sur les postes de la SODEB (TM-08).
+Objectifs tenus sur les quatre postes. La reconnaissance d'Apple Vision est la plus lente (environ 1,7 s par page sur Apple Silicon et 2,8 s sur Intel, contre 0,2 s pour `Windows.Media.Ocr`). Les machines d'intégration continue sont des machines virtuelles : relevés à refaire sur les postes de la SODEB (TM-08).
 
-**Poids de l'installation** (relevé de l'intégration continue sous Windows) : environnement de l'outil 238 Mo (PyMuPDF et PyMuPDF Layout, numpy, onnxruntime pour l'essentiel) ; Python 3.12 géré par `uv` : 62 Mo ; `uv` lui-même : environ 40 Mo ; soit environ 340 Mo dans le profil. Sous macOS, relevé affiché par l'intégration continue (lignes « poids »).
+**Poids de l'installation** (relevés de l'intégration continue) : environnement de l'outil 238 Mo sous Windows, 276 Mo (Apple Silicon) à 297 Mo (Intel) sous macOS, surtout PyMuPDF et PyMuPDF Layout, numpy et onnxruntime ; Python 3.12 géré par `uv` : 62 Mo (Windows) et 71 Mo (macOS) ; `uv` lui-même : environ 40 Mo ; soit 340 à 410 Mo dans le profil.
