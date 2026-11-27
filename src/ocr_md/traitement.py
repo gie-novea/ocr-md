@@ -150,7 +150,10 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
                      f"pages={','.join(map(str, options.pages)) or '-'} forcer={options.forcer} "
                      f"tableaux={options.tableaux}")
         journal.info("paramètres : " + " ".join(f"{k}={v}" for k, v in sorted(parametres.valeurs.items())))
-        journal.info(correctifs.ETAT.raison)
+        if correctifs.ETAT.applique:
+            journal.info(correctifs.ETAT.raison)
+        else:
+            journal.avertissement(f"AVERTISSEMENT : {correctifs.ETAT.raison}")
         if parametres.sources:
             journal.info("fichiers de configuration lus : " + " ; ".join(parametres.sources))
         if nettoyes:

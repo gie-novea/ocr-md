@@ -186,6 +186,13 @@ def verifier() -> int:
             lignes.append(f"[X] {nom} : écriture impossible dans {dossier}")
             code = PREREQUIS_MANQUANT
     lignes.append(f"     Fichier de configuration : {plateforme.fichier_configuration()}")
+    # Correctif des bibliothèques tierces : signalé sans changer le code de retour (l'outil
+    # fonctionne, mais des mots peuvent être collés dans les tableaux reconnus par OCR).
+    from . import correctifs
+    if correctifs.appliquer():
+        lignes.append(f"[OK] Correctifs : {correctifs.ETAT.raison}")
+    else:
+        lignes.append(f"[!] Correctifs : AVERTISSEMENT : {correctifs.ETAT.raison}")
     print("\n".join(lignes))
     return code
 

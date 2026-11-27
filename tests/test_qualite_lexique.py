@@ -46,3 +46,32 @@ def test_avis_de_licence_mpl_conserve():
         entete = g.read(600)
     assert "Mozilla Public" in entete and "MPL v2.0" in entete
     assert (importlib.resources.files("ocr_md") / "donnees" / "lexique" / "LICENCE-MPL-2.0.txt").is_file()
+
+
+SCRIPT_CHARGEMENT = r'''
+import pathlib, sys
+import pymupdf
+from ocr_md import cli, config, qualite, traitement
+racine = pathlib.Path(sys.argv[1])
+(racine / "P").mkdir()
+for i in range(3):
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 72), "Texte natif sans évaluation de qualité.")
+    doc.save(racine / "P" / f"N{i}.pdf")
+p = config.charger(fichier_utilisateur=racine / "absent.toml")
+traitement.executer(cli.analyser([str(racine / "P")]), p)
+print(qualite._formes_grammalecte.cache_info().currsize)
+'''
+
+
+@pytest.mark.exigence("EX-37", "EX-59")
+def test_lexique_non_charge_sans_page_a_evaluer(tmp_path):
+    """Le lexique n'est chargé qu'à la première évaluation de qualité : un lot de PDF natifs
+    (aucune page reconnue ni couche OCR) ne le charge pas."""
+    import pathlib
+    import subprocess
+    import sys
+    r = subprocess.run([sys.executable, "-c", SCRIPT_CHARGEMENT, str(tmp_path)], capture_output=True, text=True,
+                       cwd=pathlib.Path(__file__).parents[1], timeout=300)
+    assert r.returncode == 0, r.stderr[-3000:]
+    assert r.stdout.strip().splitlines()[-1] == "0"

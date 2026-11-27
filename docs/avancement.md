@@ -273,7 +273,7 @@ CI du jalon 7 (run 45945692381), verte sur les quatre plateformes (169 tests ré
   - tableaux scannés fusionnés : nombres coupés, même repli ;
   - le HTML de la bibliothèque ne garde pas les fusions : l'outil produit lui-même le HTML des tableaux natifs fusionnés.
 - Versions : PyMuPDF, pymupdf4llm et pymupdf-layout figés en 1.28.2 et onnxruntime en 1.23.2 pour garder le Mac Intel ; toute montée de version doit vérifier la publication macOS Intel et relancer `tests/test_correctifs.py`.
-- Seuils de qualité calibrés sur le jeu synthétique (mots inconnus 0,19, caractères aberrants 0,06, mots fragmentés 0,19, densité 0,11) : plus sévères que le cahier ; recalibrage en recette (TM-08) avec `tests/calibrage.py`.
+- Seuils de qualité : revenus aux valeurs du cahier avant le jalon 8 (voir la rubrique suivante) ; recalibrage en recette (TM-08) avec `tests/calibrage.py`.
 - Mémoire : le lexique (476 000 formes) porte la mémoire de base à 160 à 233 Mo ; stable d'un fichier à l'autre. Ne pas assouplir EX-59 : corriger si la marge passe sous 20 %. Le test de lot ne refuse qu'une hausse (macOS rend la mémoire en différé).
 - CI Windows : moteur réel en en-US à chaque envoi (seuil de fonctionnement 50 %) ; installation du module fr-FR (environ 15 min), tests réels en français et lot de 20 x 500 pages la nuit, sur les étiquettes `v*` et à la demande. Le module fr-FR reste vérifié sur le poste du commanditaire à chaque jalon.
 - WinRT : attendre l'opération par `threading.Event`, pas par `asyncio` (qui ouvre des sockets, interdits pendant les tests).
@@ -287,3 +287,16 @@ CI du jalon 7 (run 45945692381), verte sur les quatre plateformes (169 tests ré
 - Classeur de test (obligatoire) avec formules et valeurs en cache, XML écrit directement ; une formule sans valeur en cache s'écrit `[formule non calculée : =…]`, jamais une cellule vide.
 - Repères `<!-- feuille N : "Nom" -->` et `<!-- diapositive N -->`, plafond `xlsx_lignes_max`, feuilles masquées signalées, notes des diapositives, front matter Office (`pages: null` pour docx et xlsx).
 - En fin de jalon : tests verts, mise à jour de ce fichier, commit, envoi avec `1fd4879`, suivi de la CI.
+
+## Avant le jalon 8 (27/11/2026)
+
+Décisions du commanditaire : le calibrage sur un jeu synthétique très propre ne justifie pas d'abaisser les seuils ; plan du jalon 8 validé avec ajustements (voir la rubrique du jalon 8).
+
+Fait :
+- seuils (EX-36, EX-76) : pour chaque indicateur, écart entre la page saine la plus défavorable et la page dégradée la plus favorable (parmi celles que l'indicateur déclenche), consigné dans `docs/calibrage.md`. Valeur du cahier retenue quand elle tombe dans l'écart : mots inconnus 0,35, mots fragmentés 0,25, caractères aberrants 0,03 ; densité minimale : 0,2 hors de l'écart (un tableau sain clairsemé est à 0,164), milieu 0,108 retenu (0,11, inchangé) ; mélanges 0,10 et confiance 0,70 inchangés. Toujours zéro erreur de verdict avec le moteur factice et avec `Windows.Media.Ocr`. Calibrage définitif en recette (TM-08) ;
+- `docs/calibrage.md` ne contient plus les messages de MuPDF (environ 130 lignes « MuPDF error » dues aux PDF réparés du jeu) : `tests/calibrage.py` les coupe ;
+- correctif PyMuPDF4LLM : s'il n'est pas appliqué (version différente), le journal l'inscrit en avertissement et `ocr-md verifier` l'affiche (ligne « [!] Correctifs ») sans changer le code de retour ; test ajouté ;
+- rapport : test qu'un rapport aux colonnes d'une version précédente n'est pas relu (fichiers retraités, rapport réécrit) ;
+- lexique : déjà chargé à la première recherche d'un mot seulement ; test qu'un lot de PDF natifs ne le charge pas. La mémoire de départ plus haute du test de lot vient de ce que ce lot est fait de pages scannées, qui l'utilisent.
+
+Tests : 171 réussis, 6 sautés sous Windows (fr-FR).

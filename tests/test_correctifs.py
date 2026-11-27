@@ -78,6 +78,23 @@ def test_correctif_non_applique_si_la_version_differe(sans_correctif, monkeypatc
     assert not getattr(utils.extract_cells, "correctif_ocr_md", False)
 
 
+def test_correctif_non_applique_signale_au_journal_et_par_verifier(sans_correctif, monkeypatch, tmp_path, capsys):
+    from ocr_md import cli, config, traitement
+    vraie = importlib.metadata.version
+    monkeypatch.setattr(importlib.metadata, "version",
+                        lambda p: "1.29.0" if p == "pymupdf4llm" else vraie(p))
+    (tmp_path / "P").mkdir()
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 72), "Texte natif de contrôle.")
+    doc.save(tmp_path / "P" / "a.pdf")
+    p = config.charger(fichier_utilisateur=tmp_path / "absent.toml")
+    traitement.executer(cli.analyser(["--sortie", "pdf", str(tmp_path / "P" / "a.pdf")]), p)
+    journal = (tmp_path / "P" / "_OCR" / "ocr_journal.log").read_text(encoding="utf-8")
+    assert "WARNING AVERTISSEMENT : correctif des cellules de tableau de PyMuPDF4LLM non appliqué" in journal
+    cli.verifier()
+    assert "[!] Correctifs : AVERTISSEMENT : correctif des cellules" in capsys.readouterr().out
+
+
 def test_correctif_applique_au_lancement_et_journalise(tmp_path):
     from ocr_md import cli, config, traitement
     correctifs.retirer()

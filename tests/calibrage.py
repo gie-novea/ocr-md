@@ -110,6 +110,51 @@ def proposer(lignes: list[dict], p) -> dict:
     return propositions
 
 
+VALEURS_CAHIER = {"taux_mots_inconnus": 0.35, "taux_caracteres_aberrants": 0.03, "taux_mots_fragmentes": 0.25,
+                  "taux_melange_chiffres_lettres": 0.10, "densite": 0.2}
+MOTIF = {"taux_mots_inconnus": "taux_mots_inconnus", "taux_caracteres_aberrants": "taux_caracteres_aberrants",
+         "taux_mots_fragmentes": "taux_mots_fragmentes", "taux_melange_chiffres_lettres": "taux_melange_chiffres_lettres",
+         "densite": "densite_anormale"}
+
+
+def ecarts(lignes: list[dict], p) -> list[dict]:
+    """Pour chaque indicateur : valeur de la page saine la plus défavorable, valeur de la page
+    dégradée la plus favorable parmi celles que l'indicateur déclenche (les pages dégradées par
+    un autre défaut ne disent rien de cet indicateur), et position de la valeur du cahier."""
+    connues = [l for l in lignes if l["attendu"]]
+    resultat = []
+    for ind, cahier in VALEURS_CAHIER.items():
+        saines = [l for l in connues if l["attendu"] == "bonne"
+                  and (ind != "taux_mots_inconnus" or l["mots_evaluables"] >= p.mots_evaluables_min)]
+        degradees = [l for l in connues if l["attendu"] == "douteuse" and MOTIF[ind] in l["motifs"]]
+        if ind == "densite":  # seuil « en deçà » : les pages saines sont au-dessus
+            degradees = [l for l in degradees if l["densite"] < p.densite_min]
+            pire_saine = min(saines, key=lambda l: l[ind], default=None)
+            meilleure_degradee = max(degradees, key=lambda l: l[ind], default=None)
+        else:
+            pire_saine = max(saines, key=lambda l: l[ind], default=None)
+            meilleure_degradee = min(degradees, key=lambda l: l[ind], default=None)
+        ligne = {"indicateur": ind, "cahier": cahier, "saine": pire_saine, "degradee": meilleure_degradee}
+        if pire_saine and meilleure_degradee:
+            bas, haut = sorted((pire_saine[ind], meilleure_degradee[ind]))
+            ligne["dans_l_ecart"] = bas < cahier < haut
+            ligne["milieu"] = round((bas + haut) / 2, 3)
+        resultat.append(ligne)
+    return resultat
+
+
+def tableau_ecarts(lignes_ecarts: list[dict]) -> str:
+    sortie = ["| indicateur | page saine la plus défavorable | page dégradée la plus favorable | valeur du cahier | dans l'écart | milieu |",
+              "|---|---|---|---|---|---|"]
+    def page(l, ind):
+        return f"{l[ind]:.3f} ({l['fichier']} p. {l['page']})" if l else "aucune"
+    for e in lignes_ecarts:
+        ind = e["indicateur"]
+        dans = "" if "dans_l_ecart" not in e else ("oui" if e["dans_l_ecart"] else "non")
+        sortie.append(f"| {ind} | {page(e['saine'], ind)} | {page(e['degradee'], ind)} | {e['cahier']} | {dans} | {e.get('milieu', '')} |")
+    return "\n".join(sortie)
+
+
 def tableau(lignes: list[dict]) -> str:
     entete = ["fichier", "page", "catégorie", "mots", "évaluables", "inconnus", "aberrants", "fragmentés",
               "mélanges", "densité", "confiance", "verdict", "attendu"]
@@ -128,6 +173,9 @@ def main(arguments=None):
     a.add_argument("--moteur", choices=("factice", "systeme"), default="factice")
     a.add_argument("--config")
     o = a.parse_args(arguments)
+    # Messages de MuPDF (PDF réparés du jeu) : hors de la sortie, qui ne contient que le tableau.
+    pymupdf.TOOLS.mupdf_display_errors(False)
+    pymupdf.TOOLS.mupdf_display_warnings(False)
     p = config.charger(o.config)
     if o.dossier:
         dossier = pathlib.Path(o.dossier)
@@ -147,9 +195,11 @@ def main(arguments=None):
     print(f"\n{len(lignes)} page(s) mesurée(s) ; erreurs de verdict par rapport à la vérité terrain : {len(erreurs)}")
     for l in erreurs:
         print(f"  {l['fichier']} page {l['page']} : {l['verdict']} au lieu de {l['attendu']} ({' '.join(l['motifs'])})")
+    print("\nÉcart par indicateur (pages dégradées : celles que l'indicateur déclenche) :\n")
+    print(tableau_ecarts(ecarts(lignes, p)))
     propositions = proposer(lignes, p)
     if propositions:
-        print("seuils de marge maximale proposés : " + ", ".join(f"{k} = {v}" for k, v in propositions.items()))
+        print("\nseuils de marge maximale (pour information) : " + ", ".join(f"{k} = {v}" for k, v in propositions.items()))
     return lignes, erreurs, propositions
 
 

@@ -260,6 +260,26 @@ def test_relance(lot, parametres):
 
 
 @pytest.mark.exigence("EX-52", "EX-82")
+def test_rapport_d_une_version_precedente_non_relu(lot, parametres):
+    """Un rapport aux colonnes d'une version précédente (ici sans `pages_texte_simple`, soit
+    les 14 colonnes d'avant le jalon 7) n'est pas relu : tous les fichiers sont retraités et
+    le rapport est réécrit avec les colonnes en vigueur."""
+    parent, racine = lot
+    lancer(parametres, racine)
+    chemin = parent / "_OCR" / rapport.NOM_RAPPORT
+    anciennes = [c for c in rapport.COLONNES if c != "pages_texte_simple"]
+    lignes = lignes_csv(parent / "_OCR")
+    with open(chemin, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f, delimiter=";", lineterminator="\r\n")
+        w.writerow(anciennes)
+        w.writerows([l[c] for c in anciennes] for l in lignes)
+    _, t, _ = lancer(parametres, racine)
+    assert sorted(t.appels) == ["Attestation.pdf", "DC1.pdf", "DC2.pdf"]
+    relu = lignes_csv(parent / "_OCR")
+    assert list(relu[0].keys()) == list(rapport.COLONNES) and {l["action"] for l in relu} == {"traite"}
+
+
+@pytest.mark.exigence("EX-52", "EX-82")
 def test_relance_partielle_conserve_les_autres_lignes(lot, parametres):
     parent, racine = lot
     lancer(parametres, racine)
