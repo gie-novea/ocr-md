@@ -96,3 +96,10 @@ jobs:
 
       - name: Tests
         run: uv run pytest -v -ra -s
+
+      # Indicateurs de qualité mesurés avec Apple Vision (EX-76) : nombres seuls, pour le
+      # calibrage des seuils ; n'échoue pas la CI.
+      - name: Calibrage avec Apple Vision
+        if: always() && runner.os == 'macOS'
+        continue-on-error: true
+        run: uv run python tests/calibrage.py --moteur systeme
