@@ -104,6 +104,12 @@ jobs:
         continue-on-error: true
         run: uv run python tests/calibrage.py --moteur systeme
 
+      # Performance sur le lot type (EX-58) : passe complète seulement (durée de l'OCR réel de
+      # 300 pages, environ 10 à 15 minutes sous macOS).
+      - name: Performance sur le lot type
+        if: env.PASSE_COMPLETE == 'true' && runner.os != 'Linux'
+        run: uv run python tests/perf/lot_type.py
+
       # Scripts d'installation, de mise à jour et de désinstallation (EX-69, EX-72, EX-73) :
       # installation réelle dans le profil depuis l'archive GitHub de ce commit (sans Git),
       # seconde installation sans doublon, mise à jour, puis désinstallation complète.
@@ -120,6 +126,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "installation en échec" }
           (Get-Raccourcis).Name
           if ((Get-Raccourcis).Count -ne 3) { throw "trois raccourcis attendus" }
+          foreach ($d in (uv tool dir), (uv python dir)) { "poids : {0:N0} Mo  {1}" -f ((Get-ChildItem $d -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum / 1MB), $d }
           installation\installer-windows.cmd
           if ($LASTEXITCODE -ne 0 -or (Get-Raccourcis).Count -ne 3) { throw "seconde installation en échec ou doublon" }
           installation\mettre-a-jour-windows.cmd
@@ -142,6 +149,7 @@ jobs:
           ls "$HOME/Library/Services"
           [ "$(compter)" = "3" ] || { echo "trois Actions rapides attendues"; exit 1; }
           for w in "$HOME/Library/Services/OCR - "*.workflow; do plutil -lint "$w/Contents/document.wflow" "$w/Contents/Info.plist"; done
+          du -sh "$(uv tool dir)" "$(uv python dir)" | sed 's/^/poids : /'
           ./installation/installer-macos.command
           [ "$(compter)" = "3" ] || { echo "doublon après la seconde installation"; exit 1; }
           ./installation/mettre-a-jour-macos.command

@@ -26,8 +26,17 @@
 - Les mesures de sécurité de l'outil existant qui concernent un lanceur `.bat` (injection par nom de fichier) sont sans objet : les raccourcis d'ocr-md ciblent directement le lanceur `ocr-mdw.exe`, sans interpréteur de commandes.
 
 ### Écarts au cahier des charges
+Tous décidés ou validés par le commanditaire et reportés dans le cahier ; détail par jalon dans `docs/avancement.md`.
 - PyMuPDF, pymupdf4llm et pymupdf-layout figés en 1.28.2 (au lieu de 2.x), onnxruntime en 1.23.2, pour conserver le Mac Intel.
-- Voir `docs/avancement.md`, rubriques « Écarts au cahier des charges » de chaque jalon.
+- Jeu de test : fichiers 6b, 13b, 18, 19, 20 et 21 ajoutés au tableau de la section 7.1.
+- Tableaux : HTML des tableaux natifs fusionnés produit par l'outil (le rendu HTML de PyMuPDF4LLM perd les fusions) ; repère « tableau reconnu par OCR » sur les pages reconnues.
+- Statut `couche_expediteur` ; PDF réparé partiellement récupérable traité et signalé (motif `pdf_repare`) ; relance d'un fichier qui passe en erreur ; code de retour 3 seulement si aucun fichier n'a pu être traité faute de moteur.
+- Seuils de qualité : mots inconnus propres à l'origine du texte et limités à la dégradation grossière ; nouvel indicateur `qualite_image` (motif `image_faible_qualite`) pour la dégradation moyenne ; netteté mesurée par la part de gris du trait et non par la variance du laplacien, qui ne sépare pas les pages du jeu ; seuil de contraste limité à la dégradation grossière.
+- Apple Vision : correction linguistique désactivée (PV-15) ; boîtes par mot obtenues de Vision (PV-14).
+- Fichiers Office : mention des révisions et commentaires, colonne `revisions_commentaires` (rapport à 16 colonnes), message des fichiers Office protégés par mot de passe, valeurs des classeurs en écriture française.
+- Distribution : archive de la version publiée sur GitHub (étiquette v1.0.0), installée par uv sans Git, au lieu de l'adresse Git ; installation macOS principale par une ligne à coller dans le Terminal.
+- Guide utilisateur macOS : la ligne d'installation est la seconde commande admise, avec l'encadré « Refaire l'OCR » (EX-79).
 
 ### Recommandations non suivies
-- Aucune à ce jour.
+- REC-04 (quatrième entrée de menu « Refaire l'OCR des pages douteuses ») : non réalisée, hors du périmètre décidé ; la commande est donnée par le guide et par `_AVERTISSEMENTS.md`.
+- REC-06 (OCR en parallèle) : `processus` borné à 1 en v1 ; le débit mesuré sur le lot type (231 pages par minute sous Windows) ne le justifie pas.

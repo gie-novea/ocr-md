@@ -1,10 +1,11 @@
 ﻿# Fonctions communes aux scripts Windows d'ocr-md (EX-69, EX-72, EX-73).
 # Tout s'installe dans le profil de l'utilisateur, sans droits d'administrateur (EX-02).
 
-# Source de distribution (EX-69) : archive du dépôt GitHub, installée par uv sans Git.
+# Source de distribution (EX-69) : archive de la version publiée sur GitHub (étiquette v1.0.0),
+# installée par uv sans Git (décision du commanditaire du 27/11/2026).
 # Elle peut être remplacée par le paramètre -Source (chemin d'un dossier ou d'un paquet
 # « wheel », ou autre adresse) ou par la variable d'environnement OCR_MD_SOURCE.
-$SourceParDefaut = "https://github.com/gie-novea/ocr-md/archive/refs/heads/main.zip"
+$SourceParDefaut = "https://github.com/gie-novea/ocr-md/archive/refs/tags/v1.0.0.zip"
 $VersionPython = "3.12"
 
 # « Continue » : sous Windows PowerShell 5.1, avec « Stop », un message de uv sur la sortie

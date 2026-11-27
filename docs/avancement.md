@@ -376,3 +376,31 @@ Reste à faire (recette) : TM-01 à TM-03 sur postes réels (clic droit, Windows
 CI du jalon 9 (run 45997091630, commit 56ca92a), verte sur les quatre plateformes : 215 tests réussis sous Windows, 219 sur chaque Mac, 201 sous Linux. Installation réelle depuis l'archive GitHub du commit, seconde installation sans doublon, mise à jour et désinstallation réussies sous Windows, macOS Apple Silicon et macOS Intel. Calibrage avec Vision : aucune erreur de verdict sur les deux Mac. Deux corrections en cours de CI : test de la fenêtre rendu indépendant des délais (Mac Intel lent) ; objets tkinter libérés dans le fil principal avant le lancement du fil de traitement (sinon plantage de Tcl quand plusieurs fenêtres se succèdent dans un même processus, cas des tests).
 
 Prochaine étape : jalon 10 (performance, guides, `LICENCES-TIERCES.md` et `TRACABILITE.md` générés, fiches de recette), puis arrêt obligatoire de fin de v1.
+
+## Avant le jalon 10 : indicateur qualite_image (27/11/2026)
+
+Décisions du commanditaire : jalon 9 validé ; source par l'archive GitHub d'une étiquette de version (v1.0.0) ; adresses github.com et codeload.github.com au guide administrateur ; seuils lexicaux limités à la dégradation grossière (couche existante 0,35, Windows 0,35, Vision 0,21) ; nouvel indicateur `qualite_image` calibré au milieu des écarts ; installation macOS principale par une ligne Terminal.
+
+Fait :
+- `qualite_image` (EX-35) : mesuré sur l'image transmise au moteur, avant l'OCR (Pillow, histogramme) : résolution effective (calculée sur l'aire, indépendante de la rotation), part de gris du trait (netteté), contraste, bruit du fond ; motif `image_faible_qualite`, causes en clair au journal et dans le message du rapport ; schéma du front matter, EX-35, EX-36 et 11.1 mis à jour ;
+- calibrage étendu aux fichiers images (fichier 10) ; seuils : résolution 250 dpi, part de gris 0,50, contraste 183, bruit 3,75 ; aucune erreur de verdict sur 33 pages avec le moteur factice et avec Windows ; CI : verdicts de Vision vérifiés (fichier 21 douteux par l'image, fichiers 2 et 18 sains) ;
+- tests : mesures et causes sur images construites, fichier 21 signalé avec ses causes et le paragraphe B, verdicts du moteur réel étendus au fichier 21.
+
+Écarts et points d'attention (consignés dans `docs/calibrage.md`) :
+- netteté : la variance du laplacien demandée a été mesurée mais ne sépare pas les pages du jeu (le bruit la gonfle ; les pages peu encrées se confondent avec les pages floues) ; remplacée par la part de gris du trait ;
+- contraste : écart brut dégénéré (pages saines synthétiques toutes à 255, milieu 254,5) ; seuil pris entre les pages saines et la page illisible (183), dégradation grossière seulement ;
+- résolution : le seuil de 250 dpi signale les scans à 200 dpi, réglage courant des copieurs ; à vérifier en priorité en recette.
+
+## Jalon 10 : performance, guides, licences, recette (27/11/2026)
+
+Fait :
+- `tests/perf/lot_type.py` (EX-58) : lot type synthétique (50 plis, 500 pages dont 300 scannées à 300 dpi), traitement, relance, relevé JSON ; sur le PC de développement (Windows 11, moteur réel fr-FR) : 2 min 10 s, 231 pages par minute, relance 0,4 s, 413 Mo ; objectifs tenus. Relevés des Mac : passe complète de la CI (étape ajoutée) ;
+- guides utilisateur Windows et macOS (une page, cinq emplacements de capture ; installation macOS par une ligne Terminal, secours par double-clic et « clic droit, puis Ouvrir ») ; EX-79 adapté ;
+- guide administrateur : prérequis, installation, mise à jour, désinstallation, adresses réseau (astral.sh, github.com, codeload.github.com, objects et release-assets.githubusercontent.com, pypi.org, files.pythonhosted.org), emplacements, tableau des paramètres généré, calibrage, diagnostic, chaque message de l'outil avec sa cause et son remède, licence, vérifications, performance et poids ;
+- `docs/recette-manuelle.md` : fiches TM-01 à TM-11 à cocher ;
+- `outils/documentation.py` génère le tableau des paramètres, `tests/TRACABILITE.md`, `LICENCES-TIERCES.md` (depuis `uv.lock`, toutes plateformes : aucune licence inconnue ni incompatible avec l'AGPL-3.0 ; PyMuPDF Layout est sous la même double licence AGPL ou commerciale que PyMuPDF) et `docs/specification-front-matter.md` (section 11 du cahier) ; `outils/messages.py` extrait les 40 messages de l'outil ;
+- `tests/test_livrables.py` : arborescence (EX-77), documents générés à jour, traçabilité complète (EX-75), licences (EX-78), messages présents dans le guide (EX-80), guides (EX-79), CHANGELOG (EX-81), script de performance (EX-58) ;
+- scripts d'installation pointés sur l'étiquette v1.0.0 ; README réécrit ; CHANGELOG : écarts au cahier des charges et recommandations non suivies ;
+- tests : 227 réussis, 8 sautés sous Windows.
+
+Reste à faire à la livraison (actions du commanditaire ou à autoriser) : passer la version à 1.0.0 (`pyproject.toml`, `src/ocr_md/__init__.py`, CHANGELOG), créer et envoyer l'étiquette `v1.0.0` (les scripts et les guides la désignent) ; recette TM-01 à TM-11 ; captures des guides.
