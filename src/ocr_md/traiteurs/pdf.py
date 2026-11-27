@@ -166,9 +166,10 @@ class ResumeOcr:
     part_confiance_basse: float | None       # part du texte sous le seuil confiance_basse
     angle_texte: float | None = None
     ecart_type: float | None = None          # niveaux de gris de l'image (page non blanche ?)
+    qualite_image: object | None = None      # qualite.QualiteImage, mesurée avant l'OCR
 
 
-def resumer(resultat, confiance_basse: float, ecart_type: float | None = None) -> ResumeOcr:
+def resumer(resultat, confiance_basse: float, ecart_type: float | None = None, qualite_image=None) -> ResumeOcr:
     total = pondere = bas = 0
     avec_confiance = False
     for ligne in resultat.lignes:
@@ -181,8 +182,23 @@ def resumer(resultat, confiance_basse: float, ecart_type: float | None = None) -
                 pondere += confiance * n
                 bas += n if confiance < confiance_basse else 0
     if not avec_confiance or not total:
-        return ResumeOcr(resultat.texte, total, None, None, resultat.angle_texte, ecart_type)
-    return ResumeOcr(resultat.texte, total, pondere / total, bas / total, resultat.angle_texte, ecart_type)
+        return ResumeOcr(resultat.texte, total, None, None, resultat.angle_texte, ecart_type, qualite_image)
+    return ResumeOcr(resultat.texte, total, pondere / total, bas / total, resultat.angle_texte, ecart_type,
+                     qualite_image)
+
+
+def resolution_effective(page) -> int | None:
+    """Résolution (dpi) de la plus grande image de la page, calculée sur l'aire (pixels de
+    l'image rapportés à la surface occupée), donc indépendante d'une rotation à l'insertion
+    (photo redressée selon EXIF) ; None si la page ne porte pas d'image."""
+    meilleure, aire = None, 0.0
+    for info in page.get_image_info():
+        r = pymupdf.Rect(info["bbox"])
+        if r.is_empty or not info.get("width") or not info.get("height") or r.get_area() <= aire:
+            continue
+        aire = r.get_area()
+        meilleure = 72 * (info["width"] * info["height"] / aire) ** 0.5
+    return None if meilleure is None else int(round(meilleure))
 
 
 @dataclasses.dataclass
@@ -194,6 +210,7 @@ class Traitement:
     motifs: dict                      # page douteuse -> motifs
     refaites: list                    # pages dont l'OCR a été refait (EX-39)
     durees: dict
+    causes_image: dict = dataclasses.field(default_factory=dict)  # page -> causes de image_faible_qualite
 
 
 def _ecart_type_page(page) -> float:
@@ -201,7 +218,8 @@ def _ecart_type_page(page) -> float:
     return ImageStat.Stat(Image.frombytes("L", (pix.width, pix.height), pix.samples)).stddev[0]
 
 
-def evaluer_page(page, texte: str, ctx, lexique, resume: ResumeOcr | None = None) -> list[str]:
+def evaluer_page(page, texte: str, ctx, lexique, resume: ResumeOcr | None = None,
+                 causes_image: dict | None = None) -> list[str]:
     """Verdict d'une page (EX-35, EX-36) : liste des motifs, vide si la page est bonne.
     Seuls des nombres sont journalisés."""
     p = ctx.parametres
@@ -217,6 +235,16 @@ def evaluer_page(page, texte: str, ctx, lexique, resume: ResumeOcr | None = None
         if not resume.caracteres and non_blanche:
             motifs.insert(0, "aucun_texte_reconnu")
         motifs += qualite.motifs_confiance(resume.confiance_moyenne, resume.part_confiance_basse, p)
+        causes = qualite.causes_image(resume.qualite_image, p)
+        if causes:
+            motifs.append(qualite.MOTIF_IMAGE)
+            if causes_image is not None:
+                causes_image[page.number + 1] = causes
+        q = resume.qualite_image
+        if q is not None:
+            ctx.journal.info(f"{ctx.element.relatif} : page {page.number + 1} : image : résolution "
+                             f"{q.resolution_dpi} dpi, part de gris {q.part_gris}, contraste {q.contraste}, "
+                             f"bruit {q.bruit}" + (f" : {', '.join(causes)}" if causes else ""))
     confiance = "" if resume is None or resume.confiance_moyenne is None else f", confiance {resume.confiance_moyenne:.2f}"
     ctx.journal.info(
         f"{ctx.element.relatif} : page {page.number + 1} : mots {ind.mots}, évaluables {ind.mots_evaluables}, "
@@ -269,6 +297,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
     refaites = sorted(pages_a_refaire(ctx.options, categories, motifs, ctx.journal, ctx.element.relatif))
     a_reconnaitre = sorted({n for n, c in categories.items() if c == "image"} | set(refaites))
     pages_ocr = []
+    causes_image: dict = {}
     durees = {"rendu": 0.0, "ocr": 0.0, "calque": 0.0}
     for numero in a_reconnaitre:
         ctx.verifier_arret()
@@ -278,6 +307,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
         if not pages_ocr:
             ctx.journal.info(f"{ctx.element.relatif} : OCR par {moteur.description()}, langue {p.langue_ocr} "
                              f"(secondaire {p.langue_ocr_secondaire}), {p.ocr_dpi} dpi")
+        resolution = resolution_effective(doc[numero - 1])  # image d'origine, avant remplacement
         if numero in refaites and categories[numero] != "image":
             remplacer_par_image(doc, numero - 1, p.ocr_dpi)
             motifs.pop(numero, None)
@@ -285,6 +315,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
         t0 = time.perf_counter()
         image, dpi = rendre_page(page, p.ocr_dpi, moteur.dimension_max(), ctx.journal)
         ecart = ImageStat.Stat(image).stddev[0]
+        mesure_image = qualite.mesurer_image(image, resolution)
         t1 = time.perf_counter()
         resultat = moteur.reconnaitre(image)
         t2 = time.perf_counter()
@@ -297,9 +328,9 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
         durees["rendu"] += t1 - t0
         durees["ocr"] += t2 - t1
         durees["calque"] += t3 - t2
-        resume = resumer(resultat, p.confiance_basse, ecart)
+        resume = resumer(resultat, p.confiance_basse, ecart, mesure_image)
         del resultat
-        m = evaluer_page(page, resume.texte, ctx, lexique, resume)
+        m = evaluer_page(page, resume.texte, ctx, lexique, resume, causes_image)
         if m:
             motifs[numero] = m
         categories[numero] = "ocr"
@@ -313,7 +344,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
                          f"{durees['rendu'] / n:.3f} s, reconnaissance {durees['ocr'] / n:.3f} s, "
                          f"calque {durees['calque'] / n:.3f} s")
     finales = [categories[n] for n in sorted(categories)]
-    return Traitement(analyses, finales, pages_ocr, motifs, refaites, durees)
+    return Traitement(analyses, finales, pages_ocr, motifs, refaites, durees, causes_image)
 
 
 def dossier_temporaire_processus() -> pathlib.Path:
@@ -364,6 +395,9 @@ class TraiteurPdf(Traiteur):
                 messages.append(message_repare(info))
             if info is not None and info.signe:
                 messages.append(MESSAGE_SIGNE)
+            if t.causes_image:  # motif image_faible_qualite : causes en clair au rapport
+                messages.append("image de faible qualité : " + " ; ".join(
+                    f"page {n} ({', '.join(c)})" for n, c in sorted(t.causes_image.items())))
             statut = analyse_pdf.statut(t.categories_finales, douteuses)
             origine = analyse_pdf.origine(t.categories_finales)
             moteur_nom = ctx.moteur.nom_si_utilise() if t.pages_ocr else "aucun"

@@ -146,11 +146,15 @@ def test_verdicts_avec_le_moteur_reel(jeu_de_test, tmp_path, parametres):
     moteur_ou_saut()
     parent = tmp_path / "P"
     (parent / "pdf").mkdir(parents=True)
-    for rel in ("pdf/02_scanne.pdf", "pdf/05_illisible.pdf", "pdf/18_ligatures.pdf"):
+    for rel in ("pdf/02_scanne.pdf", "pdf/05_illisible.pdf", "pdf/18_ligatures.pdf", "pdf/21_moyennement_degrade.pdf"):
         shutil.copyfile(racine / rel, parent / rel)
     traitement.executer(cli.analyser(["--sortie", "pdf", str(parent / "pdf")]), parametres)
     lignes = rapport.lire(parent / "_OCR")
     print({k: (l.statut, l.pages_douteuses, l.motif_douteux) for k, l in lignes.items()})
     assert lignes["pdf/05_illisible.pdf"].pages_douteuses == (2,)
+    # Pages moyennement dégradées : douteuses par la qualité de l'image, quel que soit le moteur.
+    l21 = lignes["pdf/21_moyennement_degrade.pdf"]
+    assert l21.pages_douteuses == (1, 2, 3) and "image_faible_qualite" in l21.motif_douteux
+    assert "page 1 (résolution 150 dpi" in l21.message
     assert lignes["pdf/02_scanne.pdf"].pages_douteuses == () and lignes["pdf/02_scanne.pdf"].statut == "ocrise"
     assert lignes["pdf/18_ligatures.pdf"].pages_douteuses == ()

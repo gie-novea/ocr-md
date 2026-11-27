@@ -45,12 +45,16 @@ def mesurer(dossier: pathlib.Path, moteur, p) -> list[dict]:
         m = json.loads((dossier / "manifeste.json").read_text(encoding="utf-8"))
         manifeste = {f["chemin"]: f for f in m["fichiers"]}
     lignes = []
-    for chemin in sorted(dossier.rglob("*.pdf")):
+    from ocr_md import images
+    extensions_images = (".jpg", ".jpeg", ".png", ".tif", ".tiff")
+    fichiers = [c for c in dossier.rglob("*") if c.is_file() and c.suffix.lower() in (".pdf",) + extensions_images]
+    for chemin in sorted(fichiers):
         relatif = chemin.relative_to(dossier).as_posix()
         if "_OCR" in chemin.parts:
             continue
         try:
-            doc = pymupdf.open(chemin)
+            # Images : même conversion en PDF que l'outil (EX-34).
+            doc = images.image_vers_pdf(chemin) if chemin.suffix.lower() in extensions_images else pymupdf.open(chemin)
             if doc.needs_pass:
                 continue
             analyses = analyse_pdf.analyser(doc, p)
@@ -61,13 +65,15 @@ def mesurer(dossier: pathlib.Path, moteur, p) -> list[dict]:
             if a.categorie not in ("image", "couche_existante"):
                 continue
             page = doc[a.numero - 1]
-            confiance = part_basse = None
+            confiance = part_basse = q = None
             if a.categorie == "couche_existante":
                 texte = page.get_text()
             else:
+                from ocr_md.traiteurs.pdf import resolution_effective, resumer
                 pix = page.get_pixmap(dpi=p.ocr_dpi, colorspace=pymupdf.csGRAY)
-                resultat = moteur.reconnaitre(Image.frombytes("L", (pix.width, pix.height), pix.samples))
-                from ocr_md.traiteurs.pdf import resumer
+                image = Image.frombytes("L", (pix.width, pix.height), pix.samples)
+                q = qualite.mesurer_image(image, resolution_effective(page))
+                resultat = moteur.reconnaitre(image)
                 resume = resumer(resultat, p.confiance_basse)
                 texte, confiance, part_basse = resume.texte, resume.confiance_moyenne, resume.part_confiance_basse
             surface = page.rect.width * page.rect.height * CM2_PAR_PT2
@@ -76,11 +82,15 @@ def mesurer(dossier: pathlib.Path, moteur, p) -> list[dict]:
             origine = qualite.ORIGINE_COUCHE if a.categorie == "couche_existante" else moteur.nom
             motifs = (qualite.motifs_lexicaux(ind, p, non_blanche, origine)
                       + qualite.motifs_confiance(confiance, part_basse, p))
+            if qualite.causes_image(q, p):
+                motifs.append(qualite.MOTIF_IMAGE)
             lignes.append({
                 "fichier": relatif, "page": a.numero, "categorie": a.categorie, "origine": origine,
                 "mots": ind.mots, "mots_evaluables": ind.mots_evaluables,
                 **{k: round(getattr(ind, k), 4) for k in INDICATEURS},
                 "confiance": None if confiance is None else round(confiance, 3),
+                "image": None if q is None else {"resolution_dpi": q.resolution_dpi, "part_gris": q.part_gris,
+                                                 "contraste": q.contraste, "bruit": q.bruit},
                 "verdict": "douteuse" if motifs else "bonne", "motifs": motifs,
                 "attendu": None if not verite else ("douteuse" if a.numero in verite.get("pages_douteuses", []) else "bonne"),
             })
@@ -143,6 +153,47 @@ def tableau_ecarts(lignes_ecarts: list[dict]) -> str:
     return "\n".join(sortie)
 
 
+MESURES_IMAGE = (("resolution_dpi", "image_resolution_min_dpi", "min"), ("part_gris", "image_part_gris_max", "max"),
+                 ("contraste", "image_contraste_min", "min"), ("bruit", "image_bruit_max", "max"))
+
+
+def ecarts_image(lignes: list[dict]) -> list[dict]:
+    """Pour chaque mesure de qualite_image (pages reconnues par l'outil, indépendantes du
+    moteur) : page saine la plus défavorable, puis page dégradée la plus proche au-delà d'elle
+    (les pages dégradées que la mesure ne distingue pas relèvent d'une autre mesure), et milieu."""
+    connues = [l for l in lignes if l["attendu"] and l.get("image")]
+    resultat = []
+    for mesure, parametre, sens in MESURES_IMAGE:
+        valeurs = [(l, l["image"][mesure]) for l in connues if l["image"][mesure] is not None]
+        saines = [(l, v) for l, v in valeurs if l["attendu"] == "bonne"]
+        degradees = [(l, v) for l, v in valeurs if l["attendu"] == "douteuse"]
+        if not saines:
+            continue
+        if sens == "min":  # page douteuse si la mesure est sous le seuil
+            pire = min(saines, key=lambda x: x[1])
+            au_dela = [x for x in degradees if x[1] < pire[1]]
+            proche = max(au_dela, key=lambda x: x[1], default=None)
+        else:
+            pire = max(saines, key=lambda x: x[1])
+            au_dela = [x for x in degradees if x[1] > pire[1]]
+            proche = min(au_dela, key=lambda x: x[1], default=None)
+        resultat.append({"mesure": mesure, "parametre": parametre, "saine": pire, "degradee": proche,
+                         "pages": sorted(f"{l['fichier']} p. {l['page']}" for l, _ in au_dela),
+                         "milieu": None if proche is None else round((pire[1] + proche[1]) / 2, 3)})
+    return resultat
+
+
+def tableau_ecarts_image(lignes_ecarts: list[dict]) -> str:
+    sortie = ["| mesure | page saine la plus défavorable | page dégradée la plus proche au-delà | milieu "
+              "| pages dégradées distinguées |", "|---|---|---|---|---|"]
+    for e in lignes_ecarts:
+        def page(x):
+            return "aucune" if x is None else f"{x[1]} ({x[0]['fichier']} p. {x[0]['page']})"
+        sortie.append(f"| {e['mesure']} | {page(e['saine'])} | {page(e['degradee'])} | {e['milieu'] or ''} "
+                      f"| {', '.join(e['pages'])} |")
+    return "\n".join(sortie)
+
+
 def tableau(lignes: list[dict]) -> str:
     entete = ["fichier", "page", "origine", "mots", "évaluables", "inconnus", "aberrants", "fragmentés",
               "mélanges", "densité", "confiance", "verdict", "attendu"]
@@ -183,6 +234,14 @@ def main(arguments=None):
     print(f"\n{len(lignes)} page(s) mesurée(s) ; erreurs de verdict par rapport à la vérité terrain : {len(erreurs)}")
     for l in erreurs:
         print(f"  {l['fichier']} page {l['page']} : {l['verdict']} au lieu de {l['attendu']} ({' '.join(l['motifs'])})")
+    print("\nQualité de l'image (mesures avant OCR, indépendantes du moteur) :\n")
+    for l in lignes:
+        if l.get("image"):
+            i = l["image"]
+            print(f"| {l['fichier']} | {l['page']} | {i['resolution_dpi']} dpi | gris {i['part_gris']} | "
+                  f"contraste {i['contraste']} | bruit {i['bruit']} | {l['attendu'] or ''} |")
+    print("\nÉcart par mesure de qualite_image :\n")
+    print(tableau_ecarts_image(ecarts_image(lignes)))
     resultat = ecarts(lignes, p)
     for origine, lignes_ecarts in resultat.items():
         print(f"\nÉcart par indicateur, origine du texte « {origine} » (pages saines et dégradées du manifeste) :\n")

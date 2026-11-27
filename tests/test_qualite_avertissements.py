@@ -97,7 +97,8 @@ def test_les_seuils_changent_le_verdict(copie, tmp_path):
     p = parametres_avec(tmp_path, "confiance_moyenne_min = 0.1\npart_confiance_basse_max = 1.0\n"
                                   "taux_mots_fragmentes_max = 1.0\nmots_inconnus_max_windows = 1.0\n"
                                   "mots_inconnus_max_couche_existante = 1.0\n"
-                                  "taux_caracteres_aberrants_max = 1.0\n")
+                                  "taux_caracteres_aberrants_max = 1.0\nimage_part_gris_max = 1.0\nimage_bruit_max = 255\n"
+                                  "image_contraste_min = 0\nimage_resolution_min_dpi = 0\n")
     lancer(p, moteur_de(m), "--sortie", "pdf", c / "pdf" / "05_illisible.pdf", c / "pdf" / "04_couche_degradee.pdf")
     lignes = rapport.lire(c / "pdf" / "_OCR")
     assert lignes["05_illisible.pdf"].pages_douteuses == ()
@@ -278,3 +279,49 @@ def test_journal_sans_texte_de_document(copie, parametres):
         for mot in f.get("mots_uniques") or []:
             assert not mot or mot not in journal
     assert "Mémoire technique" not in journal and "maîtrise" not in journal
+
+
+# ------------------------------------------------------------------------------ qualité de l'image
+def _image_texte(flou=0.0, bruit=0.0, gris_encre=0):
+    import random
+    from PIL import Image, ImageDraw, ImageFilter
+    img = Image.new("L", (1200, 800), 255)
+    d = ImageDraw.Draw(img)
+    for i in range(20):
+        d.rectangle((60, 40 + i * 36, 1100, 52 + i * 36), fill=gris_encre)
+    if flou:
+        img = img.filter(ImageFilter.GaussianBlur(flou))
+    if bruit:
+        r = random.Random(1)
+        img = Image.eval(img, lambda v: v)  # copie
+        px = img.load()
+        for y in range(0, img.height):
+            for x in range(0, img.width, 3):
+                px[x, y] = max(0, min(255, px[x, y] + int(r.gauss(0, bruit))))
+    return img
+
+
+@pytest.mark.exigence("EX-35")
+def test_mesures_et_causes_de_qualite_image(parametres):
+    nette = qualite.mesurer_image(_image_texte(), 300)
+    assert qualite.causes_image(nette, parametres) == []
+    assert qualite.causes_image(qualite.mesurer_image(_image_texte(), 150), parametres) == ["résolution 150 dpi"]
+    assert "image floue ou trait grisé" in qualite.causes_image(qualite.mesurer_image(_image_texte(flou=4)), parametres)
+    assert "contraste faible" in qualite.causes_image(qualite.mesurer_image(_image_texte(gris_encre=150)), parametres)
+    assert "image bruitée" in qualite.causes_image(qualite.mesurer_image(_image_texte(bruit=25)), parametres)
+
+
+@pytest.mark.exigence("EX-35", "EX-47", "EX-82")
+def test_pages_moyennement_degradees_signalees_par_la_qualite_image(copie, parametres):
+    """Fichier 21 : les trois pages sont douteuses par l'image, avec leurs causes au rapport,
+    et portent le paragraphe B du bloc d'avertissement."""
+    c, m = copie
+    source = c / "pdf" / "21_moyennement_degrade.pdf"
+    lancer(parametres, moteur_de(m, avec_confiance=False), "--sortie", "les-deux", source)
+    l = rapport.lire(c / "pdf" / "_OCR")["21_moyennement_degrade.pdf"]
+    assert l.pages_douteuses == (1, 2, 3) and "image_faible_qualite" in l.motif_douteux
+    assert "image de faible qualité : page 1 (résolution 150 dpi" in l.message
+    champs, _, corps = lire_md(c / "pdf" / "_OCR" / "21_moyennement_degrade.pdf.md")
+    jsonschema.validate(champs, SCHEMA)
+    assert "image_faible_qualite" in champs["motifs_douteux"]
+    assert "scan dégradé" in " ".join(corps.split("\n\n")[0].replace(">", " ").split())

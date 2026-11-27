@@ -44,11 +44,17 @@ DEFINITIONS: tuple[Definition, ...] = (
     Definition("part_confiance_basse_max", 0.20, "Part du texte peu sûr au-delà de laquelle une page est douteuse", 0, 1),
     Definition("page_blanche_ecart_type_max", 8.0, "Écart type des niveaux de gris au-dessous duquel une page est uniformément blanche (proposition)", 0, 255),
     # Heuristique lexicale (EX-36)
-    # Seuil des mots inconnus selon l'origine du texte : Apple Vision corrige ses erreurs en
-    # mots plausibles (correction linguistique), ce qui abaisse cet indicateur pour lui seul.
+    # Seuil des mots inconnus selon l'origine du texte, limité à la dégradation grossière (la
+    # dégradation moyenne relève de qualite_image) ; Vision lit mieux, d'où un seuil plus bas.
     Definition("mots_inconnus_max_couche_existante", 0.35, "Part de mots absents du lexique au-delà de laquelle une page à couche OCR existante est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
-    Definition("mots_inconnus_max_windows", 0.064, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Windows.Media.Ocr est douteuse (milieu de l'écart propre à Windows sur le jeu de test ; calibrage définitif en recette, TM-08)", 0, 1),
-    Definition("mots_inconnus_max_vision", 0.055, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Apple Vision est douteuse (milieu de l'écart propre à Vision sur le jeu de test ; calibrage définitif en recette, TM-08)", 0, 1),
+    Definition("mots_inconnus_max_windows", 0.35, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Windows.Media.Ocr est douteuse (valeur du cahier, dégradation grossière ; calibrage définitif en recette, TM-08)", 0, 1),
+    Definition("mots_inconnus_max_vision", 0.21, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Apple Vision est douteuse (milieu de l'écart mesuré sur la page illisible, sans correction linguistique ; calibrage définitif en recette, TM-08)", 0, 1),
+    # Qualité de l'image de la page, avant OCR, indépendante du moteur (EX-35, motif
+    # image_faible_qualite) : milieux des écarts du jeu de test, calibrage définitif en recette.
+    Definition("image_resolution_min_dpi", 250, "Résolution effective (dpi) de l'image d'une page au-dessous de laquelle la page est douteuse", 0, 2400),
+    Definition("image_part_gris_max", 0.50, "Part du trait en gris intermédiaires au-delà de laquelle l'image est jugée floue ou grisée", 0, 1),
+    Definition("image_contraste_min", 183, "Écart entre le papier et l'encre (niveaux de gris) au-dessous duquel le contraste est jugé faible (dégradation grossière seulement : milieu entre les pages saines et la page illisible)", 0, 255),
+    Definition("image_bruit_max", 3.75, "Écart type des niveaux de gris du fond au-delà duquel l'image est jugée bruitée", 0, 255),
     Definition("mots_evaluables_min", 40, "Nombre minimal de mots évaluables pour appliquer l'indicateur des mots inconnus", 0, 100000),
     Definition("taux_caracteres_aberrants_max", 0.03, "Part de caractères aberrants au-delà de laquelle une page est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
     Definition("taux_mots_fragmentes_max", 0.25, "Part de mots d'une seule lettre au-delà de laquelle une page est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),

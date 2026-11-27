@@ -1,38 +1,51 @@
 # Calibrage des seuils de qualité (EX-76)
 
-Produit par `tests/calibrage.py` le 27/11/2026 sur le jeu de test synthétique (graine 2026, fichier 21 compris) : moteur factice et `Windows.Media.Ocr` sur le poste de développement Windows 11, Apple Vision dans la CI macOS (Apple Silicon et Intel, run 45986963307, correction linguistique désactivée). Les tableaux ne contiennent que des nombres.
+Produit par `tests/calibrage.py` le 27/11/2026 sur le jeu de test synthétique (graine 2026, fichier 21 compris, 33 pages reconnues ou à couche OCR) : moteur factice et `Windows.Media.Ocr` sur le poste de développement Windows 11, Apple Vision dans la CI macOS (Apple Silicon et Intel, correction linguistique désactivée). Les tableaux ne contiennent que des nombres.
 
-## Méthode
+## Principe (décisions du commanditaire du 27/11/2026)
 
-Pour chaque indicateur et chaque origine du texte (couche OCR existante, ou moteur de l'outil), le script donne l'écart entre la page saine la plus défavorable et la page dégradée la plus favorable. Les pages saines et dégradées sont celles que déclare le manifeste (vérité terrain), et non celles que déclenchent les seuils en vigueur. Règle du commanditaire (27/11/2026) : la valeur du cahier est retenue si elle tombe dans l'écart ; sinon, le milieu de l'écart. Le fichier 21 (trois pages moyennement dégradées, lisibles en partie) a été ajouté pour que l'écart soit mesurable pour chaque moteur. Les seuils définitifs seront fixés en recette (TM-08), avec ce même script lancé sur un dossier local de documents réels : `uv run python tests/calibrage.py DOSSIER --moteur systeme`.
+- Les indicateurs lexicaux (EX-36) ne visent que la dégradation grossière : sur les pages moyennement dégradées du fichier 21, le taux de mots inconnus ne discrimine pas (sous Vision, 0,050 pour la page saine la plus défavorable contre 0,061 pour la page dégradée la plus favorable) ; un seuil placé dans cet écart signalerait en masse de vraies pages saines.
+- La dégradation moyenne relève de l'indicateur `qualite_image` (EX-35), calculé sur l'image de la page avant l'OCR, donc indépendant du moteur.
+- Règle de calibrage : milieu de l'écart entre la page saine la plus défavorable et la page dégradée la plus proche au-delà ; calibrage définitif en recette (TM-08), avec ce même script lancé sur un dossier local de documents réels : `uv run python tests/calibrage.py DOSSIER --moteur systeme`.
 
-## Mots inconnus : un seuil par origine du texte
+## Mots inconnus (dégradation grossière)
 
 Pages d'au moins 40 mots évaluables seulement.
 
-| Origine du texte | Page saine la plus défavorable | Page dégradée la plus favorable | Cahier | Seuil retenu |
+| Origine du texte | Écart retenu | Seuil |
+|---|---|---|
+| couche OCR existante | 0,000 à 0,383 (fichier 4, p. 3) | `mots_inconnus_max_couche_existante` = 0,35 (cahier, dans l'écart) |
+| `Windows.Media.Ocr` | la page illisible ne garde qu'un mot évaluable (détectée par la densité et l'image) | `mots_inconnus_max_windows` = 0,35 (cahier) |
+| Apple Vision, sans correction linguistique | 0,040 (fichier 2, p. 4, Intel) à 0,373 (fichier 5, p. 2, Apple Silicon ; 0,418 sur Intel) | `mots_inconnus_max_vision` = 0,21 (milieu) |
+
+## Qualité de l'image (`qualite_image`)
+
+Mesures sur l'image transmise au moteur (rendu à `ocr_dpi`, niveaux de gris), avant l'OCR :
+
+| Page | Résolution effective | Part de gris du trait | Contraste | Bruit du fond |
 |---|---|---|---|---|
-| couche OCR existante | 0,000 | 0,383 (fichier 4, p. 3) | 0,35, dans l'écart | `mots_inconnus_max_couche_existante` = 0,35 |
-| `Windows.Media.Ocr` | 0,000 | 0,127 (fichier 21, p. 1, 79 % de mots retrouvés) | 0,35, hors de l'écart | `mots_inconnus_max_windows` = 0,064 (milieu) |
-| Apple Vision, Apple Silicon | 0,027 (fichier 2, p. 4) | 0,076 (fichier 21, p. 1) | 0,35, hors de l'écart | |
-| Apple Vision, Intel | 0,050 (fichier 19, p. 1) | 0,061 (fichier 21, p. 1) | 0,35, hors de l'écart | |
-| Apple Vision, deux Mac réunis | 0,050 | 0,061 | 0,35, hors de l'écart | `mots_inconnus_max_vision` = 0,055 (milieu) |
+| pages saines (23 pages, fichiers 2, 3, 5, 6b, 10, 15, 18, 19) | 300 dpi | 0,204 à 0,344 | 255 | 1,12 à 2,79 |
+| fichier 5, p. 2 (illisible) | 300 dpi | 0,986 | 111 | 12,32 |
+| fichier 21, p. 1 (scan 150 dpi, léger flou) | 150 dpi | 0,990 | 129 | 6,99 |
+| fichier 21, p. 2 (tampon sur le texte) | 300 dpi | 0,654 | 254 | 4,72 |
+| fichier 21, p. 3 (photocopie de photocopie) | 200 dpi | 0,828 | 203 | 4,94 |
 
-Mesures des pages du fichier 21 (mots retrouvés, mots inconnus) :
+| Mesure | Page saine la plus défavorable | Page dégradée la plus proche au-delà | Seuil | Pages dégradées distinguées |
+|---|---|---|---|---|
+| résolution effective | 300 dpi | 200 dpi (fichier 21, p. 3) | `image_resolution_min_dpi` = 250 | fichier 21, p. 1 et 3 |
+| part de gris du trait | 0,344 (fichier 10, PNG) | 0,654 (fichier 21, p. 2) | `image_part_gris_max` = 0,50 | les quatre |
+| contraste | 255 | 111 (fichier 5, p. 2 : dégradation grossière seulement) | `image_contraste_min` = 183 | fichier 5, p. 2, fichier 21, p. 1 |
+| bruit du fond | 2,79 (fichier 2, p. 2) | 4,72 (fichier 21, p. 2) | `image_bruit_max` = 3,75 | les quatre |
 
-| Page | `Windows.Media.Ocr` | Vision, Apple Silicon | Vision, Intel |
-|---|---|---|---|
-| 1 : scan 150 dpi, léger flou | 79 %, 0,127 | 86 %, 0,076 | 90 %, 0,061 |
-| 2 : tampon sur le texte | 76 %, 0,136 | 85 %, 0,111 | 84 %, 0,141 |
-| 3 : photocopie de photocopie | 63 %, 0,500 | 88 %, 0,141 | 81 %, 0,217 |
-
-Points d'attention pour la recette (TM-08) :
-- les marges sont étroites : Windows 0,064 contre des pages saines à 0,000 ; Vision 0,055 entre 0,050 et 0,061. Les pages saines du jeu synthétique sont plus propres que des documents réels (noms communs rares, sigles, vocabulaire technique) : ces seuils risquent de signaler à tort des pages saines réelles. Ils sont à recalibrer en priorité en recette ;
-- Vision lit bien mieux que Windows les pages moyennement dégradées (81 à 90 % des mots retrouvés contre 63 à 79 %) : sur ces pages, le taux de mots inconnus de Vision reste proche de celui des pages saines, et l'indicateur les sépare mal.
+Écarts à la règle et points d'attention :
+- contraste : les pages saines synthétiques ont toutes un contraste maximal (papier blanc pur, encre noire pure) ; le milieu de l'écart brut (254,5) signalerait presque tout scan réel. Le seuil est pris entre les pages saines et la page illisible (dégradation grossière), les pages moyennement dégradées étant déjà distinguées par la part de gris et le bruit ;
+- résolution : un seuil de 250 dpi signale les scans à 200 dpi, réglage par défaut de nombreux copieurs ; à vérifier en priorité en recette ;
+- bruit et part de gris : mesurés sur des scans synthétiques (bruit gaussien, JPEG) ; à recalibrer sur des scans réels ;
+- netteté par la variance du laplacien (demandée) : mesurée, non retenue, car elle ne sépare pas les pages du jeu. Sans débruitage, la page illisible a la plus forte variance (le bruit la gonfle) ; rapportée à la quantité d'encre et après filtre médian, les pages saines vont de 31 à 42 et les pages dégradées de 13 à 278 (la page 1 du fichier 21, floue, est à 35, dans la plage des pages saines). La part de gris du trait la remplace pour la netteté.
 
 ## Confiance (Apple Vision)
 
-Seuil `confiance_moyenne_min` = 0,70 (cahier), conservé : il est dans l'écart entre la page illisible du fichier 5 (0,51 et 0,52) et les pages saines (0,79 au moins). Sa marge côté pages saines est étroite (0,787 sur la page 2 du fichier 18, Mac Intel) : il est prioritaire en recette (TM-08). Les pages moyennement dégradées du fichier 21 ont une confiance de 0,70 à 0,79, au même niveau que les pages saines : la confiance ne les sépare pas.
+Seuil `confiance_moyenne_min` = 0,70 (cahier), conservé : dans l'écart entre la page illisible du fichier 5 (0,51 et 0,52) et les pages saines (0,79 au moins). Sa marge côté pages saines est étroite (0,787 sur la page 2 du fichier 18, Mac Intel) : prioritaire en recette (TM-08). Les pages moyennement dégradées du fichier 21 (0,70 à 0,79) ne sont pas séparées par la confiance ; elles le sont par `qualite_image`.
 
 ## Autres indicateurs
 
@@ -43,14 +56,18 @@ Seuil `confiance_moyenne_min` = 0,70 (cahier), conservé : il est dans l'écart 
 | densité minimale | 0,11 | la valeur du cahier (0,2) signalerait à tort un tableau sain clairsemé (fichier 6b, p. 1, à 0,164) ; page illisible lue par Windows à 0,053 |
 | mélanges chiffres et lettres | 0,10 (cahier) | aucune page du jeu n'est construite pour l'éprouver |
 
-Avec la méthode du manifeste, l'écart calculé pour ces indicateurs est souvent sans objet : chaque page dégradée n'éprouve que certains indicateurs, et la page dégradée « la plus favorable » pour un indicateur est alors une page qu'un autre indicateur détecte. Ces seuils ne sont donc pas déduits des tableaux ci-dessous ; ils restent ceux décidés le 27/11/2026.
-
-Résultat avec ces seuils : aucune erreur de verdict avec le moteur factice, `Windows.Media.Ocr` et Apple Vision (voir la rubrique Apple Vision en fin de fichier).
+Résultat avec ces seuils : aucune erreur de verdict sur les 33 pages avec le moteur factice et avec `Windows.Media.Ocr` ; Apple Vision : voir la rubrique de fin de fichier.
 
 ## Moteur factice (vérité terrain du manifeste, confiances imposées)
 
 | fichier | page | origine | mots | évaluables | inconnus | aberrants | fragmentés | mélanges | densité | confiance | verdict | attendu |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
+| images/10_exif6.jpg | 1 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.167 | 0.95 | bonne | bonne |
+| images/10_extension_majuscules.PNG | 1 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.175 | 0.95 | bonne | bonne |
+| images/10_page.png | 1 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.165 | 0.95 | bonne | bonne |
+| images/10_trois_trames.tiff | 1 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.170 | 0.95 | bonne | bonne |
+| images/10_trois_trames.tiff | 2 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.170 | 0.95 | bonne | bonne |
+| images/10_trois_trames.tiff | 3 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.170 | 0.95 | bonne | bonne |
 | lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf | 1 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.176 | 0.95 | bonne | bonne |
 | lot/Lot 1/Candidat B/DC2.pdf | 1 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.171 | 0.95 | bonne | bonne |
 | pdf/02_scanne.pdf | 1 | factice | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.168 | 0.95 | bonne | bonne |
@@ -79,7 +96,46 @@ Résultat avec ces seuils : aucune erreur de verdict avec le moteur factice, `Wi
 | pdf/21_moyennement_degrade.pdf | 2 | factice | 116 | 56 | 0.446 | 0.000 | 0.000 | 0.121 | 0.962 | 0.55 | douteuse | douteuse |
 | pdf/21_moyennement_degrade.pdf | 3 | factice | 118 | 51 | 0.588 | 0.000 | 0.000 | 0.161 | 0.964 | 0.55 | douteuse | douteuse |
 
-27 page(s) mesurée(s) ; erreurs de verdict par rapport à la vérité terrain : 0
+33 page(s) mesurée(s) ; erreurs de verdict par rapport à la vérité terrain : 0
+
+Qualité de l'image (mesures avant OCR, indépendantes du moteur) :
+
+| images/10_exif6.jpg | 1 | 300 dpi | gris 0.2376 | contraste 255 | bruit 1.28 | bonne |
+| images/10_extension_majuscules.PNG | 1 | 300 dpi | gris 0.3427 | contraste 255 | bruit 1.615 | bonne |
+| images/10_page.png | 1 | 300 dpi | gris 0.3437 | contraste 255 | bruit 1.608 | bonne |
+| images/10_trois_trames.tiff | 1 | 300 dpi | gris 0.2401 | contraste 255 | bruit 1.119 | bonne |
+| images/10_trois_trames.tiff | 2 | 300 dpi | gris 0.2394 | contraste 255 | bruit 1.119 | bonne |
+| images/10_trois_trames.tiff | 3 | 300 dpi | gris 0.2395 | contraste 255 | bruit 1.12 | bonne |
+| lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf | 1 | 300 dpi | gris 0.234 | contraste 255 | bruit 1.987 | bonne |
+| lot/Lot 1/Candidat B/DC2.pdf | 1 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.977 | bonne |
+| pdf/02_scanne.pdf | 1 | 300 dpi | gris 0.2685 | contraste 255 | bruit 2.781 | bonne |
+| pdf/02_scanne.pdf | 2 | 300 dpi | gris 0.2703 | contraste 255 | bruit 2.786 | bonne |
+| pdf/02_scanne.pdf | 3 | 300 dpi | gris 0.2693 | contraste 255 | bruit 2.783 | bonne |
+| pdf/02_scanne.pdf | 4 | 300 dpi | gris 0.2675 | contraste 255 | bruit 2.78 | bonne |
+| pdf/03_mixte.pdf | 4 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.978 | bonne |
+| pdf/03_mixte.pdf | 5 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.98 | bonne |
+| pdf/05_illisible.pdf | 1 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.978 | bonne |
+| pdf/05_illisible.pdf | 2 | 300 dpi | gris 0.9855 | contraste 111 | bruit 12.317 | douteuse |
+| pdf/06b_tableaux_scannes.pdf | 1 | 300 dpi | gris 0.2038 | contraste 255 | bruit 1.205 | bonne |
+| pdf/06b_tableaux_scannes.pdf | 2 | 300 dpi | gris 0.212 | contraste 255 | bruit 1.272 | bonne |
+| pdf/06b_tableaux_scannes.pdf | 3 | 300 dpi | gris 0.213 | contraste 255 | bruit 1.308 | bonne |
+| pdf/06b_tableaux_scannes.pdf | 4 | 300 dpi | gris 0.2486 | contraste 255 | bruit 1.294 | bonne |
+| pdf/18_ligatures.pdf | 1 | 300 dpi | gris 0.2696 | contraste 255 | bruit 2.148 | bonne |
+| pdf/18_ligatures.pdf | 2 | 300 dpi | gris 0.2697 | contraste 255 | bruit 2.149 | bonne |
+| pdf/19_mention_plateforme.pdf | 1 | 300 dpi | gris 0.2387 | contraste 255 | bruit 1.988 | bonne |
+| pdf/19_mention_plateforme.pdf | 2 | 300 dpi | gris 0.238 | contraste 255 | bruit 1.991 | bonne |
+| pdf/21_moyennement_degrade.pdf | 1 | 150 dpi | gris 0.9902 | contraste 129 | bruit 6.987 | douteuse |
+| pdf/21_moyennement_degrade.pdf | 2 | 300 dpi | gris 0.6535 | contraste 254 | bruit 4.721 | douteuse |
+| pdf/21_moyennement_degrade.pdf | 3 | 200 dpi | gris 0.8275 | contraste 203 | bruit 4.936 | douteuse |
+
+Écart par mesure de qualite_image :
+
+| mesure | page saine la plus défavorable | page dégradée la plus proche au-delà | milieu | pages dégradées distinguées |
+|---|---|---|---|---|
+| resolution_dpi | 300 (images/10_exif6.jpg p. 1) | 200 (pdf/21_moyennement_degrade.pdf p. 3) | 250.0 | pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 3 |
+| part_gris | 0.3437 (images/10_page.png p. 1) | 0.6535 (pdf/21_moyennement_degrade.pdf p. 2) | 0.499 | pdf/05_illisible.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 3 |
+| contraste | 255 (images/10_exif6.jpg p. 1) | 254 (pdf/21_moyennement_degrade.pdf p. 2) | 254.5 | pdf/05_illisible.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 3 |
+| bruit | 2.786 (pdf/02_scanne.pdf p. 2) | 4.721 (pdf/21_moyennement_degrade.pdf p. 2) | 3.753 | pdf/05_illisible.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 3 |
 
 Écart par indicateur, origine du texte « couche_existante » (pages saines et dégradées du manifeste) :
 
@@ -95,16 +151,22 @@ Résultat avec ces seuils : aucune erreur de verdict avec le moteur factice, `Wi
 
 | indicateur | page saine la plus défavorable | page dégradée la plus favorable | valeur du cahier | dans l'écart | milieu |
 |---|---|---|---|---|---|
-| taux_mots_inconnus | 0.000 (lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf p. 1) | 0.446 (pdf/21_moyennement_degrade.pdf p. 2) | 0.35 | oui | 0.223 |
-| taux_caracteres_aberrants | 0.000 (lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf p. 1) | 0.000 (pdf/05_illisible.pdf p. 2) | 0.03 | pas d'écart |  |
+| taux_mots_inconnus | 0.000 (images/10_exif6.jpg p. 1) | 0.446 (pdf/21_moyennement_degrade.pdf p. 2) | 0.35 | oui | 0.223 |
+| taux_caracteres_aberrants | 0.000 (images/10_exif6.jpg p. 1) | 0.000 (pdf/05_illisible.pdf p. 2) | 0.03 | pas d'écart |  |
 | taux_mots_fragmentes | 0.059 (pdf/06b_tableaux_scannes.pdf p. 1) | 0.000 (pdf/21_moyennement_degrade.pdf p. 1) | 0.25 | pas d'écart |  |
-| taux_melange_chiffres_lettres | 0.000 (lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf p. 1) | 0.087 (pdf/05_illisible.pdf p. 2) | 0.1 | non | 0.043 |
+| taux_melange_chiffres_lettres | 0.000 (images/10_exif6.jpg p. 1) | 0.087 (pdf/05_illisible.pdf p. 2) | 0.1 | non | 0.043 |
 | densite | 0.164 (pdf/06b_tableaux_scannes.pdf p. 1) | 1.182 (pdf/05_illisible.pdf p. 2) | 0.2 | pas d'écart |  |
 
 ## Moteur réel du poste : Windows.Media.Ocr, fr-FR
 
 | fichier | page | origine | mots | évaluables | inconnus | aberrants | fragmentés | mélanges | densité | confiance | verdict | attendu |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
+| images/10_exif6.jpg | 1 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.167 |  | bonne | bonne |
+| images/10_extension_majuscules.PNG | 1 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.175 |  | bonne | bonne |
+| images/10_page.png | 1 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.165 |  | bonne | bonne |
+| images/10_trois_trames.tiff | 1 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.170 |  | bonne | bonne |
+| images/10_trois_trames.tiff | 2 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.170 |  | bonne | bonne |
+| images/10_trois_trames.tiff | 3 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.170 |  | bonne | bonne |
 | lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf | 1 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.174 |  | bonne | bonne |
 | lot/Lot 1/Candidat B/DC2.pdf | 1 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.171 |  | bonne | bonne |
 | pdf/02_scanne.pdf | 1 | windows-media-ocr | 143 | 75 | 0.000 | 0.000 | 0.000 | 0.000 | 1.166 |  | bonne | bonne |
@@ -133,7 +195,46 @@ Résultat avec ces seuils : aucune erreur de verdict avec le moteur factice, `Wi
 | pdf/21_moyennement_degrade.pdf | 2 | windows-media-ocr | 111 | 59 | 0.136 | 0.000 | 0.036 | 0.000 | 0.794 |  | douteuse | douteuse |
 | pdf/21_moyennement_degrade.pdf | 3 | windows-media-ocr | 108 | 66 | 0.500 | 0.000 | 0.009 | 0.000 | 0.925 |  | douteuse | douteuse |
 
-27 page(s) mesurée(s) ; erreurs de verdict par rapport à la vérité terrain : 0
+33 page(s) mesurée(s) ; erreurs de verdict par rapport à la vérité terrain : 0
+
+Qualité de l'image (mesures avant OCR, indépendantes du moteur) :
+
+| images/10_exif6.jpg | 1 | 300 dpi | gris 0.2376 | contraste 255 | bruit 1.28 | bonne |
+| images/10_extension_majuscules.PNG | 1 | 300 dpi | gris 0.3427 | contraste 255 | bruit 1.615 | bonne |
+| images/10_page.png | 1 | 300 dpi | gris 0.3437 | contraste 255 | bruit 1.608 | bonne |
+| images/10_trois_trames.tiff | 1 | 300 dpi | gris 0.2401 | contraste 255 | bruit 1.119 | bonne |
+| images/10_trois_trames.tiff | 2 | 300 dpi | gris 0.2394 | contraste 255 | bruit 1.119 | bonne |
+| images/10_trois_trames.tiff | 3 | 300 dpi | gris 0.2395 | contraste 255 | bruit 1.12 | bonne |
+| lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf | 1 | 300 dpi | gris 0.234 | contraste 255 | bruit 1.987 | bonne |
+| lot/Lot 1/Candidat B/DC2.pdf | 1 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.977 | bonne |
+| pdf/02_scanne.pdf | 1 | 300 dpi | gris 0.2685 | contraste 255 | bruit 2.781 | bonne |
+| pdf/02_scanne.pdf | 2 | 300 dpi | gris 0.2703 | contraste 255 | bruit 2.786 | bonne |
+| pdf/02_scanne.pdf | 3 | 300 dpi | gris 0.2693 | contraste 255 | bruit 2.783 | bonne |
+| pdf/02_scanne.pdf | 4 | 300 dpi | gris 0.2675 | contraste 255 | bruit 2.78 | bonne |
+| pdf/03_mixte.pdf | 4 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.978 | bonne |
+| pdf/03_mixte.pdf | 5 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.98 | bonne |
+| pdf/05_illisible.pdf | 1 | 300 dpi | gris 0.2355 | contraste 255 | bruit 1.978 | bonne |
+| pdf/05_illisible.pdf | 2 | 300 dpi | gris 0.9855 | contraste 111 | bruit 12.317 | douteuse |
+| pdf/06b_tableaux_scannes.pdf | 1 | 300 dpi | gris 0.2038 | contraste 255 | bruit 1.205 | bonne |
+| pdf/06b_tableaux_scannes.pdf | 2 | 300 dpi | gris 0.212 | contraste 255 | bruit 1.272 | bonne |
+| pdf/06b_tableaux_scannes.pdf | 3 | 300 dpi | gris 0.213 | contraste 255 | bruit 1.308 | bonne |
+| pdf/06b_tableaux_scannes.pdf | 4 | 300 dpi | gris 0.2486 | contraste 255 | bruit 1.294 | bonne |
+| pdf/18_ligatures.pdf | 1 | 300 dpi | gris 0.2696 | contraste 255 | bruit 2.148 | bonne |
+| pdf/18_ligatures.pdf | 2 | 300 dpi | gris 0.2697 | contraste 255 | bruit 2.149 | bonne |
+| pdf/19_mention_plateforme.pdf | 1 | 300 dpi | gris 0.2387 | contraste 255 | bruit 1.988 | bonne |
+| pdf/19_mention_plateforme.pdf | 2 | 300 dpi | gris 0.238 | contraste 255 | bruit 1.991 | bonne |
+| pdf/21_moyennement_degrade.pdf | 1 | 150 dpi | gris 0.9902 | contraste 129 | bruit 6.987 | douteuse |
+| pdf/21_moyennement_degrade.pdf | 2 | 300 dpi | gris 0.6535 | contraste 254 | bruit 4.721 | douteuse |
+| pdf/21_moyennement_degrade.pdf | 3 | 200 dpi | gris 0.8275 | contraste 203 | bruit 4.936 | douteuse |
+
+Écart par mesure de qualite_image :
+
+| mesure | page saine la plus défavorable | page dégradée la plus proche au-delà | milieu | pages dégradées distinguées |
+|---|---|---|---|---|
+| resolution_dpi | 300 (images/10_exif6.jpg p. 1) | 200 (pdf/21_moyennement_degrade.pdf p. 3) | 250.0 | pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 3 |
+| part_gris | 0.3437 (images/10_page.png p. 1) | 0.6535 (pdf/21_moyennement_degrade.pdf p. 2) | 0.499 | pdf/05_illisible.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 3 |
+| contraste | 255 (images/10_exif6.jpg p. 1) | 254 (pdf/21_moyennement_degrade.pdf p. 2) | 254.5 | pdf/05_illisible.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 3 |
+| bruit | 2.786 (pdf/02_scanne.pdf p. 2) | 4.721 (pdf/21_moyennement_degrade.pdf p. 2) | 3.753 | pdf/05_illisible.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 1, pdf/21_moyennement_degrade.pdf p. 2, pdf/21_moyennement_degrade.pdf p. 3 |
 
 Écart par indicateur, origine du texte « couche_existante » (pages saines et dégradées du manifeste) :
 
@@ -149,13 +250,8 @@ Résultat avec ces seuils : aucune erreur de verdict avec le moteur factice, `Wi
 
 | indicateur | page saine la plus défavorable | page dégradée la plus favorable | valeur du cahier | dans l'écart | milieu |
 |---|---|---|---|---|---|
-| taux_mots_inconnus | 0.000 (lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf p. 1) | 0.127 (pdf/21_moyennement_degrade.pdf p. 1) | 0.35 | non | 0.064 |
-| taux_caracteres_aberrants | 0.000 (lot/Lot 1/Candidat A/Annexes/Attestation URSSAF.pdf p. 1) | 0.000 (pdf/05_illisible.pdf p. 2) | 0.03 | pas d'écart |  |
+| taux_mots_inconnus | 0.000 (images/10_exif6.jpg p. 1) | 0.127 (pdf/21_moyennement_degrade.pdf p. 1) | 0.35 | non | 0.064 |
+| taux_caracteres_aberrants | 0.000 (images/10_exif6.jpg p. 1) | 0.000 (pdf/05_illisible.pdf p. 2) | 0.03 | pas d'écart |  |
 | taux_mots_fragmentes | 0.059 (pdf/06b_tableaux_scannes.pdf p. 1) | 0.009 (pdf/21_moyennement_degrade.pdf p. 3) | 0.25 | pas d'écart |  |
 | taux_melange_chiffres_lettres | 0.019 (pdf/06b_tableaux_scannes.pdf p. 3) | 0.000 (pdf/05_illisible.pdf p. 2) | 0.1 | pas d'écart |  |
 | densite | 0.164 (pdf/06b_tableaux_scannes.pdf p. 1) | 0.925 (pdf/21_moyennement_degrade.pdf p. 3) | 0.2 | pas d'écart |  |
-
-## Apple Vision (CI macOS, run 45986963307, correction linguistique désactivée, seuil 0,21 alors en vigueur)
-
-Avec le seuil provisoire de 0,21, deux pages du fichier 21 étaient jugées saines sur chaque Mac (Apple Silicon : pages 1 et 3 ; Intel : pages 1 et 2) ; les autres verdicts étaient conformes. Écart des mots inconnus : Apple Silicon 0,027 (fichier 2, p. 4) à 0,076 (fichier 21, p. 1), milieu 0,051 ; Intel 0,050 (fichier 19, p. 1) à 0,061 (fichier 21, p. 1), milieu 0,055. Seuil retenu : 0,055. Tableaux complets dans le journal de la CI, étape « Calibrage avec Apple Vision ».
-Contrôle avec le seuil retenu (CI run 45991048588) : avec `mots_inconnus_max_vision` = 0,055, aucune erreur de verdict sur les 27 pages, sur Apple Silicon comme sur Intel.

@@ -187,3 +187,75 @@ def motifs_confiance(confiance_moyenne, part_confiance_basse, p) -> list[str]:
     if confiance_moyenne < p.confiance_moyenne_min or (part_confiance_basse or 0) > p.part_confiance_basse_max:
         return ["confiance_ocr_faible"]
     return []
+
+
+# ------------------------------------------------------------------------------ qualité de l'image
+# Indicateur `qualite_image` (EX-35, décision du commanditaire du 27/11/2026) : calculé sur
+# l'image de la page transmise au moteur, avant l'OCR, donc indépendant du moteur. Il repère
+# la dégradation moyenne (scan basse résolution, flou, tampon, photocopie) que les indicateurs
+# lexicaux ne voient pas, en particulier sous Apple Vision. Pillow seul, calcul sur
+# l'histogramme des niveaux de gris.
+MOTIF_IMAGE = "image_faible_qualite"
+PART_ENCRE_MIN = 0.002  # en deçà, trop peu de trait pour juger la netteté et le contraste
+
+
+@dataclasses.dataclass(frozen=True)
+class QualiteImage:
+    resolution_dpi: int | None   # résolution effective de l'image d'origine de la page
+    part_gris: float | None      # part du trait en gris intermédiaires (trait flou ou grisé)
+    contraste: int | None        # niveau du papier moins niveau de l'encre
+    bruit: float                 # écart type des niveaux de gris du fond (papier)
+
+
+def _centile(histogramme, part: float) -> int:
+    total = sum(histogramme)
+    cumul = 0
+    for niveau, effectif in enumerate(histogramme):
+        cumul += effectif
+        if cumul >= part * total:
+            return niveau
+    return len(histogramme) - 1
+
+
+def mesurer_image(image, resolution_dpi: int | None = None) -> QualiteImage:
+    """Mesures d'une image en niveaux de gris (PIL, mode « L ») :
+    - papier : 90e centile des niveaux ; encre : 10e centile des pixels plus sombres que le
+      papier de 40 niveaux ou plus ; contraste = papier - encre ;
+    - part de gris : parmi les pixels de trait (sous 190), part de ceux qui ne sont pas
+      vraiment sombres (60 à 189) ; un trait net est surtout noir, un trait flou, pâle ou
+      recouvert d'un tampon est surtout gris ;
+    - bruit : écart type des pixels du fond (à moins de 40 niveaux du papier)."""
+    if image.mode != "L":
+        image = image.convert("L")
+    h = image.histogram()
+    total = sum(h)
+    papier = _centile(h, 0.90)
+    sombres = h[:max(papier - 40, 1)]
+    trait = sum(h[:190])
+    if sum(sombres) >= PART_ENCRE_MIN * total and trait:
+        contraste = papier - _centile(sombres, 0.10)
+        part_gris = sum(h[60:190]) / trait
+    else:
+        contraste = part_gris = None
+    fond = [(v, k) for v, k in enumerate(h) if v >= papier - 40 and k]
+    n = sum(k for _, k in fond)
+    moyenne = sum(v * k for v, k in fond) / n
+    bruit = (sum(k * (v - moyenne) ** 2 for v, k in fond) / n) ** 0.5
+    return QualiteImage(resolution_dpi, None if part_gris is None else round(part_gris, 4), contraste,
+                        round(bruit, 3))
+
+
+def causes_image(q: QualiteImage | None, p) -> list[str]:
+    """Causes du motif `image_faible_qualite`, en clair ; liste vide si l'image est bonne."""
+    if q is None:
+        return []
+    causes = []
+    if q.resolution_dpi is not None and q.resolution_dpi < p.image_resolution_min_dpi:
+        causes.append(f"résolution {q.resolution_dpi} dpi")
+    if q.part_gris is not None and q.part_gris > p.image_part_gris_max:
+        causes.append("image floue ou trait grisé")
+    if q.contraste is not None and q.contraste < p.image_contraste_min:
+        causes.append("contraste faible")
+    if q.bruit > p.image_bruit_max:
+        causes.append("image bruitée")
+    return causes
