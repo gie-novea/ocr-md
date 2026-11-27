@@ -49,18 +49,27 @@ def ligne(statut="natif", action="traite"):
 # ------------------------------------------------------------------------------ fenêtre
 @pytest.mark.exigence("EX-16", "EX-17")
 def test_fenetre_progression_puis_fin(tk_racine, tmp_path):
+    import threading
     bilan = traitement.BilanLot(dossiers_ocr=[tmp_path / "_OCR"])
-    vus = {}
+    vus, lu = {}, threading.Event()
 
     def executer(arret, suivi):
         suivi.fichier(1, 2, "Lot/A.pdf")
         suivi.page(3, 7)
-        time.sleep(0.5)
+        lu.wait(10)  # la fin n'arrive qu'une fois la progression relevée par la fenêtre
         bilan.lignes.append(ligne())
         return 0
 
     f = interface.Fenetre(tk_racine, executer, bilan, fermeture_auto_s=0.3)
-    tk_racine.after(300, lambda: vus.update(fichier=f.libelle_fichier.cget("text"), page=f.libelle_page.cget("text")))
+
+    def relever():
+        if f.libelle_page.cget("text"):
+            vus.update(fichier=f.libelle_fichier.cget("text"), page=f.libelle_page.cget("text"))
+            lu.set()
+        else:
+            tk_racine.after(50, relever)
+    tk_racine.after(50, relever)
+    tk_racine.after(15000, tk_racine.destroy)  # garde-fou
     tk_racine.mainloop()  # se ferme seule : rien à signaler
     assert vus == {"fichier": "Fichier 1 sur 2 : Lot/A.pdf", "page": "Reconnaissance du texte : page 3 sur 7"}
     assert f.code == 0 and f.termine
