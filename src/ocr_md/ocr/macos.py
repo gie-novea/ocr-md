@@ -1,4 +1,5 @@
-"""Moteur OCR macOS : Apple Vision, niveau « accurate » (EX-26).
+"""Moteur OCR macOS : Apple Vision, niveau « accurate », correction linguistique désactivée
+(EX-26, PV-15).
 
 Vision renvoie des observations au niveau de la ligne (texte, confiance, boîte normalisée,
 origine en bas à gauche : PV-06 b). Les boîtes des mots sont obtenues de deux façons
@@ -69,12 +70,13 @@ def _utf16(texte: str) -> int:
 
 
 def vision_avec_mots(image: Image.Image, langues: list[str], chronos: dict | None = None,
-                     correction: bool = True):
+                     correction: bool = False):
     """Appel direct de Vision. Renvoie [(texte, confiance, boîte_ligne, [(mot, boîte|None)])],
     boîtes normalisées (x, y, largeur, hauteur), origine en bas à gauche. `chronos` reçoit
     les durées cumulées : conversion de l'image (png), reconnaissance (vision), boîtes.
-    `correction` : correction linguistique de Vision (usesLanguageCorrection), active par
-    défaut ; désactivable pour l'essai PV-15 seulement."""
+    `correction` : correction linguistique de Vision (usesLanguageCorrection), désactivée par
+    défaut (PV-15, EX-26) : elle remplace un mot mal lu par un mot plausible, ce qui rend
+    l'erreur invisible et fausse la confiance (1,0 sur Mac Intel)."""
     chronos = chronos if chronos is not None else {}
     t0 = time.perf_counter()
     donnees = _png(image)
@@ -126,13 +128,13 @@ class MoteurMacos:
     nom = "apple-vision"
 
     def __init__(self, langue: str = "fr-FR", langue_secondaire: str | None = "en-US", mode: str = "mots",
-                 correction_linguistique: bool = True):
+                 correction_linguistique: bool = False):
         disponibles = langues_disponibles()
         if disponibles and langue not in disponibles:
             raise MoteurIndisponible(f"langue {langue} non disponible pour Apple Vision")
         self.langues = [langue] + ([langue_secondaire] if langue_secondaire else [])
         self.mode = mode
-        self.correction_linguistique = correction_linguistique  # False : essai PV-15 seulement
+        self.correction_linguistique = correction_linguistique  # désactivée par défaut (PV-15)
         self.statistiques = {"mots_boite_vision": 0, "mots_prorata": 0}
         self.chronos: dict[str, float] = {}  # durées cumulées : png, vision, boîtes (mesure PV-14)
 

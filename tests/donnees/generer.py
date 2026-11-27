@@ -18,6 +18,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import sys
 import unicodedata
 import zipfile
@@ -211,6 +212,71 @@ class Generateur:
         self.enregistrer(numero="5", chemin=rel, type="pdf", pages=2, statut="douteux", origine=ORIGINE["ocr"],
                          categories=["image"] * 2, texte_reference=[fab.texte_page(p) for p in src],
                          mots_uniques=mots, pages_douteuses=[2], id_images=ids)
+
+    def f21_moyennement_degrade(self):
+        """Trois pages moyennement dégradées, lisibles en partie, avec montants : scan à 150 dpi
+        légèrement flou, tampon superposé au texte, photocopie de photocopie. Elles servent à
+        mesurer l'écart réel entre pages saines et dégradées pour chaque moteur (EX-76)."""
+        montants = [
+            ["Montant des travaux du lot 2 : 48 320,50 € HT, soit 57 984,60 € TTC.",
+             "Acompte de 15 % versé à la notification : 7 248,08 € HT."],
+            ["Révision des prix : indice BT01 de septembre 2026, coefficient 1,0425.",
+             "Pénalité de retard : 250,00 € par jour calendaire, plafonnée à 10 %."],
+            ["Honoraires de maîtrise d’œuvre : 96 750,00 € HT pour les missions de base.",
+             "Mission complémentaire OPC : 12 900,00 € HT, réglée en six échéances."],
+        ]
+        lignes_page = [fab.LIGNES_COURANTES + m + fab.LIGNES_REFERENCE[1:4] + fab.LIGNES_REFERENCE[7:8] for m in montants]
+        src = pymupdf.open()
+        mots = []
+        for i, lignes in enumerate(lignes_page, 1):
+            mot = f"MOTMOYEN{i:02d}"
+            mots.append(mot)
+            fab.page_native(src, lignes, mot_unique=mot, pied=f"Page {i} sur 3")
+        texte_reference = [fab.texte_page(p) for p in src]
+        degrade = lambda graine: (lambda m: fab.degrader_partiellement(m, graine + len(m)))  # noqa: E731
+        doc = pymupdf.open()
+        ids = []
+        # Page 1 : scan à 150 dpi, léger flou, bruit, JPEG médiocre, légère inclinaison.
+        ident = self.nouvel_id()
+        jpeg, taille, transfo = fab.scanner(src[0], dpi=150, angle=0.8, bruit=22, flou=1.6, qualite_jpeg=30,
+                                            graine=ident, identifiant=ident)
+        doc.new_page(width=src[0].rect.width, height=src[0].rect.height).insert_image(src[0].rect, stream=jpeg)
+        self.ocr_factice[str(ident)] = fab.verite_ocr(src[0], 150, transfo, taille, confiance=0.55, angle=-0.8,
+                                                      remplacement=degrade(1))
+        ids.append(ident)
+        # Page 2 : tampon superposé au texte (sur la source, avant le scan), scan à 300 dpi.
+        avec_tampon = pymupdf.open()
+        avec_tampon.insert_pdf(src, from_page=1, to_page=1)
+        fab.tamponner(avec_tampon[0], "REÇU LE 12 NOV. 2026", (300, 250))
+        fab.tamponner(avec_tampon[0], "COPIE CONFORME", (330, 470), taille=30, angle=12)
+        # La vérité terrain du moteur factice est celle de la page sans tampon (le tampon n'est
+        # pas du texte du document).
+        ident = self.nouvel_id()
+        jpeg, taille, transfo = fab.scanner(avec_tampon[0], dpi=300, angle=-0.6, bruit=10, qualite_jpeg=80,
+                                            graine=ident, identifiant=ident)
+        doc.new_page(width=src[1].rect.width, height=src[1].rect.height).insert_image(src[1].rect, stream=jpeg)
+        self.ocr_factice[str(ident)] = fab.verite_ocr(src[1], 300, transfo, taille, confiance=0.55, angle=0.6,
+                                                      remplacement=degrade(2))
+        ids.append(ident)
+        # Page 3 : photocopie de photocopie (trois passes), 200 dpi.
+        ident = self.nouvel_id()
+        pix = src[2].get_pixmap(dpi=200, colorspace=pymupdf.csGRAY)
+        img = fab.photocopier(Image.frombytes("L", (pix.width, pix.height), pix.samples), passes=3, graine=ident)
+        img = dessiner_marqueur(img, ident)
+        tampon = io.BytesIO()
+        img.save(tampon, "JPEG", quality=55, dpi=(200, 200))
+        doc.new_page(width=src[2].rect.width, height=src[2].rect.height).insert_image(src[2].rect,
+                                                                                      stream=tampon.getvalue())
+        self.ocr_factice[str(ident)] = fab.verite_ocr(src[2], 200, lambda x, y: (x, y), img.size, confiance=0.55,
+                                                      remplacement=degrade(3))
+        ids.append(ident)
+        rel = "pdf/21_moyennement_degrade.pdf"
+        self.enregistrer_pdf(doc, self.chemin(rel))
+        self.enregistrer(numero="21", chemin=rel, type="pdf", pages=3, statut="douteux", origine=ORIGINE["ocr"],
+                         categories=["image"] * 3, texte_reference=texte_reference, mots_uniques=mots,
+                         pages_douteuses=[1, 2, 3], id_images=ids,
+                         degradations=["scan 150 dpi, léger flou", "tampon sur le texte", "photocopie de photocopie"],
+                         montants=[m for l in montants for m in re.findall(r"\d[\d ]*,\d\d €", " ".join(l))])
 
     # -------------------------------------------------------------- tableaux
     @staticmethod
@@ -729,7 +795,8 @@ class Generateur:
         for f in (self.f01_natif, self.f02_scanne, self.f03_mixte, self.f04_couche_degradee, self.f05_illisible,
                   self.f06_tableaux, self.f07_docx, self.f08_xlsx, self.f09_pptx, self.f10_images,
                   self.f11_non_pris_en_charge, self.f12_chemins_accentues, self.f13_f14_erreurs, self.f15_lot,
-                  self.f18_ligatures, self.f19_mention_plateforme, self.f20_couche_saine):
+                  self.f18_ligatures, self.f19_mention_plateforme, self.f20_couche_saine,
+                  self.f21_moyennement_degrade):
             f()
         if chemin_long:
             self.f16_chemin_long()

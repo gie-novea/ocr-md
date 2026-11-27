@@ -1,5 +1,6 @@
 """PV-15 : Apple Vision, niveau de reconnaissance, lecture de la confiance et correction
-linguistique (essai de diagnostic en CI macOS ; le réglage par défaut n'est pas modifié).
+linguistique (essai de diagnostic en CI macOS). Conclusion : correction désactivée par
+défaut depuis le 27/11/2026 (EX-26) ; l'essai reste pour suivre l'effet de ce réglage.
 
 (a) Réglages réellement appliqués à la requête (niveau, révision, langues, correction) et
     confiances renvoyées sur la page illisible du fichier 5, au niveau « accurate » et au
@@ -20,7 +21,8 @@ from PIL import Image
 from ocr_md import analyse_pdf, qualite
 from tests.test_moteurs_reels import taux_retrouves
 
-PAGES = [("pdf/05_illisible.pdf", 2), ("pdf/02_scanne.pdf", 1), ("pdf/02_scanne.pdf", 2), ("pdf/02_scanne.pdf", 3),
+PAGES = [("pdf/05_illisible.pdf", 2), ("pdf/21_moyennement_degrade.pdf", 1), ("pdf/21_moyennement_degrade.pdf", 2),
+         ("pdf/21_moyennement_degrade.pdf", 3), ("pdf/02_scanne.pdf", 1), ("pdf/02_scanne.pdf", 2), ("pdf/02_scanne.pdf", 3),
          ("pdf/02_scanne.pdf", 4), ("pdf/18_ligatures.pdf", 1), ("pdf/18_ligatures.pdf", 2)]
 
 
@@ -91,15 +93,16 @@ def test_pv15_diagnostic_vision(jeu_de_test):
             reglages, lignes = requete_brute(image, niveau, correction)
             print(f"PV-15 (a) page illisible, {niveau}, correction {'oui' if correction else 'non'} : {reglages} ; "
                   f"{resume_confiances(lignes)}")
-    # Confiance lue par le moteur de l'outil (même chemin que la production).
-    resultat = macos.MoteurMacos().reconnaitre(image)
+    # Confiance lue par le moteur de l'outil (même chemin que la production, avec correction).
+    resultat = macos.MoteurMacos(correction_linguistique=True).reconnaitre(image)
     confiances = [l.confiance for l in resultat.lignes if l.confiance is not None]
     print(f"PV-15 (a) moteur de l'outil, page illisible : {len(confiances)} lignes, confiance moyenne "
           f"{statistics.mean(confiances) if confiances else float('nan'):.3f}")
 
     # (b) Correction linguistique active ou non : mots retrouvés et mots inconnus.
     lexique = qualite.Lexique()
-    moteurs = {"avec correction": macos.MoteurMacos(), "sans correction": macos.MoteurMacos(correction_linguistique=False)}
+    moteurs = {"avec correction": macos.MoteurMacos(correction_linguistique=True),
+               "sans correction (défaut)": macos.MoteurMacos()}
     for chemin, numero in PAGES:
         f = next(x for x in m["fichiers"] if x["chemin"] == chemin)
         image, surface = image_page(racine, chemin, numero)
@@ -113,5 +116,5 @@ def test_pv15_diagnostic_vision(jeu_de_test):
                            f"inconnus {ind.taux_mots_inconnus:.3f} ({ind.mots_evaluables} évaluables), "
                            f"fragmentés {ind.taux_mots_fragmentes:.3f}, confiance moyenne "
                            f"{statistics.mean(confiances) if confiances else float('nan'):.3f}")
-        etat = "illisible" if numero in f.get("pages_douteuses", []) else "saine"
+        etat = "dégradée" if numero in f.get("pages_douteuses", []) else "saine"
         print(f"PV-15 (b) {chemin} p. {numero} ({etat}) : " + " ; ".join(mesures))

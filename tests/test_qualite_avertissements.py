@@ -231,7 +231,7 @@ def test_fichier_avertissements(copie, parametres, tmp_path):
         partie = texte.split(section)[1].split("\n## ")[0]
         listees = sorted(re.findall(r"^\| ([^|]+?) \|", partie, re.MULTILINE)[1:])
         assert listees == attendues, statut
-    assert entete["pieces_total"] == len(lignes) and entete["pieces_douteuses"] == 3
+    assert entete["pieces_total"] == len(lignes) and entete["pieces_douteuses"] == 4
     # dossier ne contenant que des pièces saines
     (tmp_path / "S").mkdir()
     shutil.copyfile(c / "pdf" / "01_natif.pdf", tmp_path / "S" / "a.pdf")
@@ -246,7 +246,7 @@ def test_coherence_des_six_emplacements(copie, parametres):
     lignes = rapport.lire(c / "_OCR")
     avert = (c / "_OCR" / avertissements.NOM_AVERTISSEMENTS).read_text(encoding="utf-8")
     douteux = [k for k, l in lignes.items() if l.statut == "douteux"]
-    assert len(douteux) == 3
+    assert len(douteux) == 4  # fichiers 4, 5, 13b et 21
     for rel in douteux:
         listes = {"rapport": list(lignes[rel].pages_douteuses)}
         champs, _, reste = lire_md(c / "_OCR" / (rel + ".md"))

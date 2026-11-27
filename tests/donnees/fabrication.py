@@ -170,5 +170,46 @@ def degrader(texte, graine):
     return " ".join(mots)
 
 
+def degrader_partiellement(texte, graine, part=0.5):
+    """Lecture partielle (page moyennement dégradée) : une part des mots reçoit une ou deux
+    confusions de caractères, sans fragmentation ni caractère aberrant."""
+    rng = random.Random(graine)
+    subst = {"o": "0", "l": "1", "i": "l", "e": "c", "a": "o", "s": "5", "m": "rn", "é": "e", "n": "h", "u": "v"}
+    mots = []
+    for mot in texte.split():
+        if rng.random() < part and len(mot) > 2:
+            positions = [i for i, c in enumerate(mot) if c in subst]
+            for i in sorted(rng.sample(positions, min(len(positions), 2)), reverse=True):
+                mot = mot[:i] + subst[mot[i]] + mot[i + 1:]
+        mots.append(mot)
+    return " ".join(mots)
+
+
+def photocopier(img, passes=2, graine=1):
+    """Photocopie de photocopie : à chaque passe, contraste durci (gris écrasés vers le noir ou
+    le blanc), léger flou, perte de résolution (réduction puis agrandissement) et grain."""
+    rng = np.random.default_rng(graine)
+    w, h = img.size
+    for _ in range(passes):
+        img = img.point(lambda v: 0 if v < 110 else (255 if v > 170 else v))
+        img = img.filter(ImageFilter.GaussianBlur(0.9))
+        img = img.resize((int(w * 0.6), int(h * 0.6)), Image.BILINEAR).resize((w, h), Image.BILINEAR)
+        a = np.asarray(img, dtype=np.float32) + rng.normal(0, 14, (h, w))
+        img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+    return img
+
+
+def tamponner(page, texte, centre, taille=34, angle=-18, gris=0.45):
+    """Tampon superposé au texte : cadre et texte gras, gris, inclinés."""
+    page.insert_font(fontname="tampon", fontbuffer=pymupdf.Font("notosbo").buffer)
+    m = pymupdf.Matrix(angle)
+    largeur = pymupdf.Font("notosbo").text_length(texte, fontsize=taille)
+    p = pymupdf.Point(centre) - pymupdf.Point(largeur / 2, -taille / 3)
+    page.insert_text(p, texte, fontname="tampon", fontsize=taille, color=(gris,) * 3, morph=(pymupdf.Point(centre), m))
+    r = pymupdf.Rect(p.x - 12, p.y - taille, p.x + largeur + 12, p.y + taille * 0.45)
+    coins = [(pymupdf.Point(c) - centre) * m + centre for c in (r.tl, r.tr, r.br, r.bl, r.tl)]
+    page.draw_polyline(coins, color=(gris,) * 3, width=3)
+
+
 def melanger(graine=1):
     return random.Random(graine)
