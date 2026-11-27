@@ -17,7 +17,7 @@ def test_valeurs_par_defaut_du_cahier(tmp_path):
     assert (p.texte_min_caracteres, p.image_couverture_min, p.image_presence_min) == (30, 0.80, 0.30)
     assert (p.ocr_dpi, p.langue_ocr, p.langue_ocr_secondaire) == (300, "fr-FR", "en-US")
     assert (p.confiance_moyenne_min, p.confiance_basse, p.part_confiance_basse_max) == (0.70, 0.50, 0.20)
-    assert (p.mots_inconnus_max_couche_existante, p.mots_inconnus_max_windows, p.mots_inconnus_max_vision) == (0.35, 0.064, 0.21)
+    assert (p.mots_inconnus_max_couche_existante, p.mots_inconnus_max_windows, p.mots_inconnus_max_vision) == (0.35, 0.064, 0.055)
     assert (p.mots_evaluables_min, p.taux_caracteres_aberrants_max) == (40, 0.03)
     assert (p.taux_mots_fragmentes_max, p.taux_melange_chiffres_lettres_max) == (0.25, 0.10)
     assert (p.densite_min, p.densite_max, p.xlsx_lignes_max, p.delai_hydratation_s) == (0.11, 60.0, 2000, 120)

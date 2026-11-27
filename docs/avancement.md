@@ -340,3 +340,15 @@ Fait :
 - PV-15 : essai de diagnostic de Vision (niveau, révision, confiance, correction linguistique), résultats et recommandation dans `docs/verifications.md`. Le niveau « accurate », révision 3, est bien appliqué sur Intel ; la confiance vaut 1,0 sur Intel quand la correction linguistique est active.
 
 À décider avant le jalon 9 : correction linguistique de Vision (recommandation : la désactiver par défaut, après vérification en CI).
+
+## Correction linguistique de Vision et fichier 21 (27/11/2026)
+
+Décisions du commanditaire : correction linguistique de Vision désactivée après vérification en CI ; confiance 0,70 conservée ; pages moyennement dégradées ajoutées au jeu avant de figer les seuils ; PV-15 levé.
+
+Fait :
+- fichier 21 du jeu de test : trois pages lisibles en partie, avec montants (scan 150 dpi légèrement flou, tampon superposé au texte, photocopie de photocopie) ; vérité terrain du moteur factice tirée de la page sans tampon ;
+- Vision : correction linguistique désactivée par défaut (EX-26 mis à jour), vérifiée en CI (EX-30 a, PV-14, calibrage) ;
+- seuils de mots inconnus recalculés par origine avec le fichier 21 : couche existante 0,35, Windows 0,064, Vision 0,055 (milieux des écarts propres à chaque moteur ; détail et points d'attention dans `docs/calibrage.md`) ; EX-36 et 7.1 mis à jour ;
+- tests : 204 réussis, 7 sautés sous Windows.
+
+Point d'attention : les seuils de Windows et de Vision ont des marges étroites sur le jeu synthétique (Vision : 0,050 à 0,061) ; leur recalibrage est la priorité de la recette (TM-08), avec la confiance.

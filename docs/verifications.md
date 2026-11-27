@@ -237,7 +237,7 @@ Voir `docs/avancement.md`, jalon 6 : espaces retirés dans les cellules de table
 
 Vision traite aussi plus vite une image en niveaux de gris qu'en couleur. PV-14 inchangé : boîtes Vision pour 100 % des mots, critère EX-30 (b) réussi sur 6 pages sur 6.
 
-## PV-15. Apple Vision : niveau de reconnaissance, confiance et correction linguistique (27/11/2026)
+## PV-15. Apple Vision : niveau de reconnaissance, confiance et correction linguistique (27/11/2026) : levé
 
 Question : sur Mac Intel, la page illisible du fichier 5 reçoit une confiance de 1,0 (comportement qui rappelle Live Text) ; Vision corrige ses erreurs en mots plausibles, ce qui abaisse le taux de mots inconnus. Essai de diagnostic `tests/test_pv15_vision_correction.py`, CI run 45980728997 (Apple Silicon arm64 sous macOS 26.7.2 ; Intel x86_64 sous macOS 15.7.9). Le réglage par défaut de l'outil n'est pas modifié.
 
@@ -266,3 +266,11 @@ Constats :
 - la correction peut remplacer un mot mal lu par un autre mot du lexique : l'erreur devient alors invisible, ce qui est le risque que l'outil cherche à signaler.
 
 Recommandation (à décider par le commanditaire, réglage non modifié) : désactiver la correction linguistique de Vision par défaut. La détection des pages douteuses reposerait alors sur la confiance et sur les mots inconnus, avec des marges larges sur les deux Mac ; le seuil `mots_inconnus_max_vision` serait recalculé sur ce mode (écart 0,040 à 0,373, milieu 0,21, ou retour à 0,35 si l'on accepte une marge étroite sur Apple Silicon). Avant de basculer : vérifier en CI, avec la correction désactivée, le critère EX-30 (a) sur les fichiers 2, 3, 10 et 18, le placement des mots (PV-14) et le calibrage complet. Mesure faite sur une seule page illisible : à confirmer en recette (TM-08) sur des scans réels.
+
+Décision du commanditaire (27/11/2026) : correction linguistique désactivée par défaut (EX-26), après vérification en CI (run 45986963307) :
+- EX-30 (a), mots de référence retrouvés sans correction : Apple Silicon 97,8 % à 99,3 %, Intel 96,3 % à 99,3 % sur les fichiers 2, 3, 10 et 18 ;
+- PV-14 : 100 % des mots bien placés, EX-30 (b) réussi sur 6 pages sur 6 ;
+- temps par page de reconnaissance : 1,90 s (Apple Silicon) et 1,80 s (Intel) ;
+- calibrage complet : seuils par origine recalculés avec le fichier 21, voir `docs/calibrage.md`. Seuil `mots_inconnus_max_vision` : 0,055 (et non 0,21 comme attendu) ; confiance 0,70 conservée, marge étroite côté pages saines.
+
+PV-15 levé.
