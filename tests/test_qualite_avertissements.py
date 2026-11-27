@@ -95,7 +95,8 @@ def test_sans_confiance_la_page_illisible_reste_douteuse(copie, parametres):
 def test_les_seuils_changent_le_verdict(copie, tmp_path):
     c, m = copie
     p = parametres_avec(tmp_path, "confiance_moyenne_min = 0.1\npart_confiance_basse_max = 1.0\n"
-                                  "taux_mots_fragmentes_max = 1.0\ntaux_mots_inconnus_max = 1.0\n"
+                                  "taux_mots_fragmentes_max = 1.0\nmots_inconnus_max_windows = 1.0\n"
+                                  "mots_inconnus_max_couche_existante = 1.0\n"
                                   "taux_caracteres_aberrants_max = 1.0\n")
     lancer(p, moteur_de(m), "--sortie", "pdf", c / "pdf" / "05_illisible.pdf", c / "pdf" / "04_couche_degradee.pdf")
     lignes = rapport.lire(c / "pdf" / "_OCR")

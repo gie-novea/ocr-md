@@ -75,3 +75,22 @@ def test_lexique_non_charge_sans_page_a_evaluer(tmp_path):
                        cwd=pathlib.Path(__file__).parents[1], timeout=300)
     assert r.returncode == 0, r.stderr[-3000:]
     assert r.stdout.strip().splitlines()[-1] == "0"
+
+
+@pytest.mark.exigence("EX-36", "EX-67")
+def test_seuil_des_mots_inconnus_selon_l_origine(tmp_path):
+    """Seuil propre à l'origine du texte : couche OCR existante, Windows (et tout autre moteur),
+    Apple Vision ; chacun réglable dans la configuration."""
+    from ocr_md import config
+    f = tmp_path / "essai.toml"
+    f.write_text("mots_inconnus_max_couche_existante = 0.30\nmots_inconnus_max_windows = 0.40\n"
+                 "mots_inconnus_max_vision = 0.10\n", encoding="utf-8")
+    p = config.charger(f, fichier_utilisateur=tmp_path / "absent.toml")
+    ind = qualite.Indicateurs()
+    ind.mots_evaluables, ind.taux_mots_inconnus = 60, 0.20
+    assert qualite.seuil_mots_inconnus(p, "couche_existante") == 0.30
+    assert "taux_mots_inconnus" in qualite.motifs_lexicaux(ind, p, True, "apple-vision")
+    assert "taux_mots_inconnus" not in qualite.motifs_lexicaux(ind, p, True, "windows-media-ocr")
+    assert "taux_mots_inconnus" not in qualite.motifs_lexicaux(ind, p, True, "factice")
+    ind.taux_mots_inconnus = 0.35
+    assert "taux_mots_inconnus" in qualite.motifs_lexicaux(ind, p, True, "couche_existante")

@@ -211,7 +211,8 @@ def evaluer_page(page, texte: str, ctx, lexique, resume: ResumeOcr | None = None
     if ecart is None and (ind.densite is not None and ind.densite < p.densite_min or (resume and not resume.caracteres)):
         ecart = _ecart_type_page(page)
     non_blanche = ecart is not None and ecart > p.page_blanche_ecart_type_max
-    motifs = qualite.motifs_lexicaux(ind, p, non_blanche)
+    origine = qualite.ORIGINE_COUCHE if resume is None else ctx.moteur.nom_si_utilise()
+    motifs = qualite.motifs_lexicaux(ind, p, non_blanche, origine)
     if resume is not None:
         if not resume.caracteres and non_blanche:
             motifs.insert(0, "aucun_texte_reconnu")

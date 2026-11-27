@@ -149,10 +149,25 @@ def calculer(texte: str, lexique: Lexique, surface_cm2: float | None = None) -> 
     return ind
 
 
-def motifs_lexicaux(ind: Indicateurs, p, page_non_blanche: bool) -> list[str]:
-    """Indicateurs de EX-36 qui franchissent leur seuil (p : paramètres)."""
+ORIGINE_COUCHE = "couche_existante"
+
+
+def seuil_mots_inconnus(p, origine: str) -> float:
+    """Seuil des mots inconnus selon l'origine du texte (EX-36) : couche OCR existante, ou nom
+    du moteur de l'outil (« apple-vision » ; « windows-media-ocr » et tout autre moteur, dont
+    le moteur factice, prennent le seuil de Windows)."""
+    if origine == ORIGINE_COUCHE:
+        return p.mots_inconnus_max_couche_existante
+    if origine == "apple-vision":
+        return p.mots_inconnus_max_vision
+    return p.mots_inconnus_max_windows
+
+
+def motifs_lexicaux(ind: Indicateurs, p, page_non_blanche: bool, origine: str = ORIGINE_COUCHE) -> list[str]:
+    """Indicateurs de EX-36 qui franchissent leur seuil (p : paramètres ; origine : voir
+    `seuil_mots_inconnus`)."""
     motifs = []
-    if ind.mots_evaluables >= p.mots_evaluables_min and ind.taux_mots_inconnus > p.taux_mots_inconnus_max:
+    if ind.mots_evaluables >= p.mots_evaluables_min and ind.taux_mots_inconnus > seuil_mots_inconnus(p, origine):
         motifs.append("taux_mots_inconnus")
     if ind.taux_caracteres_aberrants > p.taux_caracteres_aberrants_max:
         motifs.append("taux_caracteres_aberrants")

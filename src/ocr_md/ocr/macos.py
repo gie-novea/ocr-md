@@ -68,10 +68,13 @@ def _utf16(texte: str) -> int:
     return len(texte.encode("utf-16-le")) // 2
 
 
-def vision_avec_mots(image: Image.Image, langues: list[str], chronos: dict | None = None):
+def vision_avec_mots(image: Image.Image, langues: list[str], chronos: dict | None = None,
+                     correction: bool = True):
     """Appel direct de Vision. Renvoie [(texte, confiance, boîte_ligne, [(mot, boîte|None)])],
     boîtes normalisées (x, y, largeur, hauteur), origine en bas à gauche. `chronos` reçoit
-    les durées cumulées : conversion de l'image (png), reconnaissance (vision), boîtes."""
+    les durées cumulées : conversion de l'image (png), reconnaissance (vision), boîtes.
+    `correction` : correction linguistique de Vision (usesLanguageCorrection), active par
+    défaut ; désactivable pour l'essai PV-15 seulement."""
     chronos = chronos if chronos is not None else {}
     t0 = time.perf_counter()
     donnees = _png(image)
@@ -84,7 +87,7 @@ def vision_avec_mots(image: Image.Image, langues: list[str], chronos: dict | Non
         requete = Vision.VNRecognizeTextRequest.alloc().init()
         requete.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
         requete.setRecognitionLanguages_(langues)
-        requete.setUsesLanguageCorrection_(True)
+        requete.setUsesLanguageCorrection_(bool(correction))
         gestionnaire = Vision.VNImageRequestHandler.alloc().initWithData_options_(donnees, None)
         retour = gestionnaire.performRequests_error_([requete], None)
         t2 = time.perf_counter()
@@ -122,12 +125,14 @@ def vision_avec_mots(image: Image.Image, langues: list[str], chronos: dict | Non
 class MoteurMacos:
     nom = "apple-vision"
 
-    def __init__(self, langue: str = "fr-FR", langue_secondaire: str | None = "en-US", mode: str = "mots"):
+    def __init__(self, langue: str = "fr-FR", langue_secondaire: str | None = "en-US", mode: str = "mots",
+                 correction_linguistique: bool = True):
         disponibles = langues_disponibles()
         if disponibles and langue not in disponibles:
             raise MoteurIndisponible(f"langue {langue} non disponible pour Apple Vision")
         self.langues = [langue] + ([langue_secondaire] if langue_secondaire else [])
         self.mode = mode
+        self.correction_linguistique = correction_linguistique  # False : essai PV-15 seulement
         self.statistiques = {"mots_boite_vision": 0, "mots_prorata": 0}
         self.chronos: dict[str, float] = {}  # durées cumulées : png, vision, boîtes (mesure PV-14)
 
@@ -144,7 +149,8 @@ class MoteurMacos:
         largeur, hauteur = image.size
         lignes = []
         if self.mode == "mots":
-            for texte, confiance, boite_ligne, mots in vision_avec_mots(image, self.langues, self.chronos):
+            for texte, confiance, boite_ligne, mots in vision_avec_mots(image, self.langues, self.chronos,
+                                                                              self.correction_linguistique):
                 ligne_px = boite_en_pixels(boite_ligne, largeur, hauteur)
                 resultat_mots = []
                 prorata = mots_estimes(texte, ligne_px, confiance)

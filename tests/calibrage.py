@@ -2,9 +2,9 @@
 
 Calcule, pour chaque page reconnue ou à couche OCR d'un dossier de PDF, les indicateurs de
 EX-35 et EX-36 et le verdict obtenu avec les seuils en vigueur. Avec le jeu de test (qui
-contient un manifeste), compare le verdict à la vérité terrain et propose, pour chaque
-indicateur, le seuil de marge maximale : milieu entre la plus forte valeur des pages saines
-et la plus faible valeur des pages douteuses qui le déclenchent.
+contient un manifeste), compare le verdict à la vérité terrain et donne, par origine du texte
+(couche OCR existante ou moteur) et par indicateur, l'écart entre la page saine la plus
+défavorable et la page dégradée la plus favorable du manifeste, avec son milieu.
 
 La sortie ne contient que des noms de fichiers, des numéros de page et des nombres : aucun
 texte de document. Le script peut être lancé par le référent sur un dossier de documents
@@ -73,9 +73,11 @@ def mesurer(dossier: pathlib.Path, moteur, p) -> list[dict]:
             surface = page.rect.width * page.rect.height * CM2_PAR_PT2
             ind = qualite.calculer(texte, lexique, surface)
             non_blanche = ecart_type(page) > p.page_blanche_ecart_type_max
-            motifs = qualite.motifs_lexicaux(ind, p, non_blanche) + qualite.motifs_confiance(confiance, part_basse, p)
+            origine = qualite.ORIGINE_COUCHE if a.categorie == "couche_existante" else moteur.nom
+            motifs = (qualite.motifs_lexicaux(ind, p, non_blanche, origine)
+                      + qualite.motifs_confiance(confiance, part_basse, p))
             lignes.append({
-                "fichier": relatif, "page": a.numero, "categorie": a.categorie,
+                "fichier": relatif, "page": a.numero, "categorie": a.categorie, "origine": origine,
                 "mots": ind.mots, "mots_evaluables": ind.mots_evaluables,
                 **{k: round(getattr(ind, k), 4) for k in INDICATEURS},
                 "confiance": None if confiance is None else round(confiance, 3),
@@ -85,82 +87,68 @@ def mesurer(dossier: pathlib.Path, moteur, p) -> list[dict]:
     return lignes
 
 
-def proposer(lignes: list[dict], p) -> dict:
-    """Seuil de marge maximale pour chaque indicateur (« au-delà » : page douteuse)."""
-    propositions = {}
-    connues = [l for l in lignes if l["attendu"]]
-    for ind, param in (("taux_mots_inconnus", "taux_mots_inconnus_max"),
-                       ("taux_caracteres_aberrants", "taux_caracteres_aberrants_max"),
-                       ("taux_mots_fragmentes", "taux_mots_fragmentes_max"),
-                       ("taux_melange_chiffres_lettres", "taux_melange_chiffres_lettres_max")):
-        saines = [l[ind] for l in connues if l["attendu"] == "bonne"
-                  and (ind != "taux_mots_inconnus" or l["mots_evaluables"] >= p.mots_evaluables_min)]
-        douteuses = [l[ind] for l in connues if l["attendu"] == "douteuse" and ind in l["motifs"]]
-        if saines and douteuses:
-            propositions[param] = round((max(saines) + min(douteuses)) / 2, 3)
-    # Densité : seuil « en deçà » ; milieu entre la plus forte densité des pages douteuses qui
-    # le déclenchent et la plus faible des pages saines (à défaut, moitié de cette dernière).
-    saines = [l["densite"] for l in connues if l["attendu"] == "bonne" and l["densite"] is not None]
-    basses = [l["densite"] for l in connues if l["attendu"] == "douteuse" and "densite_anormale" in l["motifs"]
-              and l["densite"] is not None and l["densite"] < min(saines or [0])]
-    if saines and basses:
-        propositions["densite_min"] = round((max(basses) + min(saines)) / 2, 3)
-    elif saines and min(saines) < p.densite_min:
-        propositions["densite_min"] = round(min(saines) / 2, 3)
-    return propositions
-
-
 VALEURS_CAHIER = {"taux_mots_inconnus": 0.35, "taux_caracteres_aberrants": 0.03, "taux_mots_fragmentes": 0.25,
                   "taux_melange_chiffres_lettres": 0.10, "densite": 0.2}
-MOTIF = {"taux_mots_inconnus": "taux_mots_inconnus", "taux_caracteres_aberrants": "taux_caracteres_aberrants",
-         "taux_mots_fragmentes": "taux_mots_fragmentes", "taux_melange_chiffres_lettres": "taux_melange_chiffres_lettres",
-         "densite": "densite_anormale"}
 
 
-def ecarts(lignes: list[dict], p) -> list[dict]:
-    """Pour chaque indicateur : valeur de la page saine la plus défavorable, valeur de la page
-    dégradée la plus favorable parmi celles que l'indicateur déclenche (les pages dégradées par
-    un autre défaut ne disent rien de cet indicateur), et position de la valeur du cahier."""
+def ecarts(lignes: list[dict], p) -> dict[str, list[dict]]:
+    """Par origine du texte (couche OCR existante, ou moteur de l'outil) et par indicateur :
+    valeur de la page saine la plus défavorable et de la page dégradée la plus favorable. Les
+    pages saines et dégradées sont celles que déclare le manifeste (vérité terrain), et non
+    celles que déclenchent les seuils en vigueur. Pour les mots inconnus, seules comptent les
+    pages d'au moins `mots_evaluables_min` mots évaluables (EX-36)."""
     connues = [l for l in lignes if l["attendu"]]
-    resultat = []
-    for ind, cahier in VALEURS_CAHIER.items():
-        saines = [l for l in connues if l["attendu"] == "bonne"
-                  and (ind != "taux_mots_inconnus" or l["mots_evaluables"] >= p.mots_evaluables_min)]
-        degradees = [l for l in connues if l["attendu"] == "douteuse" and MOTIF[ind] in l["motifs"]]
-        if ind == "densite":  # seuil « en deçà » : les pages saines sont au-dessus
-            degradees = [l for l in degradees if l["densite"] < p.densite_min]
-            pire_saine = min(saines, key=lambda l: l[ind], default=None)
-            meilleure_degradee = max(degradees, key=lambda l: l[ind], default=None)
-        else:
-            pire_saine = max(saines, key=lambda l: l[ind], default=None)
-            meilleure_degradee = min(degradees, key=lambda l: l[ind], default=None)
-        ligne = {"indicateur": ind, "cahier": cahier, "saine": pire_saine, "degradee": meilleure_degradee}
-        if pire_saine and meilleure_degradee:
-            bas, haut = sorted((pire_saine[ind], meilleure_degradee[ind]))
-            ligne["dans_l_ecart"] = bas < cahier < haut
-            ligne["milieu"] = round((bas + haut) / 2, 3)
-        resultat.append(ligne)
+    resultat = {}
+    for origine in sorted({l["origine"] for l in connues}):
+        groupe = [l for l in connues if l["origine"] == origine]
+        lignes_origine = []
+        for ind, cahier in VALEURS_CAHIER.items():
+            retenues = [l for l in groupe
+                        if ind != "taux_mots_inconnus" or l["mots_evaluables"] >= p.mots_evaluables_min]
+            saines = [l for l in retenues if l["attendu"] == "bonne"]
+            degradees = [l for l in retenues if l["attendu"] == "douteuse"]
+            if ind == "densite":  # seuil « en deçà » : les pages saines sont au-dessus
+                pire_saine = min(saines, key=lambda l: l[ind], default=None)
+                meilleure_degradee = max(degradees, key=lambda l: l[ind], default=None)
+                separe = bool(pire_saine and meilleure_degradee and meilleure_degradee[ind] < pire_saine[ind])
+            else:
+                pire_saine = max(saines, key=lambda l: l[ind], default=None)
+                meilleure_degradee = min(degradees, key=lambda l: l[ind], default=None)
+                separe = bool(pire_saine and meilleure_degradee and meilleure_degradee[ind] > pire_saine[ind])
+            ligne = {"indicateur": ind, "cahier": cahier, "saine": pire_saine, "degradee": meilleure_degradee,
+                     "separe": separe}
+            if separe:
+                bas, haut = sorted((pire_saine[ind], meilleure_degradee[ind]))
+                ligne["dans_l_ecart"] = bas < cahier < haut
+                ligne["milieu"] = round((bas + haut) / 2, 3)
+            lignes_origine.append(ligne)
+        resultat[origine] = lignes_origine
     return resultat
 
 
 def tableau_ecarts(lignes_ecarts: list[dict]) -> str:
-    sortie = ["| indicateur | page saine la plus défavorable | page dégradée la plus favorable | valeur du cahier | dans l'écart | milieu |",
-              "|---|---|---|---|---|---|"]
+    sortie = ["| indicateur | page saine la plus défavorable | page dégradée la plus favorable | valeur du cahier "
+              "| dans l'écart | milieu |", "|---|---|---|---|---|---|"]
+
     def page(l, ind):
         return f"{l[ind]:.3f} ({l['fichier']} p. {l['page']})" if l else "aucune"
     for e in lignes_ecarts:
         ind = e["indicateur"]
-        dans = "" if "dans_l_ecart" not in e else ("oui" if e["dans_l_ecart"] else "non")
-        sortie.append(f"| {ind} | {page(e['saine'], ind)} | {page(e['degradee'], ind)} | {e['cahier']} | {dans} | {e.get('milieu', '')} |")
+        if e["separe"]:
+            dans = "oui" if e["dans_l_ecart"] else "non"
+        else:
+            dans = "pas d'écart" if e["saine"] and e["degradee"] else ""
+        sortie.append(f"| {ind} | {page(e['saine'], ind)} | {page(e['degradee'], ind)} | {e['cahier']} | {dans} "
+                      f"| {e.get('milieu', '')} |")
     return "\n".join(sortie)
 
 
 def tableau(lignes: list[dict]) -> str:
-    entete = ["fichier", "page", "catégorie", "mots", "évaluables", "inconnus", "aberrants", "fragmentés",
+    entete = ["fichier", "page", "origine", "mots", "évaluables", "inconnus", "aberrants", "fragmentés",
               "mélanges", "densité", "confiance", "verdict", "attendu"]
     sortie = ["| " + " | ".join(entete) + " |", "|" + "---|" * len(entete)]
     for l in lignes:
-        valeurs = [l["fichier"], l["page"], l["categorie"], l["mots"], l["mots_evaluables"]] + \
+        valeurs = [l["fichier"], l["page"], l["origine"], l["mots"], l["mots_evaluables"]] + \
             [f"{l[k]:.3f}" for k in INDICATEURS] + [l["confiance"] if l["confiance"] is not None else "",
                                                      l["verdict"], l["attendu"] or ""]
         sortie.append("| " + " | ".join(str(v) for v in valeurs) + " |")
@@ -195,12 +183,11 @@ def main(arguments=None):
     print(f"\n{len(lignes)} page(s) mesurée(s) ; erreurs de verdict par rapport à la vérité terrain : {len(erreurs)}")
     for l in erreurs:
         print(f"  {l['fichier']} page {l['page']} : {l['verdict']} au lieu de {l['attendu']} ({' '.join(l['motifs'])})")
-    print("\nÉcart par indicateur (pages dégradées : celles que l'indicateur déclenche) :\n")
-    print(tableau_ecarts(ecarts(lignes, p)))
-    propositions = proposer(lignes, p)
-    if propositions:
-        print("\nseuils de marge maximale (pour information) : " + ", ".join(f"{k} = {v}" for k, v in propositions.items()))
-    return lignes, erreurs, propositions
+    resultat = ecarts(lignes, p)
+    for origine, lignes_ecarts in resultat.items():
+        print(f"\nÉcart par indicateur, origine du texte « {origine} » (pages saines et dégradées du manifeste) :\n")
+        print(tableau_ecarts(lignes_ecarts))
+    return lignes, erreurs, resultat
 
 
 if __name__ == "__main__":

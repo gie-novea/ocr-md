@@ -44,7 +44,11 @@ DEFINITIONS: tuple[Definition, ...] = (
     Definition("part_confiance_basse_max", 0.20, "Part du texte peu sûr au-delà de laquelle une page est douteuse", 0, 1),
     Definition("page_blanche_ecart_type_max", 8.0, "Écart type des niveaux de gris au-dessous duquel une page est uniformément blanche (proposition)", 0, 255),
     # Heuristique lexicale (EX-36)
-    Definition("taux_mots_inconnus_max", 0.35, "Part de mots absents du lexique au-delà de laquelle une page est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
+    # Seuil des mots inconnus selon l'origine du texte : Apple Vision corrige ses erreurs en
+    # mots plausibles (correction linguistique), ce qui abaisse cet indicateur pour lui seul.
+    Definition("mots_inconnus_max_couche_existante", 0.35, "Part de mots absents du lexique au-delà de laquelle une page à couche OCR existante est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
+    Definition("mots_inconnus_max_windows", 0.35, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Windows.Media.Ocr est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
+    Definition("mots_inconnus_max_vision", 0.165, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Apple Vision est douteuse (milieu de l'écart propre à Vision sur le jeu de test ; calibrage définitif en recette, TM-08)", 0, 1),
     Definition("mots_evaluables_min", 40, "Nombre minimal de mots évaluables pour appliquer l'indicateur des mots inconnus", 0, 100000),
     Definition("taux_caracteres_aberrants_max", 0.03, "Part de caractères aberrants au-delà de laquelle une page est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
     Definition("taux_mots_fragmentes_max", 0.25, "Part de mots d'une seule lettre au-delà de laquelle une page est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
