@@ -413,3 +413,24 @@ Les jalons 0 à 10 sont réalisés ; la CI est verte sur Windows, macOS Apple Si
 - livraison : version 1.0.0 dans `pyproject.toml`, `src/ocr_md/__init__.py` et le CHANGELOG, puis étiquette `v1.0.0` créée et envoyée (les scripts et les guides la désignent) ;
 - recette TM-01 à TM-11 par le référent (`docs/recette-manuelle.md`), dont le recalibrage des seuils sur documents réels (TM-08) et les captures des guides ;
 - points à vérifier ouverts : PV-01 (poste de la SODEB), PV-02 (200 éléments, Finder), PV-08 d (versions de macOS du parc), PV-09 et PV-10 (dossier kDrive de test) ; question Q14.
+
+## Version candidate 1.0.0rc1 (27/11/2026)
+
+v1 validée par le commanditaire ; pas de 1.0.0 avant la recette et le recalibrage.
+
+Fait :
+- version `1.0.0rc1` (`pyproject.toml`, `src/ocr_md/__init__.py`, `uv.lock`) ; CHANGELOG titré « version candidate pour la recette » ; le test du journal lit la version du paquet au lieu d'une valeur figée ;
+- étiquette `v1.0.0-rc1` (commit f5379ae), publiée sur GitHub en « pre-release » : https://github.com/gie-novea/ocr-md/releases/tag/v1.0.0-rc1 ; notes : CHANGELOG et points de recette ouverts (TM-08, PV-01, PV-02, PV-08 d, PV-09, PV-10, Q14) ;
+- étiquette installée : paramètre unique en tête de `installation/commun-windows.ps1` (`$Etiquette`) et de `installation/commun-macos.sh` (`ETIQUETTE`) ; guides, guide de recette (TM-01) et README désignent `v1.0.0-rc1` ;
+- guide administrateur, section 4 : procédure « Passer d'une version candidate à la version finale » (version, seuils recalibrés, CHANGELOG, étiquette dans les scripts, guides et README, étiquette et publication sans « pre-release », mise à jour des postes de recette) ; une rc2 suit les mêmes étapes ;
+- TM-08 : mesure du temps et de la mémoire de pointe sur un vrai Mac (comparée aux relevés de la CI) et question sur la mémoire vive des Mac du parc (8 Go ou plus) ;
+- nouveau flux de CI `installation-etiquette.yml` (à chaque étiquette `v*` et à la demande) : sur des machines sans uv, installe depuis l'archive de l'étiquette, vérifie la version et les trois raccourcis, puis désinstalle. Sous macOS, la ligne d'installation est lue dans le guide et exécutée telle quelle ; sous Windows, l'archive est extraite et `installer-windows.cmd` est lancé par `cmd.exe`, comme un double-clic.
+
+Vérification de l'installation depuis l'étiquette :
+- macOS Apple Silicon et Intel : la ligne du guide installe ocr-md 1.0.0rc1 (uv installé depuis astral.sh), trois Actions rapides, désinstallation propre ;
+- Windows : premier essai en échec, les scripts ayant été lancés depuis PowerShell 7 : l'installateur de uv, exécuté par Windows PowerShell 5.1, héritait de `PSModulePath` et ne chargeait pas `Microsoft.PowerShell.Security`. Ce cas ne se produit pas par double-clic depuis l'Explorateur, mais peut se produire si un administrateur lance le `.cmd` depuis PowerShell 7. Correctif (commit abedb8c, sur main, hors de l'étiquette rc1) : les trois `.cmd` vident `PSModulePath` avant d'appeler `powershell.exe`. Second essai (run 46025260229), rc1 lancée par `cmd.exe` : installation de ocr-md 1.0.0rc1, trois raccourcis « Envoyer vers », désinstallation propre ;
+- passe complète des tests sur l'étiquette (run 46024178669), verte : 228 réussis sous Windows, 230 sur chaque Mac, 212 sous Linux ; Vision : aucune erreur de verdict sur 33 pages.
+
+Écart : aucun nouveau. Le correctif `PSModulePath` partira avec la prochaine étiquette (rc2 ou 1.0.0) ; l'étiquette publiée n'a pas été réécrite.
+
+Reste à faire : recette TM-01 à TM-11 depuis v1.0.0-rc1 (recalibrage TM-08, captures des guides) ; PV-01, PV-02, PV-08 d, PV-09, PV-10 ; Q14 ; puis 1.0.0 selon la procédure du guide administrateur.
