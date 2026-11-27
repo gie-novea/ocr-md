@@ -21,6 +21,8 @@ EXTENSIONS = {
     ".pdf": "pdf",
     ".jpg": "image", ".jpeg": "image", ".png": "image", ".tif": "image", ".tiff": "image",
     ".docx": "docx", ".xlsx": "xlsx", ".pptx": "pptx",
+    ".xlsm": "xlsx",  # classeur à macros : lu comme un .xlsx, macros ignorées, jamais exécutées
+    ".zip": "zip",    # archive : extraite hors de la source, contenu traité (module archives)
 }
 MESSAGES_NON_PRIS_EN_CHARGE = {
     **dict.fromkeys((".doc", ".xls", ".ppt", ".pps"),
@@ -54,6 +56,7 @@ class Element:
     relatif: str               # chemin relatif au parent, séparateur « / », forme NFC
     type: str                  # pdf, image, docx, xlsx, pptx, autre
     message: str = ""          # pour « autre » : raison du non-traitement
+    profondeur: int = 0        # 0 : fichier sur le disque ; 1 : dans une archive ; 2 : archive dans une archive
 
     @property
     def pris_en_charge(self) -> bool:
@@ -182,6 +185,8 @@ def signature_conforme(type_: str, debut: bytes, chemin: pathlib.Path) -> bool:
     if type_ == "image":
         return (debut.startswith(b"\xff\xd8\xff") or debut.startswith(b"\x89PNG\r\n\x1a\n")
                 or debut.startswith(b"II*\x00") or debut.startswith(b"MM\x00*"))
+    if type_ == "zip":
+        return debut.startswith((b"PK\x03\x04", b"PK\x05\x06"))
     if type_ in ("docx", "xlsx", "pptx"):
         if not debut.startswith(b"PK\x03\x04"):
             return False

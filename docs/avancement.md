@@ -434,3 +434,31 @@ Vérification de l'installation depuis l'étiquette :
 Écart : aucun nouveau. Le correctif `PSModulePath` partira avec la prochaine étiquette (rc2 ou 1.0.0) ; l'étiquette publiée n'a pas été réécrite.
 
 Reste à faire : recette TM-01 à TM-11 depuis v1.0.0-rc1 (recalibrage TM-08, captures des guides) ; PV-01, PV-02, PV-08 d, PV-09, PV-10 ; Q14 ; puis 1.0.0 selon la procédure du guide administrateur.
+
+## Retour de recette et préparation de la rc2 (27/11/2026)
+
+Retour du commanditaire sur un lot réel (507 fichiers, environ 4 000 pages, 700 pages reconnues) : robustesse très bonne, signalement inutilisable. Aucun nom ni chemin réel n'est repris dans le dépôt.
+
+Fait :
+- `qualite_image` : nouvelle règle (EX-35). L'image médiocre est une information secondaire (champ `qualite_image` du front matter, colonne du rapport, sans bloc d'avertissement). L'image seule ne rend la page douteuse que sous `image_resolution_severe_dpi` (120). Sinon, il faut aussi un texte limite : `mots_inconnus_limite_windows` (0,10) ou `mots_inconnus_limite_vision` (0,055), sur au moins 40 mots évaluables. Résolution médiocre sous 200 dpi au lieu de 250. Règle commune à l'outil et à `tests/calibrage.py` (`qualite.verdict_image`). Jeu de test : 0 erreur de verdict avec le moteur factice et `Windows.Media.Ocr` sur ce poste ; Vision à confirmer par la CI ;
+- `tests/recalibrage.py` : `gabarit` (échantillon de pages tiré du journal, CSV `fichier;page;verdict`) et `calibrer` (seuils de l'image et du texte qui minimisent les erreurs par rapport au jugement, descente par paramètre puis par paires, extrait TOML) ; gabarit vide `docs/gabarit-verite-terrain.csv` ; procédure au guide administrateur (section 9) et en TM-08 ;
+- archives .zip (nouvelle exigence EX-83) : extraction dans un dossier de travail du profil, sorties dans `_OCR/…/nom.zip/…`, garde-fous (taille bornée et contrôlée pendant l'extraction, un niveau d'imbrication, noms cp850, chemins neutralisés, chiffrement), relance comparée à la date de l'archive, commande de `_AVERTISSEMENTS.md` pointant l'archive ; fichier 22 du jeu de test ; le .zip factice du fichier 11 devient un .rar ;
+- .xlsm lu comme un .xlsx (fichier 8b du jeu de test) ;
+- PDF endommagé : récupération des pages par pypdf (nouvelle dépendance, licence BSD) avant de conclure à l'erreur ; le fichier est alors signalé `pdf_repare` ;
+- fenêtre de fin et journal : signalés et erreurs comptés d'après le statut des lignes, y compris les fichiers ignorés car à jour (EX-16) ;
+- performance des PDF natifs, mesurée sur ce poste (36 pages synthétiques) : texte seul, 3,6 s, dont 3,5 s pour le modèle de mise en page (une analyse par page, inévitable sans changer de voie de conversion : la voie classique de PyMuPDF4LLM, sans modèle, n'est pas plus rapide sur ces pages) ; pages à tableaux fusionnés, 12,9 s, car `find_tables` relançait le modèle sur chaque page à tableau. Correctif : détection des tableaux natifs sans le modèle (mêmes tableaux et mêmes fusions sur le jeu de test), 7,7 s (moins 40 %). Le fichier de recette (28,6 s pour 36 pages) n'a pas été lu ici : `tests/perf/ventiler.py FICHIER.pdf` en donne la ventilation sur le poste du référent, sans afficher de texte ;
+- cahier des charges mis à jour (EX-16, EX-18, EX-19, EX-21, EX-35, EX-76, EX-82, EX-83, sections 7.1 et 11.1) ; guide administrateur (messages, recalibrage), guides utilisateur (archives), `calibrage.md`, TM-08, CHANGELOG ; version 1.0.0rc2 dans le paquet.
+
+Points tranchés ou proposés, à confirmer par le commanditaire :
+- règle « image médiocre et texte limite » et ses seuils de départ (proposition de Claude Code), à recalibrer sur la vérité terrain ;
+- seuil limite de Vision 0,055 : valeur refusée comme seuil général, retenue parce qu'elle ne joue que sur une image médiocre ;
+- archives : extraction brute dans un dossier de travail du profil (supprimé ensuite), seules les sorties étant dans `_OCR/…/nom.zip/…` ; une archive incluse dans une archive est extraite, la suivante non ;
+- tableaux natifs détectés sans le modèle de mise en page (optimisation appliquée, réversible).
+
+Reste à faire :
+- vérité terrain du commanditaire (une vingtaine de pages), puis recalibrage par `tests/recalibrage.py` et report des seuils ;
+- étiquette `v1.0.0-rc2` après ce retour : `$Etiquette`, `ETIQUETTE`, guides, README et TM-01 à passer à rc2 (procédure du guide administrateur, section 4) ;
+- ventilation du temps sur le fichier de recette de 36 pages (`tests/perf/ventiler.py`), pour confirmer la cause ;
+- recette TM-01 à TM-11, PV-01, PV-02, PV-08 d, PV-09, PV-10, Q14.
+
+Écarts au cahier des charges : aucun nouveau (cahier mis à jour).

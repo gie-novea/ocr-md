@@ -55,8 +55,8 @@ CHAMPS = (("version_schema", False), ("source", True), ("type_source", False), (
           ("date_conversion", True), ("outil", True), ("moteur_md", True), ("moteur_ocr", False),
           ("pages_ocr", False), ("qualite_texte", False), ("pages_douteuses", False), ("origine_texte", True),
           ("pages_couche_existante", False), ("motifs_douteux", False), ("pages_recuperees", False),
-          ("pages_totales", False))
-FACULTATIFS = {"motifs_douteux", "pages_recuperees", "pages_totales"}
+          ("pages_totales", False), ("qualite_image", False))
+FACULTATIFS = {"motifs_douteux", "pages_recuperees", "pages_totales", "qualite_image"}
 
 
 def front_matter(champs: dict) -> str:
@@ -72,7 +72,7 @@ def front_matter(champs: dict) -> str:
 
 def champs_document(*, source: str, type_source: str, pages, moteur_md: str, moteur_ocr: str, pages_ocr,
                     pages_douteuses, origine: str, pages_couche_existante, motifs=(), pages_recuperees=None,
-                    pages_totales=None) -> dict:
+                    pages_totales=None, qualite_image=None) -> dict:
     return {
         "version_schema": 1, "source": source, "type_source": type_source, "pages": pages,
         "date_conversion": date_iso(), "outil": f"ocr-md {__version__}", "moteur_md": moteur_md,
@@ -81,6 +81,8 @@ def champs_document(*, source: str, type_source: str, pages, moteur_md: str, mot
         "origine_texte": origine, "pages_couche_existante": sorted(pages_couche_existante),
         "motifs_douteux": list(motifs) if pages_douteuses else [],
         "pages_recuperees": pages_recuperees, "pages_totales": pages_totales,
+        # Information secondaire (recette du 27/11/2026) : présente si l'outil a reconnu des pages.
+        "qualite_image": qualite_image,
     }
 
 
@@ -203,6 +205,18 @@ def _cellule(texte: str) -> str:
     return " ".join(texte.split()).replace("|", "\\|")
 
 
+def source_sur_disque(parent: pathlib.Path, relatif: str) -> pathlib.Path:
+    """Chemin à passer à l'outil pour retraiter une pièce : la pièce elle-même, ou, pour un
+    fichier contenu dans une archive (« dossier/nom.zip/... »), l'archive."""
+    parties = relatif.split("/")
+    for i in range(1, len(parties)):
+        if parties[i - 1].lower().endswith(".zip"):
+            candidat = parent.joinpath(*parties[:i])
+            if candidat.is_file():
+                return candidat
+    return parent / relatif
+
+
 def contenu_avertissements(lignes, parent: pathlib.Path) -> str:
     """Contenu de `_AVERTISSEMENTS.md` (section 11.5) d'après les lignes du rapport."""
     lignes = sorted(lignes, key=lambda l: l.chemin_relatif.casefold())
@@ -225,7 +239,8 @@ def contenu_avertissements(lignes, parent: pathlib.Path) -> str:
                           f"{_cellule(l.origine_texte)} | {_cellule(' '.join(l.motif_douteux))} |")
         sortie += ["", "Pour refaire la reconnaissance des pages douteuses d'une pièce :",
                    '`ocr-md --refaire-ocr "<chemin complet de la pièce d\'origine>"`', "", "Soit, pour ce dossier :", ""]
-        sortie += [f'- `ocr-md --refaire-ocr "{parent / l.chemin_relatif}"`' for l in douteuses]
+        commandes = dict.fromkeys(source_sur_disque(parent, l.chemin_relatif) for l in douteuses)
+        sortie += [f'- `ocr-md --refaire-ocr "{c}"`' for c in commandes]
     else:
         sortie.append("Aucune.")
     sortie += ["", "## Pièces non converties (format non pris en charge)", ""]

@@ -34,7 +34,8 @@
       "image_faible_qualite", "pdf_repare"
     ]}},
     "pages_recuperees": {"type": "integer", "minimum": 1},
-    "pages_totales": {"type": "integer", "minimum": 1}
+    "pages_totales": {"type": "integer", "minimum": 1},
+    "qualite_image": {"enum": ["bonne", "mediocre"]}
   },
   "$defs": {
     "pages": {"type": "array", "items": {"type": "integer", "minimum": 1}, "uniqueItems": true}

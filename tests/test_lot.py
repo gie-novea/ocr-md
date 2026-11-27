@@ -202,7 +202,7 @@ def test_types_signatures_et_formats_non_pris_en_charge(jeu_de_test, tmp_path, p
     assert {l["statut"] for l in lignes.values()} == {"non_pris_en_charge"}
     assert lignes["non_pris_en_charge/ancien.doc"]["message"].startswith("ancien format Office")
     assert lignes["non_pris_en_charge/courriel.msg"]["message"].startswith("e-mail non pris en charge")
-    assert lignes["non_pris_en_charge/archive.zip"]["message"] == "format non pris en charge"
+    assert lignes["non_pris_en_charge/archive.rar"]["message"] == "format non pris en charge"
     assert not list((tmp_path / "P" / "_OCR" / "non_pris_en_charge").glob("*")) if (tmp_path / "P" / "_OCR" / "non_pris_en_charge").exists() else True
     code, t, _ = lancer(parametres, tmp_path / "P" / "erreurs", tmp_path / "P" / "images")
     lignes = {l["chemin_relatif"]: l for l in lignes_csv(tmp_path / "P" / "_OCR")}
@@ -479,7 +479,7 @@ def test_format_du_rapport(tmp_path, parametres):
     brut = (tmp_path / "P" / "_OCR" / rapport.NOM_RAPPORT).read_bytes()
     assert brut.startswith(b"\xef\xbb\xbf") and b"\r\n" in brut and b"\n" not in brut.replace(b"\r\n", b"")
     lignes = lignes_csv(tmp_path / "P" / "_OCR")
-    assert list(lignes[0].keys()) == list(rapport.COLONNES) and len(rapport.COLONNES) == 16
+    assert list(lignes[0].keys()) == list(rapport.COLONNES) and len(rapport.COLONNES) == 17
     assert lignes[0]["chemin_relatif"] == "D/Offre; « finale ».pdf"
     assert "," in lignes[0]["duree_s"] or lignes[0]["duree_s"] == "0,0"
     assert lignes[1]["sorties"] == "Simple.pdf | Simple.pdf.md"
@@ -528,3 +528,14 @@ def test_integrite_des_originaux(jeu_de_test, tmp_path, parametres, options):
     # seuls les dossiers _OCR sont créés, dans le parent et dans aucun dossier source
     assert [p.name for p in (tmp_path / "P").iterdir()] == ["_OCR", "jeu"] or \
         sorted(p.name for p in (tmp_path / "P").iterdir()) == ["_OCR", "jeu"]
+
+
+@pytest.mark.exigence("EX-16")
+def test_bilan_de_relance_compte_les_fichiers_a_jour_selon_leur_statut():
+    """Recette du 27/11/2026 : à la relance, un fichier douteux ignoré car à jour reste
+    compté parmi les signalés, d'après sa ligne du rapport."""
+    lignes = [rapport.LigneRapport("a.pdf", "pdf", statut="douteux", action="ignore_a_jour"),
+              rapport.LigneRapport("b.pdf", "pdf", statut="natif", action="ignore_a_jour", sorties=("b.pdf",)),
+              rapport.LigneRapport("c.doc", "autre", statut="non_pris_en_charge"),
+              rapport.LigneRapport("d.pdf", "pdf", statut="ocrise", sorties=("d.pdf",))]
+    assert rapport.bilan(lignes) == {"traites": 1, "signales": 2, "erreurs": 0, "ignores_a_jour": 2, "annules": 0}

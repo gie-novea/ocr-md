@@ -7,6 +7,8 @@ le front matter et les avertissements arrivent au jalon 7.
 """
 
 import dataclasses
+import io
+import logging
 import math
 import os
 import pathlib
@@ -39,16 +41,61 @@ class InfoPdf:
     signe: bool
     repare: bool
     pages_avec_contenu: int
+    par_pypdf: bool = False  # MuPDF n'a pas su l'ouvrir : pages récupérées par pypdf
 
     @property
     def partiellement_recupere(self) -> bool:
-        """PDF réparé à l'ouverture dont une partie seulement des pages a un contenu."""
-        return self.repare and self.pages_avec_contenu < self.pages
+        """PDF réparé à l'ouverture dont une partie seulement des pages a un contenu, ou PDF
+        dont les pages ont été récupérées par pypdf (toujours signalé)."""
+        return self.repare and (self.par_pypdf or self.pages_avec_contenu < self.pages)
 
 
 def message_repare(info: "InfoPdf") -> str:
-    return (f"PDF endommagé et réparé : {info.pages_avec_contenu} pages sur {info.pages} récupérées, "
+    par = " par pypdf" if info.par_pypdf else ""
+    return (f"PDF endommagé et réparé : {info.pages_avec_contenu} pages sur {info.pages} récupérées{par}, "
             "contenu possiblement incomplet")
+
+
+def recuperer_par_pypdf(chemin: pathlib.Path):
+    """Dernier recours pour un PDF que MuPDF juge endommagé (recette du 27/11/2026) : pypdf,
+    en mode tolérant, relit l'arbre des pages et recopie chaque page lisible dans un PDF neuf,
+    ouvert ensuite par MuPDF. Une page illisible devient une page blanche (la numérotation est
+    conservée). Renvoie (document, InfoPdf) ou None si rien n'est récupérable."""
+    import pypdf
+    logging.getLogger("pypdf").setLevel(logging.CRITICAL)  # avertissements de lecture : hors console
+    try:
+        with open(chemin_systeme(chemin), "rb") as f:
+            lecteur = pypdf.PdfReader(io.BytesIO(f.read()), strict=False)
+        if lecteur.is_encrypted:
+            return None
+        total = len(lecteur.pages)
+    except Exception:
+        return None
+    ecrivain = pypdf.PdfWriter()
+    recopiees = 0
+    for i in range(total):
+        try:
+            ecrivain.add_page(lecteur.pages[i])
+            recopiees += 1
+        except Exception:
+            ecrivain.add_blank_page(595, 842)
+    if not recopiees:
+        return None
+    try:
+        tampon = io.BytesIO()
+        ecrivain.write(tampon)
+        doc = pymupdf.open(stream=tampon.getvalue(), filetype="pdf")
+    except Exception:
+        return None
+    try:
+        avec_contenu = sum(1 for page in doc if not _page_vide(page))
+    except Exception:
+        doc.close()
+        return None
+    if not avec_contenu:
+        doc.close()
+        return None
+    return doc, InfoPdf(doc.page_count, False, True, avec_contenu, par_pypdf=True)
 
 
 def _page_vide(page) -> bool:
@@ -210,7 +257,22 @@ class Traitement:
     motifs: dict                      # page douteuse -> motifs
     refaites: list                    # pages dont l'OCR a été refait (EX-39)
     durees: dict
-    causes_image: dict = dataclasses.field(default_factory=dict)  # page -> causes de image_faible_qualite
+    images: dict = dataclasses.field(default_factory=dict)  # page reconnue -> qualite.VerdictImage
+
+    @property
+    def causes_image(self) -> dict:
+        """Pages douteuses par l'image (motif image_faible_qualite) -> causes en clair."""
+        return {n: list(v.causes) for n, v in self.images.items() if v.douteuse}
+
+    @property
+    def qualite_image(self) -> str | None:
+        """« mediocre » si au moins une page reconnue a une image médiocre, « bonne » sinon ;
+        None si l'outil n'a reconnu aucune page."""
+        if not self.images:
+            return None
+        if any(v.niveau == qualite.IMAGE_MEDIOCRE for v in self.images.values()):
+            return qualite.IMAGE_MEDIOCRE
+        return qualite.IMAGE_BONNE
 
 
 def _ecart_type_page(page) -> float:
@@ -219,7 +281,7 @@ def _ecart_type_page(page) -> float:
 
 
 def evaluer_page(page, texte: str, ctx, lexique, resume: ResumeOcr | None = None,
-                 causes_image: dict | None = None) -> list[str]:
+                 images: dict | None = None) -> list[str]:
     """Verdict d'une page (EX-35, EX-36) : liste des motifs, vide si la page est bonne.
     Seuls des nombres sont journalisés."""
     p = ctx.parametres
@@ -235,16 +297,18 @@ def evaluer_page(page, texte: str, ctx, lexique, resume: ResumeOcr | None = None
         if not resume.caracteres and non_blanche:
             motifs.insert(0, "aucun_texte_reconnu")
         motifs += qualite.motifs_confiance(resume.confiance_moyenne, resume.part_confiance_basse, p)
-        causes = qualite.causes_image(resume.qualite_image, p)
-        if causes:
-            motifs.append(qualite.MOTIF_IMAGE)
-            if causes_image is not None:
-                causes_image[page.number + 1] = causes
         q = resume.qualite_image
-        if q is not None:
+        v = qualite.verdict_image(q, ind, p, origine)
+        if v is not None:
+            if v.douteuse:
+                motifs.append(qualite.MOTIF_IMAGE)
+            if images is not None:
+                images[page.number + 1] = v
+            # Format relu par tests/recalibrage.py : ne pas le modifier sans adapter le script.
             ctx.journal.info(f"{ctx.element.relatif} : page {page.number + 1} : image : résolution "
                              f"{q.resolution_dpi} dpi, part de gris {q.part_gris}, contraste {q.contraste}, "
-                             f"bruit {q.bruit}" + (f" : {', '.join(causes)}" if causes else ""))
+                             f"bruit {q.bruit} : {v.niveau}" + (f" ({', '.join(v.causes)})" if v.causes else "")
+                             + (" : douteuse par l'image" if v.douteuse else ""))
     confiance = "" if resume is None or resume.confiance_moyenne is None else f", confiance {resume.confiance_moyenne:.2f}"
     ctx.journal.info(
         f"{ctx.element.relatif} : page {page.number + 1} : mots {ind.mots}, évaluables {ind.mots_evaluables}, "
@@ -297,7 +361,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
     refaites = sorted(pages_a_refaire(ctx.options, categories, motifs, ctx.journal, ctx.element.relatif))
     a_reconnaitre = sorted({n for n, c in categories.items() if c == "image"} | set(refaites))
     pages_ocr = []
-    causes_image: dict = {}
+    verdicts_image: dict = {}
     durees = {"rendu": 0.0, "ocr": 0.0, "calque": 0.0}
     for numero in a_reconnaitre:
         ctx.verifier_arret()
@@ -330,7 +394,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
         durees["calque"] += t3 - t2
         resume = resumer(resultat, p.confiance_basse, ecart, mesure_image)
         del resultat
-        m = evaluer_page(page, resume.texte, ctx, lexique, resume, causes_image)
+        m = evaluer_page(page, resume.texte, ctx, lexique, resume, verdicts_image)
         if m:
             motifs[numero] = m
         categories[numero] = "ocr"
@@ -344,7 +408,7 @@ def reconnaitre_pages(doc, ctx) -> Traitement:
                          f"{durees['rendu'] / n:.3f} s, reconnaissance {durees['ocr'] / n:.3f} s, "
                          f"calque {durees['calque'] / n:.3f} s")
     finales = [categories[n] for n in sorted(categories)]
-    return Traitement(analyses, finales, pages_ocr, motifs, refaites, durees, causes_image)
+    return Traitement(analyses, finales, pages_ocr, motifs, refaites, durees, verdicts_image)
 
 
 def dossier_temporaire_processus() -> pathlib.Path:
@@ -366,12 +430,22 @@ class TraiteurPdf(Traiteur):
     type_source = "pdf"
 
     def ouvrir_document(self, ctx):
-        doc = ouvrir(ctx.element.source)
         try:
-            info = controler_document(doc)
-        except ErreurFichier:
-            doc.close()
-            raise
+            doc = ouvrir(ctx.element.source)
+            try:
+                info = controler_document(doc)
+            except ErreurFichier:
+                doc.close()
+                raise
+        except ErreurFichier as e:
+            if str(e) != MESSAGE_ENDOMMAGE:
+                raise
+            recupere = recuperer_par_pypdf(ctx.element.source)
+            if recupere is None:
+                raise
+            ctx.journal.info(f"{ctx.element.relatif} : PDF illisible par MuPDF, {recupere[1].pages_avec_contenu} "
+                             f"page(s) sur {recupere[1].pages} récupérée(s) par pypdf")
+            return recupere
         if info.repare:
             sain = reconstruire(doc, ctx.parametres.ocr_dpi)
             doc.close()
@@ -395,9 +469,10 @@ class TraiteurPdf(Traiteur):
                 messages.append(message_repare(info))
             if info is not None and info.signe:
                 messages.append(MESSAGE_SIGNE)
-            if t.causes_image:  # motif image_faible_qualite : causes en clair au rapport
+            causes = t.causes_image
+            if causes:  # motif image_faible_qualite : causes en clair au rapport
                 messages.append("image de faible qualité : " + " ; ".join(
-                    f"page {n} ({', '.join(c)})" for n, c in sorted(t.causes_image.items())))
+                    f"page {n} ({', '.join(c)})" for n, c in sorted(causes.items())))
             statut = analyse_pdf.statut(t.categories_finales, douteuses)
             origine = analyse_pdf.origine(t.categories_finales)
             moteur_nom = ctx.moteur.nom_si_utilise() if t.pages_ocr else "aucun"
@@ -415,7 +490,7 @@ class TraiteurPdf(Traiteur):
                 moteur_md=f"pymupdf4llm {_version('pymupdf4llm')}", moteur_ocr=moteur_nom, pages_ocr=t.pages_ocr,
                 pages_douteuses=douteuses, origine=origine, pages_couche_existante=couche, motifs=motifs,
                 pages_recuperees=info.pages_avec_contenu if repare else None,
-                pages_totales=info.pages if repare else None)
+                pages_totales=info.pages if repare else None, qualite_image=t.qualite_image)
             entete = {
                 "champs": champs,
                 "pages_couche_douteuses": [] if repare else [n for n in douteuses if n in couche],
@@ -430,7 +505,8 @@ class TraiteurPdf(Traiteur):
                                  f"reconnaissance pour les pages {adaptateur.appels}")
             return ResultatTraitement(statut, pages=doc.page_count, pages_ocr=tuple(t.pages_ocr),
                                       pages_douteuses=tuple(douteuses), motifs=tuple(motifs), origine=origine,
-                                      pages_texte_simple=tuple(repli), message=" ; ".join(messages))
+                                      pages_texte_simple=tuple(repli), qualite_image=t.qualite_image or "",
+                                      message=" ; ".join(messages))
         finally:
             doc.close()
 

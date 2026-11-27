@@ -190,11 +190,12 @@ def motifs_confiance(confiance_moyenne, part_confiance_basse, p) -> list[str]:
 
 
 # ------------------------------------------------------------------------------ qualité de l'image
-# Indicateur `qualite_image` (EX-35, décision du commanditaire du 27/11/2026) : calculé sur
-# l'image de la page transmise au moteur, avant l'OCR, donc indépendant du moteur. Il repère
-# la dégradation moyenne (scan basse résolution, flou, tampon, photocopie) que les indicateurs
-# lexicaux ne voient pas, en particulier sous Apple Vision. Pillow seul, calcul sur
-# l'histogramme des niveaux de gris.
+# Indicateur `qualite_image` (EX-35, décisions du commanditaire du 27/11/2026, revues en
+# recette le 27/11/2026) : calculé sur l'image de la page transmise au moteur, avant l'OCR,
+# donc indépendant du moteur. Pillow seul, calcul sur l'histogramme des niveaux de gris.
+# L'image seule ne rend la page douteuse qu'en cas de dégradation sévère ; une image
+# médiocre n'est qu'une information, sauf si le texte reconnu est lui aussi limite
+# (voir `verdict_image`).
 MOTIF_IMAGE = "image_faible_qualite"
 PART_ENCRE_MIN = 0.002  # en deçà, trop peu de trait pour juger la netteté et le contraste
 
@@ -246,7 +247,7 @@ def mesurer_image(image, resolution_dpi: int | None = None) -> QualiteImage:
 
 
 def causes_image(q: QualiteImage | None, p) -> list[str]:
-    """Causes du motif `image_faible_qualite`, en clair ; liste vide si l'image est bonne."""
+    """Causes d'une image médiocre, en clair ; liste vide si l'image est bonne."""
     if q is None:
         return []
     causes = []
@@ -259,3 +260,42 @@ def causes_image(q: QualiteImage | None, p) -> list[str]:
     if q.bruit > p.image_bruit_max:
         causes.append("image bruitée")
     return causes
+
+
+IMAGE_BONNE, IMAGE_MEDIOCRE = "bonne", "mediocre"
+
+
+def seuil_mots_inconnus_limite(p, origine: str) -> float:
+    """Seuil « limite » des mots inconnus pour une page reconnue par l'outil : au-delà, une
+    image médiocre rend la page douteuse (règle de recette, 27/11/2026)."""
+    return p.mots_inconnus_limite_vision if origine == "apple-vision" else p.mots_inconnus_limite_windows
+
+
+@dataclasses.dataclass(frozen=True)
+class VerdictImage:
+    niveau: str             # « bonne » ou « mediocre » (information secondaire, sans avertissement)
+    douteuse: bool          # l'image rend la page douteuse (motif image_faible_qualite)
+    causes: tuple[str, ...]  # causes en clair de l'image médiocre (et « texte reconnu limite »)
+
+
+def verdict_image(q: QualiteImage | None, ind: Indicateurs, p, origine: str) -> VerdictImage | None:
+    """Règle de qualite_image (recette du 27/11/2026) :
+    - l'image est « médiocre » dès qu'une mesure franchit son seuil (résolution, part de gris,
+      contraste, bruit) : information secondaire du front matter et du rapport, sans bloc
+      d'avertissement ;
+    - l'image seule ne rend la page douteuse qu'en cas de dégradation sévère : résolution
+      inférieure à `image_resolution_severe_dpi` ;
+    - sinon, une image médiocre ne rend la page douteuse que si le texte reconnu est lui aussi
+      limite : taux de mots inconnus supérieur au seuil limite du moteur, sur une page d'au
+      moins `mots_evaluables_min` mots évaluables.
+    None si la page n'a pas été reconnue par l'outil (pas d'image mesurée)."""
+    if q is None:
+        return None
+    causes = causes_image(q, p)
+    severe = q.resolution_dpi is not None and q.resolution_dpi < p.image_resolution_severe_dpi
+    limite = (ind.mots_evaluables >= p.mots_evaluables_min
+              and ind.taux_mots_inconnus > seuil_mots_inconnus_limite(p, origine))
+    douteuse = severe or (bool(causes) and limite)
+    if douteuse and limite and not severe:
+        causes = causes + ["texte reconnu limite"]
+    return VerdictImage(IMAGE_MEDIOCRE if causes or severe else IMAGE_BONNE, douteuse, tuple(causes))

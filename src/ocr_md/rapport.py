@@ -23,7 +23,8 @@ NOM_JOURNAL = "ocr_journal.log"
 TAILLE_MAX_JOURNAL = 5 * 1024 * 1024
 
 COLONNES = ("chemin_relatif", "type", "pages", "statut", "pages_ocr", "pages_douteuses", "motif_douteux",
-            "pages_texte_simple", "revisions_commentaires", "origine_texte", "sorties", "action", "duree_s", "date_traitement", "message", "version_outil")
+            "qualite_image", "pages_texte_simple", "revisions_commentaires", "origine_texte", "sorties", "action",
+            "duree_s", "date_traitement", "message", "version_outil")
 
 
 @dataclasses.dataclass
@@ -35,6 +36,7 @@ class LigneRapport:
     pages_ocr: tuple[int, ...] = ()
     pages_douteuses: tuple[int, ...] = ()
     motif_douteux: tuple[str, ...] = ()
+    qualite_image: str = ""  # pages reconnues par l'outil : « bonne » ou « mediocre » (information)
     pages_texte_simple: tuple[int, ...] = ()  # pages du Markdown reprises en texte simple (repli de PV-05)
     revisions_commentaires: str = ""  # .docx : « revisions », « commentaires=N » (EX-45, 11.6)
     origine_texte: str = ""
@@ -49,7 +51,8 @@ class LigneRapport:
         return [
             self.chemin_relatif, self.type, "" if self.pages is None else str(self.pages), self.statut,
             " ".join(map(str, self.pages_ocr)), " ".join(map(str, self.pages_douteuses)),
-            " ".join(self.motif_douteux), " ".join(map(str, self.pages_texte_simple)), self.revisions_commentaires, self.origine_texte, " | ".join(self.sorties), self.action,
+            " ".join(self.motif_douteux), self.qualite_image, " ".join(map(str, self.pages_texte_simple)),
+            self.revisions_commentaires, self.origine_texte, " | ".join(self.sorties), self.action,
             "" if self.duree_s is None else f"{self.duree_s:.1f}".replace(".", ","),
             self.date_traitement, " ".join(self.message.split()), self.version_outil,
         ]
@@ -62,7 +65,7 @@ class LigneRapport:
             chemin_relatif=valeurs["chemin_relatif"], type=valeurs["type"],
             pages=int(valeurs["pages"]) if valeurs["pages"] else None, statut=valeurs["statut"],
             pages_ocr=entiers(valeurs["pages_ocr"]), pages_douteuses=entiers(valeurs["pages_douteuses"]),
-            motif_douteux=tuple(valeurs["motif_douteux"].split()),
+            motif_douteux=tuple(valeurs["motif_douteux"].split()), qualite_image=valeurs["qualite_image"],
             pages_texte_simple=entiers(valeurs["pages_texte_simple"]),
             revisions_commentaires=valeurs["revisions_commentaires"], origine_texte=valeurs["origine_texte"],
             sorties=tuple(s for s in valeurs["sorties"].split(" | ") if s), action=valeurs["action"],
@@ -107,14 +110,19 @@ def ecrire(dossier_ocr: pathlib.Path, lignes: dict[str, LigneRapport], tentative
 
 
 def bilan(lignes) -> dict[str, int]:
-    """Nombres de la fenêtre de fin, recalculés depuis les lignes du rapport (EX-16)."""
+    """Nombres de la fenêtre de fin et du journal, recalculés depuis les lignes du rapport des
+    fichiers du lancement (EX-16). Les fichiers signalés et en erreur sont comptés d'après le
+    statut de leur ligne, y compris pour les fichiers ignorés car à jour, dont la ligne garde
+    le statut du traitement précédent (recette du 27/11/2026) : une relance ne fait pas
+    disparaître un fichier douteux du bilan."""
     lignes = list(lignes)
     traitees = [l for l in lignes if l.action == "traite"]
+    comptees = [l for l in lignes if l.action in ("traite", "ignore_a_jour")]
     return {
         "traites": sum(1 for l in traitees if l.statut not in ("erreur", "non_pris_en_charge")),
-        "signales": sum(1 for l in traitees if l.statut in ("douteux", "non_pris_en_charge")
+        "signales": sum(1 for l in comptees if l.statut in ("douteux", "non_pris_en_charge")
                         or (l.statut == "natif" and not l.sorties and l.message)),
-        "erreurs": sum(1 for l in traitees if l.statut == "erreur"),
+        "erreurs": sum(1 for l in comptees if l.statut == "erreur"),
         "ignores_a_jour": sum(1 for l in lignes if l.action == "ignore_a_jour"),
         "annules": sum(1 for l in lignes if l.action == "annule"),
     }

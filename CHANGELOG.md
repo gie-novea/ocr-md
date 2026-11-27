@@ -1,5 +1,26 @@
 # Journal des modifications
 
+## [1.0.0rc2] : en préparation, après la recette du 27/11/2026
+
+Seconde version candidate, non étiquetée : l'étiquette `v1.0.0-rc2` sera créée après le retour de la vérité terrain du commanditaire et le recalibrage des seuils. Les scripts d'installation et les guides désignent encore `v1.0.0-rc1`.
+
+### Ajouts
+- Archives .zip (EX-83) : extraction dans un dossier de travail du profil, jamais dans la source ; sorties dans `_OCR/…/nom.zip/…` ; garde-fous (taille décompressée bornée par `archive_taille_max_mo`, un niveau d'imbrication, noms cp850 sans indicateur UTF-8, chemins neutralisés, archives et fichiers chiffrés signalés `non_pris_en_charge`) ; fichier 22 du jeu de test.
+- Classeurs .xlsm, lus comme des .xlsx (macros ignorées, jamais exécutées) ; fichier 8b du jeu de test.
+- PDF que MuPDF juge endommagé : récupération des pages par pypdf avant de conclure à l'erreur (motif `pdf_repare`).
+- Information secondaire `qualite_image` (`bonne` ou `mediocre`) au front matter et en colonne du rapport (17 colonnes).
+- `tests/recalibrage.py` : gabarit CSV de vérité terrain prérempli depuis le journal, recalibrage des seuils de l'image et du texte sur ce gabarit ; gabarit vide `docs/gabarit-verite-terrain.csv`.
+- `tests/perf/ventiler.py` : ventilation du temps de conversion d'un PDF par étape.
+
+### Corrections
+- Règle de `qualite_image` : l'image seule ne rend une page douteuse qu'en dessous de 120 dpi (`image_resolution_severe_dpi`) ; une image médiocre ne le fait qu'avec un texte reconnu limite (`mots_inconnus_limite_windows` 0,10, `mots_inconnus_limite_vision` 0,055) ; résolution médiocre sous 200 dpi au lieu de 250. En recette, l'image seule signalait 494 pages sur 700 à tort.
+- Fenêtre de fin et journal à la relance : les fichiers signalés et en erreur sont comptés d'après le rapport, y compris les fichiers ignorés car à jour.
+- Tableaux natifs : détection par la méthode classique de PyMuPDF, sans relancer le modèle de mise en page déjà appliqué par PyMuPDF4LLM (environ 40 % de temps en moins sur un document riche en tableaux, mêmes tableaux sur le jeu de test).
+- Lanceurs Windows : `PSModulePath` vidé avant d'appeler Windows PowerShell, pour que l'installation fonctionne aussi lancée depuis PowerShell 7.
+
+### Écarts au cahier des charges
+Aucun : le cahier est mis à jour (EX-16, EX-18, EX-19, EX-21, EX-35, EX-76, EX-82, EX-83, section 7.1, section 11.1).
+
 ## [1.0.0rc1] : 27/11/2026, version candidate pour la recette
 
 Version candidate (étiquette `v1.0.0-rc1`, publiée en « pre-release »). La version 1.0.0 suivra la recette et le recalibrage des seuils (TM-08).

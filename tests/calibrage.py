@@ -82,7 +82,8 @@ def mesurer(dossier: pathlib.Path, moteur, p) -> list[dict]:
             origine = qualite.ORIGINE_COUCHE if a.categorie == "couche_existante" else moteur.nom
             motifs = (qualite.motifs_lexicaux(ind, p, non_blanche, origine)
                       + qualite.motifs_confiance(confiance, part_basse, p))
-            if qualite.causes_image(q, p):
+            v = qualite.verdict_image(q, ind, p, origine)
+            if v is not None and v.douteuse:
                 motifs.append(qualite.MOTIF_IMAGE)
             lignes.append({
                 "fichier": relatif, "page": a.numero, "categorie": a.categorie, "origine": origine,
@@ -90,7 +91,8 @@ def mesurer(dossier: pathlib.Path, moteur, p) -> list[dict]:
                 **{k: round(getattr(ind, k), 4) for k in INDICATEURS},
                 "confiance": None if confiance is None else round(confiance, 3),
                 "image": None if q is None else {"resolution_dpi": q.resolution_dpi, "part_gris": q.part_gris,
-                                                 "contraste": q.contraste, "bruit": q.bruit},
+                                                 "contraste": q.contraste, "bruit": q.bruit,
+                                                 "niveau": v.niveau},
                 "verdict": "douteuse" if motifs else "bonne", "motifs": motifs,
                 "attendu": None if not verite else ("douteuse" if a.numero in verite.get("pages_douteuses", []) else "bonne"),
             })

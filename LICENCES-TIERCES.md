@@ -31,6 +31,7 @@ Inventaire généré par `outils/documentation.py` à partir de `uv.lock` (dépe
 | pyobjc-framework-coreml | 13.1 | macOS | MIT | https://github.com/ronaldoussoren/pyobjc |
 | pyobjc-framework-quartz | 13.1 | macOS | MIT | https://github.com/ronaldoussoren/pyobjc |
 | pyobjc-framework-vision | 13.1 | macOS | MIT | https://github.com/ronaldoussoren/pyobjc |
+| pypdf | 7.2.0 | toutes | BSD-3-Clause | https://pypdf.readthedocs.io/en/latest/ |
 | pyreadline3 | 3.5.6 | Windows | BSD | https://github.com/pyreadline3/pyreadline3 |
 | python-docx | 1.2.0 | toutes | MIT | https://python-docx.readthedocs.org/en/latest/ |
 | python-pptx | 1.0.2 | toutes | MIT | https://python-pptx.readthedocs.io/en/latest/ |

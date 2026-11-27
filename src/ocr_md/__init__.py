@@ -3,7 +3,7 @@
 Copyright (C) 2026 GIE NOVEA. Logiciel libre sous licence GNU AGPL-3.0 (fichier LICENSE).
 """
 
-__version__ = "1.0.0rc1"
+__version__ = "1.0.0rc2"
 
 LICENCE = "GNU AGPL-3.0"
 # Adresse du code source correspondant à la version installée (EX-78). La source de

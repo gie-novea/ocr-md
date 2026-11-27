@@ -1,6 +1,6 @@
 [project]
 name = "ocr-md"
-version = "1.0.0rc1"
+version = "1.0.0rc2"
 description = "Rend lisibles les PDF scannés (OCR du système) et convertit PDF, images et fichiers Office en Markdown annoté pour l'analyse par IA."
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -17,6 +17,8 @@ dependencies = [
     # onnxruntime (mise en page) n'est plus publié pour macOS Intel au-delà de 1.23.2.
     "onnxruntime<1.24 ; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "pillow>=11",
+    # Récupération des pages d'un PDF que MuPDF ne sait pas ouvrir (recette du 28/11/2026).
+    "pypdf>=6",
     # Office (EX-45, REC-05) ; defusedxml protège openpyxl des XML piégés (repris de
     # l'outil existant).
     "python-docx>=1.1",

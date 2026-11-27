@@ -49,9 +49,14 @@ DEFINITIONS: tuple[Definition, ...] = (
     Definition("mots_inconnus_max_couche_existante", 0.35, "Part de mots absents du lexique au-delà de laquelle une page à couche OCR existante est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08)", 0, 1),
     Definition("mots_inconnus_max_windows", 0.35, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Windows.Media.Ocr est douteuse (valeur du cahier, dégradation grossière ; calibrage définitif en recette, TM-08)", 0, 1),
     Definition("mots_inconnus_max_vision", 0.21, "Part de mots absents du lexique au-delà de laquelle une page reconnue par Apple Vision est douteuse (milieu de l'écart mesuré sur la page illisible, sans correction linguistique ; calibrage définitif en recette, TM-08)", 0, 1),
-    # Qualité de l'image de la page, avant OCR, indépendante du moteur (EX-35, motif
-    # image_faible_qualite) : milieux des écarts du jeu de test, calibrage définitif en recette.
-    Definition("image_resolution_min_dpi", 250, "Résolution effective (dpi) de l'image d'une page au-dessous de laquelle la page est douteuse", 0, 2400),
+    # Qualité de l'image de la page, avant OCR, indépendante du moteur (EX-35) : l'image seule
+    # ne rend la page douteuse (motif image_faible_qualite) qu'en cas de dégradation sévère ;
+    # une image médiocre ne le fait que si le texte reconnu est aussi limite (recette du
+    # 27/11/2026, valeurs à recalibrer sur la vérité terrain du commanditaire).
+    Definition("image_resolution_severe_dpi", 120, "Résolution effective (dpi) de l'image d'une page au-dessous de laquelle la page est douteuse par l'image seule (dégradation sévère ; recette du 27/11/2026, à recalibrer)", 0, 2400),
+    Definition("mots_inconnus_limite_windows", 0.10, "Part de mots inconnus au-delà de laquelle le texte d'une page reconnue par Windows.Media.Ocr est limite : une image médiocre rend alors la page douteuse (entre les pages saines et les pages moyennement dégradées du jeu de test ; à recalibrer)", 0, 1),
+    Definition("mots_inconnus_limite_vision", 0.055, "Part de mots inconnus au-delà de laquelle le texte d'une page reconnue par Apple Vision est limite : une image médiocre rend alors la page douteuse (milieu de l'écart du jeu de test ; à recalibrer)", 0, 1),
+    Definition("image_resolution_min_dpi", 200, "Résolution effective (dpi) de l'image d'une page au-dessous de laquelle l'image est jugée médiocre (200 et 300 dpi, réglages courants des copieurs, sont bonnes ; à recalibrer)", 0, 2400),
     Definition("image_part_gris_max", 0.50, "Part du trait en gris intermédiaires au-delà de laquelle l'image est jugée floue ou grisée", 0, 1),
     Definition("image_contraste_min", 183, "Écart entre le papier et l'encre (niveaux de gris) au-dessous duquel le contraste est jugé faible (dégradation grossière seulement : milieu entre les pages saines et la page illisible)", 0, 255),
     Definition("image_bruit_max", 3.75, "Écart type des niveaux de gris du fond au-delà duquel l'image est jugée bruitée", 0, 255),
@@ -64,6 +69,8 @@ DEFINITIONS: tuple[Definition, ...] = (
     Definition("lexique_complementaire", [], "Mots ajoutés au lexique (sigles, vocabulaire métier)"),
     # Office (EX-45)
     Definition("xlsx_lignes_max", 2000, "Nombre de lignes par feuille au-delà duquel la feuille est tronquée", 1, 1048576),
+    # Archives .zip (recette du 27/11/2026)
+    Definition("archive_taille_max_mo", 2048, "Taille décompressée totale (Mo) au-delà de laquelle une archive .zip n'est pas extraite (signalée « non prise en charge »)", 1, 1048576),
     # Robustesse (EX-64, EX-65)
     Definition("delai_hydratation_s", 120, "Délai maximal de lecture d'un fichier non disponible localement (kDrive)", 1, 3600),
     Definition("tentatives_ecriture", 3, "Nouvelles tentatives d'écriture d'une sortie verrouillée", 0, 20),

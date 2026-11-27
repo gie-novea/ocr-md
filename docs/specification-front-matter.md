@@ -26,6 +26,7 @@ Le front matter est un bloc YAML délimité par deux lignes `---`, en tête de f
 | `motifs_douteux` | liste de chaînes | non | présents si `qualite_texte: douteuse` : noms des indicateurs déclencheurs, par exemple `[taux_mots_inconnus, confiance_ocr_faible]` ; `image_faible_qualite` pour une page reconnue par l'outil dont l'image est de faible qualité (EX-35) ; `pdf_repare` pour un PDF réparé à l'ouverture (EX-21) |
 | `pages_recuperees` | entier | non | présent seulement avec le motif `pdf_repare` : nombre de pages ayant un contenu après réparation (décision du commanditaire du 26/11/2026) |
 | `pages_totales` | entier | non | présent seulement avec le motif `pdf_repare` : nombre de pages du document réparé (décision du commanditaire du 26/11/2026) |
+| `qualite_image` | chaîne | non | présent si l'outil a reconnu des pages : `mediocre` dès qu'une page reconnue a une image médiocre (EX-35), `bonne` sinon. Information secondaire, sans incidence sur `qualite_texte` ni bloc d'avertissement (décision du commanditaire, recette du 27/11/2026) |
 
 Règles de cohérence : `pages_douteuses` est inclus dans l'ensemble des pages du document ; `pages_ocr` et `pages_couche_existante` sont disjoints ; `qualite_texte: bonne` équivaut à `pages_douteuses: []`.
 

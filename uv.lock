@@ -180,7 +180,7 @@ wheels = [
 
 [[package]]
 name = "ocr-md"
-version = "1.0.0rc1"
+version = "1.0.0rc2"
 source = { editable = "." }
 dependencies = [
     { name = "defusedxml" },
@@ -191,6 +191,7 @@ dependencies = [
     { name = "pymupdf" },
     { name = "pymupdf-layout" },
     { name = "pymupdf4llm" },
+    { name = "pypdf" },
     { name = "python-docx" },
     { name = "python-pptx" },
     { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
@@ -221,6 +222,7 @@ requires-dist = [
     { name = "pymupdf", specifier = "==1.28.2" },
     { name = "pymupdf-layout", specifier = "==1.28.2" },
     { name = "pymupdf4llm", specifier = "==1.28.2" },
+    { name = "pypdf", specifier = ">=6" },
     { name = "python-docx", specifier = ">=1.1" },
     { name = "python-pptx", specifier = ">=1.0" },
     { name = "winrt-runtime", marker = "sys_platform == 'win32'", specifier = ">=3" },
@@ -487,6 +489,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b1/a3/48fcee23de19fd05b1ae3c2e2654ec509ce8bb3641d773c7fef28697819d/pyobjc_framework_vision-13.1.tar.gz", hash = "sha256:e3a6697324f004f57c32c6449e360e1d15daa98dbca45f85f2e07f9c17fef593", size = 71066, upload-time = "2026-11-24T20:26:48.742Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/d5/922c0085a27897fce9d85bf300cd2acf4b8411999d68114db4c13113e5f2/pyobjc_framework_vision-13.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:f122e8fe9ae25b1b727c2deb0e89165d4736644936a9b35e2be106484c5fd8b4", size = 14750, upload-time = "2026-11-24T20:24:26.026Z" },
+]
+
+[[package]]
+name = "pypdf"
+version = "7.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/7b/5dff016bef001c3556c5fdd7645ec80251b78bb496b049d2ab9ec497b087/pypdf-7.2.0.tar.gz", hash = "sha256:b2c637b6f0be3def1f762fd8be20118736bafdffc75badab80db003d7a9ed110", size = 7253070, upload-time = "2026-11-26T15:38:53.825Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/b5/36b52010264f40f35fcd469f62586c0d88753c16682f2e156c42347f884b/pypdf-7.2.0-py3-none-any.whl", hash = "sha256:5edb9b033dd55cecead9303370e6854c1a3b979669bde1c46024cde0228405b1", size = 428449, upload-time = "2026-11-26T15:38:52.262Z" },
 ]
 
 [[package]]

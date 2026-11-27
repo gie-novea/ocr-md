@@ -98,8 +98,11 @@ Plateformes : toutes. Lot anonymisé ou non confidentiel.
 3. ☐ Mémoire vive des Mac du parc : relever pour chaque modèle si elle est de 8 Go ou plus (la mémoire maximale de l'outil atteint 0,7 Go sur le lot type ; un Mac à 8 Go reste confortable si peu d'applications sont ouvertes, un Mac à moins de 8 Go est à essayer en priorité).
    Modèles et mémoire : ……………………………………
 4. ☐ Relecture par sondage de 20 pages reconnues : texte conforme ; montants exacts.
-5. ☐ Faux positifs (pages saines signalées douteuses) et faux négatifs (pages fausses non signalées) : relevés page par page avec le motif. Priorité : seuils de confiance de Vision, de résolution de l'image (scans à 200 dpi), de bruit et de netteté, de mots inconnus.
-6. ☐ Calibrage : `uv run python tests/calibrage.py DOSSIER --moteur systeme` sur un dossier local des pages relues ; proposer les seuils ajustés au commanditaire (guide administrateur, section 9).
+5. ☐ Faux positifs (pages saines signalées douteuses) et faux négatifs (pages fausses non signalées) : relevés page par page avec le motif et la colonne `qualite_image` du rapport. Priorité : seuils de confiance de Vision, seuil sévère de résolution, seuils limites des mots inconnus.
+6. ☐ Vérité terrain et recalibrage (guide administrateur, section 9) : `uv run python tests/recalibrage.py gabarit "CHEMIN\_OCR" --nombre 20`, juger chaque page à l'œil (« correct », « erreurs ponctuelles », « mauvais »), puis `uv run python tests/recalibrage.py calibrer "CHEMIN\_OCR" verite-terrain.csv` ; transmettre au commanditaire les seuils proposés et le nombre d'erreurs avant et après (sans les noms de fichiers).
+7. ☐ Calibrage complémentaire : `uv run python tests/calibrage.py DOSSIER --moteur systeme` sur un dossier local des pages relues.
+8. ☐ Relance du lot sans modification : la fenêtre de fin compte les fichiers douteux déjà à jour parmi les signalés.
+9. ☐ Un pli fourni en archive .zip : contenu traité dans `_OCR/…/nom.zip/…`, rien d'écrit à côté de l'archive ; pour un PDF natif de 30 pages ou plus riche en tableaux, durée relevée et ventilée par `uv run python tests/perf/ventiler.py FICHIER.pdf` (aucun texte affiché).
 
 Constat : …………………………………………… Date : ………… Visa : …………
 

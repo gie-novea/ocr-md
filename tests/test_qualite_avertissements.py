@@ -325,3 +325,46 @@ def test_pages_moyennement_degradees_signalees_par_la_qualite_image(copie, param
     jsonschema.validate(champs, SCHEMA)
     assert "image_faible_qualite" in champs["motifs_douteux"]
     assert "scan dégradé" in " ".join(corps.split("\n\n")[0].replace(">", " ").split())
+
+
+@pytest.mark.exigence("EX-35")
+def test_regle_qualite_image_de_recette(parametres):
+    """Recette du 27/11/2026 : l'image seule ne rend la page douteuse qu'en dessous de
+    image_resolution_severe_dpi ; une image médiocre ne le fait qu'avec un texte limite."""
+    ind = qualite.Indicateurs(mots=200, mots_evaluables=100, taux_mots_inconnus=0.02)
+    limite = qualite.Indicateurs(mots=200, mots_evaluables=100, taux_mots_inconnus=0.15)
+    peu = qualite.Indicateurs(mots=20, mots_evaluables=10, taux_mots_inconnus=0.5)
+    nette, copieur = qualite.QualiteImage(300, 0.25, 255, 1.5), qualite.QualiteImage(150, 0.25, 255, 1.5)
+    tres_basse, floue = qualite.QualiteImage(100, 0.25, 255, 1.5), qualite.QualiteImage(300, 0.8, 255, 1.5)
+    w = "windows-media-ocr"
+    assert qualite.verdict_image(None, ind, parametres, w) is None
+    v = qualite.verdict_image(nette, limite, parametres, w)
+    assert (v.niveau, v.douteuse) == ("bonne", False)
+    assert qualite.verdict_image(qualite.QualiteImage(200, 0.25, 255, 1.5), ind, parametres, w).niveau == "bonne"
+    v = qualite.verdict_image(copieur, ind, parametres, w)
+    assert (v.niveau, v.douteuse, v.causes) == ("mediocre", False, ("résolution 150 dpi",))
+    v = qualite.verdict_image(floue, limite, parametres, w)
+    assert v.douteuse and v.causes == ("image floue ou trait grisé", "texte reconnu limite")
+    assert not qualite.verdict_image(floue, peu, parametres, w).douteuse  # trop peu de mots évaluables
+    assert qualite.verdict_image(tres_basse, ind, parametres, w).douteuse  # dégradation sévère
+    # seuil limite propre au moteur : 0,15 dépasse celui de Vision comme celui de Windows
+    vision = qualite.Indicateurs(mots=200, mots_evaluables=100, taux_mots_inconnus=0.07)
+    assert qualite.verdict_image(floue, vision, parametres, "apple-vision").douteuse
+    assert not qualite.verdict_image(floue, vision, parametres, w).douteuse
+
+
+@pytest.mark.exigence("EX-35", "EX-46", "EX-82")
+def test_qualite_image_au_front_matter_et_au_rapport(copie, parametres):
+    c, m = copie
+    lancer(parametres, moteur_de(m), "--sortie", "md", c / "pdf" / "21_moyennement_degrade.pdf",
+           c / "pdf" / "02_scanne.pdf", c / "pdf" / "01_natif.pdf")
+    lignes = rapport.lire(c / "pdf" / "_OCR")
+    assert lignes["21_moyennement_degrade.pdf"].qualite_image == "mediocre"
+    assert lignes["02_scanne.pdf"].qualite_image == "bonne"
+    assert lignes["01_natif.pdf"].qualite_image == ""
+    for nom, attendu in (("21_moyennement_degrade.pdf", "mediocre"), ("02_scanne.pdf", "bonne"), ("01_natif.pdf", None)):
+        champs, brut, _ = lire_md(c / "pdf" / "_OCR" / f"{nom}.md")
+        jsonschema.validate(champs, SCHEMA)
+        assert champs.get("qualite_image") == attendu
+        if attendu:
+            assert brut.rstrip().endswith(f"qualite_image: {attendu}")  # dernier champ (section 11.1)

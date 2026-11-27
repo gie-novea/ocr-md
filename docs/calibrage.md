@@ -20,6 +20,18 @@ Pages d'au moins 40 mots évaluables seulement.
 
 ## Qualité de l'image (`qualite_image`)
 
+**Règle revue en recette (27/11/2026).** Sur un lot réel de 700 pages reconnues, l'image seule rendait douteuses 494 pages dont le profil lexical était celui des pages bonnes (mots inconnus : médiane 0,015 contre 0,011 ; neuvième décile 0,068 contre 0,056). Décision du commanditaire : l'image médiocre devient une information secondaire (front matter et rapport, sans avertissement) ; l'image seule ne rend la page douteuse qu'en cas de dégradation sévère ; sinon, il faut aussi un texte limite. Règle proposée par Claude Code et appliquée :
+
+| Cas | Verdict | Seuils |
+|---|---|---|
+| résolution très faible | douteuse (`image_faible_qualite`) | `image_resolution_severe_dpi` = 120 (valeur de départ, à calibrer) |
+| image médiocre et texte limite (au moins 40 mots évaluables) | douteuse (`image_faible_qualite`, cause « texte reconnu limite ») | `mots_inconnus_limite_windows` = 0,10 ; `mots_inconnus_limite_vision` = 0,055 |
+| image médiocre seule | bonne ; `qualite_image: mediocre` | `image_resolution_min_dpi` = 200, `image_part_gris_max` = 0,50, `image_contraste_min` = 183, `image_bruit_max` = 3,75 |
+
+Seuils limites : entre les pages saines et les pages moyennement dégradées du jeu de test, qui ont toutes une image médiocre (part de gris). Sous `Windows.Media.Ocr`, les pages du fichier 21 ont 0,127, 0,136 et 0,500 de mots inconnus, et les pages saines du jeu 0,000 (scans synthétiques sans faute) : 0,10, placé au-dessus du neuvième décile des pages bonnes du lot de recette (0,056) plutôt qu'au milieu de l'écart synthétique (0,064). Sous Vision, l'écart est de 0,050 (page saine la plus défavorable) à 0,061 (page dégradée la plus favorable) : 0,055, valeur refusée comme seuil général le 27/11/2026, retenue ici parce qu'elle ne joue que sur une image déjà médiocre. Résolution : 200 dpi et plus sont bons (réglages courants des copieurs), 150 dpi est médiocre, sous 120 dpi la page est douteuse. Sur le jeu de test, la règle donne zéro erreur de verdict avec le moteur factice et `Windows.Media.Ocr` (vérification d'Apple Vision : intégration continue).
+
+Ces valeurs sont des valeurs de départ : elles sont à recalibrer sur la vérité terrain du commanditaire (une vingtaine de pages jugées à l'œil) avec `tests/recalibrage.py` (guide administrateur, section 9).
+
 Mesures sur l'image transmise au moteur (rendu à `ocr_dpi`, niveaux de gris), avant l'OCR :
 
 | Page | Résolution effective | Part de gris du trait | Contraste | Bruit du fond |
@@ -32,20 +44,20 @@ Mesures sur l'image transmise au moteur (rendu à `ocr_dpi`, niveaux de gris), a
 
 | Mesure | Page saine la plus défavorable | Page dégradée la plus proche au-delà | Seuil | Pages dégradées distinguées |
 |---|---|---|---|---|
-| résolution effective | 300 dpi | 200 dpi (fichier 21, p. 3) | `image_resolution_min_dpi` = 250 | fichier 21, p. 1 et 3 |
+| résolution effective | 300 dpi | 200 dpi (fichier 21, p. 3) | `image_resolution_min_dpi` = 200 (250 jusqu'à la recette) | fichier 21, p. 1 |
 | part de gris du trait | 0,344 (fichier 10, PNG) | 0,654 (fichier 21, p. 2) | `image_part_gris_max` = 0,50 | les quatre |
 | contraste | 255 | 111 (fichier 5, p. 2 : dégradation grossière seulement) | `image_contraste_min` = 183 | fichier 5, p. 2, fichier 21, p. 1 |
 | bruit du fond | 2,79 (fichier 2, p. 2) | 4,72 (fichier 21, p. 2) | `image_bruit_max` = 3,75 | les quatre |
 
 Écarts à la règle et points d'attention :
 - contraste : les pages saines synthétiques ont toutes un contraste maximal (papier blanc pur, encre noire pure) ; le milieu de l'écart brut (254,5) signalerait presque tout scan réel. Le seuil est pris entre les pages saines et la page illisible (dégradation grossière), les pages moyennement dégradées étant déjà distinguées par la part de gris et le bruit ;
-- résolution : un seuil de 250 dpi signale les scans à 200 dpi, réglage par défaut de nombreux copieurs ; à vérifier en priorité en recette ;
+- résolution : le seuil de 250 dpi signalait les scans à 200 dpi, réglage par défaut de nombreux copieurs ; ramené à 200 dpi (image médiocre au-dessous) et complété par le seuil sévère de 120 dpi (recette du 27/11/2026) ;
 - bruit et part de gris : mesurés sur des scans synthétiques (bruit gaussien, JPEG) ; à recalibrer sur des scans réels ;
 - netteté par la variance du laplacien (demandée) : mesurée, non retenue, car elle ne sépare pas les pages du jeu. Sans débruitage, la page illisible a la plus forte variance (le bruit la gonfle) ; rapportée à la quantité d'encre et après filtre médian, les pages saines vont de 31 à 42 et les pages dégradées de 13 à 278 (la page 1 du fichier 21, floue, est à 35, dans la plage des pages saines). La part de gris du trait la remplace pour la netteté.
 
 ## Confiance (Apple Vision)
 
-Seuil `confiance_moyenne_min` = 0,70 (cahier), conservé : dans l'écart entre la page illisible du fichier 5 (0,51 et 0,52) et les pages saines (0,79 au moins). Sa marge côté pages saines est étroite (0,787 sur la page 2 du fichier 18, Mac Intel) : prioritaire en recette (TM-08). Les pages moyennement dégradées du fichier 21 (0,70 à 0,79) ne sont pas séparées par la confiance ; elles le sont par `qualite_image`.
+Seuil `confiance_moyenne_min` = 0,70 (cahier), conservé : dans l'écart entre la page illisible du fichier 5 (0,51 et 0,52) et les pages saines (0,79 au moins). Sa marge côté pages saines est étroite (0,787 sur la page 2 du fichier 18, Mac Intel) : prioritaire en recette (TM-08). Les pages moyennement dégradées du fichier 21 (0,70 à 0,79) ne sont pas séparées par la confiance ; elles le sont par la règle de l'image (image médiocre et texte limite).
 
 ## Autres indicateurs
 

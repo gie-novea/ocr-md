@@ -14,7 +14,7 @@ Une fenêtre montre le fichier et la page en cours ; « Annuler » arrête propr
 
 [CAPTURE : fenêtre de progression, « Fichier 3 sur 12 : … », page en cours, bouton « Annuler »]
 
-**Où sont les résultats.** Dans un dossier `_OCR` créé à côté du dossier traité, qui reprend son arborescence. Les originaux ne sont jamais modifiés. Relancer l'outil ne retraite que les fichiers nouveaux ou modifiés.
+**Où sont les résultats.** Dans un dossier `_OCR` créé à côté du dossier traité, qui reprend son arborescence. Les originaux ne sont jamais modifiés. Relancer l'outil ne retraite que les fichiers nouveaux ou modifiés. Les archives .zip sont décompressées dans `_OCR` (jamais à côté de l'original) et leur contenu est traité comme les autres fichiers.
 
 **La fenêtre de fin** donne le nombre de fichiers traités, signalés, en erreur et déjà à jour, et un bouton « Ouvrir le dossier ». Elle reste ouverte tant qu'il y a quelque chose à lire.
 

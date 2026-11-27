@@ -4,7 +4,7 @@ Destiné au référent technique qui installe l'outil, le règle et traite les i
 
 ## 1. Ce que fait l'outil
 
-ocr-md rend lisibles les pièces d'un pli de candidature : il produit, dans un dossier `_OCR` placé à côté du dossier traité, un PDF consultable (texte sélectionnable et cherchable) et un Markdown destiné à une IA, avec un rapport (`ocr_rapport.csv`), un fichier d'avertissements (`_AVERTISSEMENTS.md`) et un journal (`ocr_journal.log`). La reconnaissance de caractères (OCR) utilise le moteur du système : `Windows.Media.Ocr` sous Windows, Apple Vision sous macOS. Aucun document ne quitte le poste : l'outil ne se connecte jamais au réseau pendant un traitement (EX-03).
+ocr-md rend lisibles les pièces d'un pli de candidature (PDF, images, .docx, .xlsx, .xlsm, .pptx, et le contenu des archives .zip) : il produit, dans un dossier `_OCR` placé à côté du dossier traité, un PDF consultable (texte sélectionnable et cherchable) et un Markdown destiné à une IA, avec un rapport (`ocr_rapport.csv`), un fichier d'avertissements (`_AVERTISSEMENTS.md`) et un journal (`ocr_journal.log`). La reconnaissance de caractères (OCR) utilise le moteur du système : `Windows.Media.Ocr` sous Windows, Apple Vision sous macOS. Aucun document ne quitte le poste : l'outil ne se connecte jamais au réseau pendant un traitement (EX-03).
 
 ## 2. Prérequis
 
@@ -113,7 +113,10 @@ Un paramètre inconnu ou une valeur hors bornes produit une erreur d'usage expli
 | `mots_inconnus_max_couche_existante` | 0,35 | 0 à 1 | Part de mots absents du lexique au-delà de laquelle une page à couche OCR existante est douteuse (valeur du cahier ; calibrage définitif en recette, TM-08) |
 | `mots_inconnus_max_windows` | 0,35 | 0 à 1 | Part de mots absents du lexique au-delà de laquelle une page reconnue par Windows.Media.Ocr est douteuse (valeur du cahier, dégradation grossière ; calibrage définitif en recette, TM-08) |
 | `mots_inconnus_max_vision` | 0,21 | 0 à 1 | Part de mots absents du lexique au-delà de laquelle une page reconnue par Apple Vision est douteuse (milieu de l'écart mesuré sur la page illisible, sans correction linguistique ; calibrage définitif en recette, TM-08) |
-| `image_resolution_min_dpi` | 250 | 0 à 2400 | Résolution effective (dpi) de l'image d'une page au-dessous de laquelle la page est douteuse |
+| `image_resolution_severe_dpi` | 120 | 0 à 2400 | Résolution effective (dpi) de l'image d'une page au-dessous de laquelle la page est douteuse par l'image seule (dégradation sévère ; recette du 27/11/2026, à recalibrer) |
+| `mots_inconnus_limite_windows` | 0,1 | 0 à 1 | Part de mots inconnus au-delà de laquelle le texte d'une page reconnue par Windows.Media.Ocr est limite : une image médiocre rend alors la page douteuse (entre les pages saines et les pages moyennement dégradées du jeu de test ; à recalibrer) |
+| `mots_inconnus_limite_vision` | 0,055 | 0 à 1 | Part de mots inconnus au-delà de laquelle le texte d'une page reconnue par Apple Vision est limite : une image médiocre rend alors la page douteuse (milieu de l'écart du jeu de test ; à recalibrer) |
+| `image_resolution_min_dpi` | 200 | 0 à 2400 | Résolution effective (dpi) de l'image d'une page au-dessous de laquelle l'image est jugée médiocre (200 et 300 dpi, réglages courants des copieurs, sont bonnes ; à recalibrer) |
 | `image_part_gris_max` | 0,5 | 0 à 1 | Part du trait en gris intermédiaires au-delà de laquelle l'image est jugée floue ou grisée |
 | `image_contraste_min` | 183 | 0 à 255 | Écart entre le papier et l'encre (niveaux de gris) au-dessous duquel le contraste est jugé faible (dégradation grossière seulement : milieu entre les pages saines et la page illisible) |
 | `image_bruit_max` | 3,75 | 0 à 255 | Écart type des niveaux de gris du fond au-delà duquel l'image est jugée bruitée |
@@ -125,6 +128,7 @@ Un paramètre inconnu ou une valeur hors bornes produit une erreur d'usage expli
 | `densite_max` | 60 | 0 à 10000 | Densité (caractères par cm²) au-delà de laquelle une page est douteuse |
 | `lexique_complementaire` | liste vide |  | Mots ajoutés au lexique (sigles, vocabulaire métier) |
 | `xlsx_lignes_max` | 2000 | 1 à 1048576 | Nombre de lignes par feuille au-delà duquel la feuille est tronquée |
+| `archive_taille_max_mo` | 2048 | 1 à 1048576 | Taille décompressée totale (Mo) au-delà de laquelle une archive .zip n'est pas extraite (signalée « non prise en charge ») |
 | `delai_hydratation_s` | 120 | 1 à 3600 | Délai maximal de lecture d'un fichier non disponible localement (kDrive) |
 | `tentatives_ecriture` | 3 | 0 à 20 | Nouvelles tentatives d'écriture d'une sortie verrouillée |
 | `intervalle_tentatives_s` | 1 | 0 à 60 | Intervalle entre deux tentatives d'écriture (proposition) |
@@ -138,7 +142,7 @@ Chaque page reconnue ou à couche OCR existante reçoit un verdict « bonne » o
 
 - lexicaux (mots inconnus, caractères aberrants, mots fragmentés, mélanges chiffres et lettres, densité) : ils visent la dégradation grossière ; le seuil des mots inconnus dépend de l'origine du texte (couche existante, Windows, Vision) ;
 - confiance (Apple Vision seulement) ;
-- qualité de l'image (`image_faible_qualite`, mesurée avant l'OCR, indépendante du moteur) : résolution, netteté du trait, contraste, bruit ; elle vise la dégradation moyenne (scan basse résolution, flou, tampon, photocopie).
+- qualité de l'image (`qualite_image`, mesurée avant l'OCR, indépendante du moteur) : résolution, netteté du trait, contraste, bruit. Une image médiocre n'est qu'une information (champ `qualite_image` du front matter, colonne du rapport), sans avertissement. L'image ne rend la page douteuse (motif `image_faible_qualite`) que si la résolution est très faible (sous `image_resolution_severe_dpi`, 120 dpi), ou si l'image est médiocre et que le texte reconnu est lui aussi limite (mots inconnus au-dessus de `mots_inconnus_limite_windows` ou `mots_inconnus_limite_vision`) (décision du commanditaire du 27/11/2026, après une recette où l'image seule signalait à tort la majorité des pages scannées).
 
 Les seuils par défaut sont les milieux des écarts mesurés sur le jeu de test synthétique ; tableau complet, méthode et points d'attention dans `docs/calibrage.md`. Ils sont à recalibrer en recette (TM-08) sur un dossier de documents réels, en local, avec :
 
@@ -146,7 +150,23 @@ Les seuils par défaut sont les milieux des écarts mesurés sur le jeu de test 
 uv run python tests/calibrage.py DOSSIER --moteur systeme
 ```
 
-(depuis une copie du dépôt ; le script n'écrit que des noms de fichiers, des numéros de page et des nombres). Seuils à vérifier en priorité : confiance de Vision (0,70 ; marge étroite côté pages saines), résolution minimale de l'image (250 dpi : les scans à 200 dpi, réglage courant des copieurs, sont signalés), bruit et netteté (mesurés sur des scans synthétiques).
+(depuis une copie du dépôt ; le script n'écrit que des noms de fichiers, des numéros de page et des nombres). Seuils à vérifier en priorité : confiance de Vision (0,70 ; marge étroite côté pages saines), seuils de l'image et seuils limites des mots inconnus.
+
+**Recalibrage sur une vérité terrain** (TM-08). Après un traitement de documents réels, le référent juge à l'œil une vingtaine de pages, puis le script `tests/recalibrage.py` propose les seuils :
+
+1. préparer le gabarit, prérempli d'un échantillon de pages tiré du journal (pages douteuses par l'image, images médiocres, pages bonnes, pages douteuses par le texte) :
+   ```
+   uv run python tests/recalibrage.py gabarit "CHEMIN\_OCR" --nombre 20 --sortie verite-terrain.csv
+   ```
+   Un gabarit vide est aussi fourni : `docs/gabarit-verite-terrain.csv` (colonnes `fichier`, `page`, `verdict`, séparateur point-virgule, ouvrable dans Excel) ;
+2. ouvrir chaque page dans le PDF d'origine et remplir la colonne `verdict` : « correct », « erreurs ponctuelles » ou « mauvais » ;
+3. calculer les seuils proposés :
+   ```
+   uv run python tests/recalibrage.py calibrer "CHEMIN\_OCR" verite-terrain.csv
+   ```
+   Le script affiche, page par page, les mesures, le jugement, le verdict actuel et le verdict proposé, le nombre d'erreurs avant et après, et un extrait de fichier de configuration TOML à reporter dans `config.toml` (section 8). « Erreurs ponctuelles » ne compte pas par défaut (`--ponctuelles bonne` ou `--ponctuelles douteuse` pour lui donner un sens) ; une page « mauvais » jugée bonne coûte deux fois une fausse alerte (`--poids-oubli`).
+
+Le journal et le gabarit rempli contiennent des noms de fichiers réels : ils restent sur le poste, hors du dépôt. Le journal ne garde pas la part de texte peu sûr d'Apple Vision : le recalibrage de la confiance s'appuie sur la seule confiance moyenne.
 
 ## 10. Diagnostic
 
@@ -177,10 +197,16 @@ Chaque message du rapport, de la fenêtre de fin ou de la ligne de commande, ave
 - « e-mail non pris en charge : enregistrer les pièces jointes et les traiter séparément ». Cause : .eml, .msg. Remède : celui du message.
 - « PDF protégé par mot de passe ». Cause : PDF chiffré. Remède : obtenir une version sans mot de passe auprès de l'expéditeur.
 - « PDF endommagé ». Cause : fichier tronqué ou corrompu, irrécupérable. Remède : demander une nouvelle copie.
-- « PDF endommagé et réparé : … ». Cause : PDF réparé à l'ouverture, des pages perdues ; le document est douteux. Remède : vérifier sur l'original ; demander une nouvelle copie si nécessaire.
+- « PDF endommagé et réparé : … ». Cause : PDF réparé à l'ouverture, des pages perdues, ou PDF que MuPDF ne sait pas ouvrir et dont les pages ont été récupérées par pypdf (« … récupérées par pypdf ») ; le document est douteux. Remède : vérifier sur l'original ; demander une nouvelle copie si nécessaire.
+- « archive chiffrée par mot de passe : l'extraire avec son mot de passe, puis traiter le dossier extrait ». Cause : archive .zip dont tous les fichiers sont chiffrés. Remède : celui du message.
+- « fichier chiffré par mot de passe dans l'archive : l'extraire avec son mot de passe, puis le traiter ». Cause : un fichier chiffré dans une archive par ailleurs lisible. Remède : celui du message.
+- « archive .zip endommagée ». Cause : archive tronquée, corrompue, ou qui annonce des tailles fausses (garde-fou contre les archives piégées). Remède : demander une nouvelle copie.
+- « archive trop volumineuse une fois décompressée (… Mo, maximum … Mo) : l'extraire, puis traiter le dossier extrait ». Cause : contenu au-delà de `archive_taille_max_mo`. Remède : celui du message, ou relever le paramètre (section 8).
+- « archive contenue dans une archive elle-même contenue dans une archive : l'extraire, puis traiter le dossier extrait ». Cause : troisième niveau d'archive (un seul niveau d'imbrication est extrait). Remède : celui du message.
+- « archive compressée par une méthode non prise en charge : l'extraire, puis traiter le dossier extrait ». Cause : méthode de compression que Python ne lit pas (Deflate64, par exemple). Remède : celui du message.
 - « la copie produite dans _OCR ne conserve pas la validité de la signature ; l'original signé reste la référence ». Cause : PDF signé électroniquement. Remède : aucun ; citer l'original pour toute question de signature.
 - « image illisible ou endommagée ». Cause : image corrompue ou format interne non lu. Remède : réenregistrer l'image (PNG ou JPEG).
-- « image de faible qualité : … ». Cause : page reconnue à partir d'une image de basse résolution, floue, peu contrastée ou bruitée (causes en clair, page par page) ; la page est douteuse. Remède : vérifier sur l'original ; demander un meilleur scan si la page compte.
+- « image de faible qualité : … ». Cause : page reconnue à partir d'une image de très basse résolution, ou d'une image médiocre (basse résolution, floue, peu contrastée ou bruitée) dont le texte reconnu est aussi limite (causes en clair, page par page) ; la page est douteuse. Remède : vérifier sur l'original ; demander un meilleur scan si la page compte.
 - « fichier Office protégé par mot de passe : l'enregistrer sans mot de passe dans son application, puis relancer ». Remède : celui du message.
 - « fichier Office endommagé ou illisible : l'ouvrir dans son application, l'enregistrer de nouveau, puis relancer ». Remède : celui du message ; le détail technique est au journal.
 - « pas de PDF consultable pour ce format : utiliser Convertir en Markdown ». Cause : fichier Office avec l'action « Rendre lisible (PDF) ». Remède : utiliser « Convertir en Markdown ».

@@ -16,7 +16,7 @@ import sys
 import threading
 import time
 
-from . import __version__, avertissements, correctifs, inventaire, ocr, plateforme, rapport, sorties
+from . import __version__, archives, avertissements, correctifs, inventaire, ocr, plateforme, rapport, sorties
 from .inventaire import ErreurFichier
 from .suivi import Suivi, SuiviConsole
 from .traiteurs import Annulation, Contexte, traiteurs_par_defaut
@@ -113,8 +113,8 @@ def executer(options, parametres, *, traiteurs=None, arret: threading.Event | No
     rang = 0
     try:
         for groupe in groupes:
-            rang = _traiter_groupe(groupe, options, parametres, traiteurs, arret, fournisseur, bilan, rang, total,
-                                   suivi)
+            rang, total = _traiter_groupe(groupe, options, parametres, traiteurs, arret, fournisseur, bilan, rang,
+                                          total, suivi)
     finally:
         shutil.rmtree(plateforme.dossier_temporaire() / f"processus-{os.getpid()}", ignore_errors=True)
     bilan.code = code_de_retour(bilan, fournisseur)
@@ -138,7 +138,8 @@ def code_de_retour(bilan, fournisseur) -> int:
     return ERREUR_FICHIER
 
 
-def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan, rang, total, suivi) -> int:
+def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan, rang, total,
+                    suivi) -> tuple[int, int]:
     dossier_ocr = groupe.dossier_ocr
     try:
         creer_dossier_ocr(dossier_ocr)
@@ -146,7 +147,7 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
         message = _message_parent_non_inscriptible(groupe.parent)
         bilan.messages.append(message)
         print(f"ocr-md : {message}", file=sys.stderr)
-        return rang + len(groupe.elements)
+        return rang + len(groupe.elements), total
     bilan.dossiers_ocr.append(dossier_ocr)
     nettoyes = sorties.nettoyer_temporaires(dossier_ocr)
     journal = rapport.Journal(dossier_ocr)
@@ -172,17 +173,42 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
             bilan.lignes.append(ligne)
         if groupe.introuvables:
             _ecrire_rapports(groupe, lignes, parametres)
-        for element in groupe.elements:
-            rang += 1
-            suivi.fichier(rang, total, element.relatif)
-            ligne = _traiter_element(element, lignes.get(element.relatif), options, parametres, traiteurs,
-                                     arret, moteur, journal, suivi=suivi)
+        etat = {"rang": rang, "total": total}
+        presents: set[str] = set()
+
+        def enregistrer(ligne):
             for avertissement in bilan.avertissements:
                 ligne.message = f"{ligne.message} ; {avertissement}" if ligne.message else avertissement
-            lignes[element.relatif] = ligne
+            lignes[ligne.chemin_relatif] = ligne
             bilan.lignes.append(ligne)
             _ecrire_rapports(groupe, lignes, parametres)
-        _signaler_sources_disparues(groupe, lignes, journal)
+
+        def traiter(element):
+            etat["rang"] += 1
+            suivi.fichier(etat["rang"], etat["total"], element.relatif)
+            presents.add(element.relatif)
+            if element.type != "zip":
+                enregistrer(_traiter_element(element, lignes.get(element.relatif), options, parametres, traiteurs,
+                                             arret, moteur, journal, suivi=suivi))
+                return
+            developpement, ligne = _developper_archive(element, lignes.get(element.relatif), parametres, arret,
+                                                       journal)
+            if ligne is not None:
+                enregistrer(ligne)
+                return
+            if lignes.pop(element.relatif, None) is not None:  # ligne d'un échec précédent de l'archive
+                _ecrire_rapports(groupe, lignes, parametres)
+            try:
+                etat["total"] += len(developpement.elements)
+                for contenu in developpement.elements:
+                    traiter(contenu)
+            finally:
+                developpement.nettoyer()
+
+        for element in groupe.elements:
+            traiter(element)
+        rang, total = etat["rang"], etat["total"]
+        _signaler_sources_disparues(groupe, lignes, journal, presents)
         b = rapport.bilan(l for l in bilan.lignes if l.chemin_relatif in lignes)
         journal.info(f"fin du lot : {b}")
         faites = [l for l in bilan.lignes if l.action == "traite" and l.duree_s and l.pages]
@@ -191,7 +217,7 @@ def _traiter_groupe(groupe, options, parametres, traiteurs, arret, moteur, bilan
             journal.info(f"débit : {pages} page(s) en {duree:.1f} s, soit {60 * pages / duree:.1f} pages par minute")
     finally:
         journal.fermer()
-    return rang
+    return rang, total
 
 
 def _ecrire_rapports(groupe, lignes, parametres) -> None:
@@ -201,13 +227,39 @@ def _ecrire_rapports(groupe, lignes, parametres) -> None:
                                          parametres.tentatives_ecriture, parametres.intervalle_tentatives_s)
 
 
-def _signaler_sources_disparues(groupe, lignes, journal) -> None:
-    presents = {e.relatif for e in groupe.elements}
+def _signaler_sources_disparues(groupe, lignes, journal, presents) -> None:
     for relatif in lignes:
         if relatif in presents:
             continue
         if not os.path.lexists(sorties.chemin_systeme(groupe.parent / relatif)):
             journal.info(f"source disparue, sorties conservées : {relatif}")
+
+
+def _developper_archive(element, precedente, parametres, arret, journal):
+    """Archive .zip : (développement, None) si son contenu est à traiter ; (None, ligne du
+    rapport) si l'archive est annulée, en erreur ou non prise en charge."""
+    if arret.is_set():
+        ligne = _ligne_precedente_ou_nouvelle(element, precedente)
+        ligne.action, ligne.message, ligne.duree_s = "annule", MESSAGE_ANNULE, None
+        return None, ligne
+    try:
+        inventaire.controler(element, parametres.delai_hydratation_s)
+        developpement = archives.developper(element, parametres.archive_taille_max_mo, element.profondeur)
+    except archives.NonPrisEnCharge as e:
+        journal.info(f"{element.relatif} : archive non prise en charge : {e}")
+        return None, rapport.LigneRapport(element.relatif, element.type, statut="non_pris_en_charge",
+                                          message=str(e), date_traitement=_maintenant())
+    except ErreurFichier as e:
+        journal.info(f"{element.relatif} : erreur : {e}")
+        return None, rapport.LigneRapport(element.relatif, element.type, statut="erreur", message=str(e),
+                                          date_traitement=_maintenant())
+    except Exception as e:  # EX-60
+        journal.erreur(element.relatif, e)
+        return None, rapport.LigneRapport(
+            element.relatif, element.type, statut="erreur", date_traitement=_maintenant(),
+            message=f"erreur inattendue ({type(e).__name__}) : détails dans {rapport.NOM_JOURNAL}")
+    journal.info(f"{element.relatif} : archive extraite hors de la source, {len(developpement.elements)} fichier(s)")
+    return developpement, None
 
 
 def _ligne_precedente_ou_nouvelle(element, precedente):
@@ -279,7 +331,7 @@ def _traiter_element(element, precedente, options, parametres, traiteurs, arret,
                  f"OCR {list(resultat.pages_ocr)}, douteuses {list(resultat.pages_douteuses)}, {duree:.1f} s")
     return rapport.LigneRapport(
         element.relatif, element.type, pages=resultat.pages, statut=resultat.statut, pages_ocr=resultat.pages_ocr,
-        pages_douteuses=resultat.pages_douteuses, motif_douteux=resultat.motifs,
+        pages_douteuses=resultat.pages_douteuses, motif_douteux=resultat.motifs, qualite_image=resultat.qualite_image,
         pages_texte_simple=resultat.pages_texte_simple,
         revisions_commentaires=resultat.revisions_commentaires, origine_texte=resultat.origine,
         sorties=tuple(noms), duree_s=duree, date_traitement=_maintenant(), message=resultat.message)

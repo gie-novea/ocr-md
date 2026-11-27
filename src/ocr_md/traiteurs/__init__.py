@@ -29,6 +29,7 @@ class ResultatTraitement:
     origine: str = ""
     pages_texte_simple: tuple[int, ...] = ()
     revisions_commentaires: str = ""
+    qualite_image: str = ""            # « bonne », « mediocre », ou vide si aucune page reconnue
     message: str = ""
 
 

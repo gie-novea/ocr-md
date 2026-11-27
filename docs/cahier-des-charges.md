@@ -5,7 +5,7 @@
 | Commanditaire | GIE NOVEA (Besançon) |
 | Premier utilisateur | SODEB (parc mixte Mac et PC Windows) |
 | Destinataire du document | Claude Code, qui développe l'outil à partir de ce seul document |
-| Version du cahier des charges | 1.0 du 26 novembre 2026 |
+| Version du cahier des charges | 1.0 du 26 novembre 2026, complétée par les décisions du commanditaire jusqu'à la recette du 27 novembre 2026 |
 | Nom de travail de l'outil | `ocr-md` (proposition du rédacteur ; le nom peut être changé sans incidence sur les exigences) |
 
 ## Conventions de lecture
@@ -239,8 +239,8 @@ Afin que les trois entrées restent groupées et identifiables dans des menus qu
 
 ### 4.2 Retour visuel
 
-**EX-16. Fenêtre de fin.** À la fin de chaque lancement par raccourci, l'outil doit afficher une fenêtre (ou, à défaut, une notification du système) indiquant : le nombre de fichiers traités, le nombre de fichiers signalés (douteux ou non pris en charge), le nombre de fichiers en erreur, le nombre de fichiers ignorés car à jour, et l'emplacement du ou des dossiers `_OCR`, avec un bouton « Ouvrir le dossier ». La fenêtre de fin ne se ferme pas seule lorsqu'il existe des fichiers signalés ou en erreur.
-- CA : test manuel TM-03 ; les nombres affichés sont égaux à ceux calculés depuis `ocr_rapport.csv`.
+**EX-16. Fenêtre de fin.** À la fin de chaque lancement par raccourci, l'outil doit afficher une fenêtre (ou, à défaut, une notification du système) indiquant : le nombre de fichiers traités, le nombre de fichiers signalés (douteux ou non pris en charge), le nombre de fichiers en erreur, le nombre de fichiers ignorés car à jour, et l'emplacement du ou des dossiers `_OCR`, avec un bouton « Ouvrir le dossier ». La fenêtre de fin ne se ferme pas seule lorsqu'il existe des fichiers signalés ou en erreur. Les fichiers signalés et en erreur sont comptés d'après le statut de leur ligne du rapport, y compris les fichiers ignorés car à jour, dont la ligne garde le statut du traitement précédent : une relance ne fait pas disparaître du bilan un fichier douteux ; le bilan du journal est calculé de la même façon (décision du commanditaire, recette du 27/11/2026).
+- CA : test manuel TM-03 ; les nombres affichés sont égaux à ceux calculés depuis `ocr_rapport.csv`, y compris à la relance d'un dossier dont des fichiers douteux sont à jour.
 
 **EX-17. Progression.** Pendant le traitement, l'outil doit afficher la progression : fichier en cours, rang du fichier sur le total, page en cours pendant l'OCR. Un bouton « Annuler » arrête proprement le lot après la page en cours : les sorties achevées sont conservées, aucune sortie partielle ne subsiste (EX-53), le rapport mentionne les fichiers non traités.
 - CA : test manuel TM-03 sur un lot de 20 fichiers ; test automatisé de l'annulation (signal d'arrêt injecté) vérifiant l'absence de fichier partiel et la cohérence du rapport.
@@ -255,7 +255,8 @@ Afin que les trois entrées restent groupées et identifiables dans des menus qu
 |---|---|---|---|
 | PDF | .pdf | oui | oui |
 | Image | .jpg, .jpeg, .png, .tif, .tiff (TIFF multipage compris) | oui | oui |
-| Office | .docx, .xlsx, .pptx | non | oui |
+| Office | .docx, .xlsx, .xlsm, .pptx (un .xlsm est lu comme un .xlsx : macros ignorées, jamais exécutées ; décision du commanditaire, recette du 27/11/2026) | non | oui |
+| Archive | .zip : contenu extrait hors de la source, puis traité selon le type de chaque fichier (EX-83) | selon le contenu | selon le contenu |
 
 Le type est déterminé par l'extension puis confirmé par la signature du fichier (premiers octets) ; en cas de désaccord (par exemple un .pdf qui n'en est pas un), le fichier est mis en `erreur` avec un message explicite.
 - CA : un test par extension, dont une extension en majuscules et un TIFF de trois pages ; un faux PDF (fichier texte renommé) est signalé en `erreur` avec le message « le contenu du fichier ne correspond pas à son extension ».
@@ -265,7 +266,7 @@ Le type est déterminé par l'extension puis confirmé par la signature du fichi
 - .eml, .msg : « e-mail non pris en charge : enregistrer les pièces jointes et les traiter séparément » ;
 - autres : « format non pris en charge ».
 Ces fichiers sont comptés dans les « signalés » de la fenêtre de fin et listés dans `_AVERTISSEMENTS.md` (section « Pièces non converties »), afin qu'une IA sache que le dossier `_OCR` est incomplet.
-- CA : test automatisé avec un .doc, un .msg et un .zip : trois lignes `non_pris_en_charge`, aucun fichier de sortie, mention dans `_AVERTISSEMENTS.md`, code de retour 0.
+- CA : test automatisé avec un .doc, un .msg et un .rar : trois lignes `non_pris_en_charge`, aucun fichier de sortie, mention dans `_AVERTISSEMENTS.md`, code de retour 0 (le .zip, traité depuis la recette du 27/11/2026, est remplacé par un .rar).
 
 **EX-20. Sortie demandée sans objet.** Lorsque la sortie demandée est `pdf` et que le fichier est un .docx, .xlsx ou .pptx, l'outil ne doit rien produire pour ce fichier et l'indiquer au rapport (statut `natif`, colonne `sorties` vide, message « pas de PDF consultable pour ce format : utiliser Convertir en Markdown »). Ce cas est compté dans les « signalés ».
 - CA : test automatisé.
@@ -273,7 +274,19 @@ Ces fichiers sont comptés dans les « signalés » de la fenêtre de fin et lis
 **EX-21. PDF protégés, endommagés ou signés.** Un PDF chiffré exigeant un mot de passe à l'ouverture, ou illisible, doit être mis en `erreur` avec un message clair (« PDF protégé par mot de passe », « PDF endommagé ») sans arrêter le lot. Un PDF portant une signature électronique est traité normalement ; le message du rapport précise « la copie produite dans _OCR ne conserve pas la validité de la signature ; l'original signé reste la référence ».
 
 **PDF réparé à l'ouverture** (décision du commanditaire du 26/11/2026). Un PDF endommagé que la bibliothèque répare à l'ouverture est traité ainsi : si aucune page ne contient plus de contenu (texte, image ou dessin), le fichier est en `erreur` avec le message « PDF endommagé » ; si au moins une page est récupérée, le fichier est traité normalement mais signalé : statut `douteux`, toutes ses pages dans `pages_douteuses` (le contenu peut être incomplet partout), motif `pdf_repare`, champs `pages_recuperees` et `pages_totales` du front matter (section 11.1), paragraphe C du bloc d'avertissement (section 11.3), mention dans `_AVERTISSEMENTS.md`, et message du rapport : « PDF endommagé et réparé : N pages sur M récupérées, contenu possiblement incomplet » (N : pages ayant un contenu, M : pages du document réparé). Le jeu de test comporte un PDF tronqué partiellement récupérable (fichier 13b).
+
+**Récupération par pypdf** (décision du commanditaire, recette du 27/11/2026). Avant de conclure à l'erreur « PDF endommagé », l'outil tente une récupération des pages par la bibliothèque `pypdf` (licence BSD), en mode tolérant : chaque page lisible est recopiée dans un PDF neuf, une page illisible devient une page blanche (la numérotation est conservée). Si au moins une page a un contenu, le fichier est traité et signalé comme un PDF réparé (motif `pdf_repare`, même si toutes les pages sont récupérées), avec le message « PDF endommagé et réparé : N pages sur M récupérées par pypdf, contenu possiblement incomplet » ; sinon, il reste en `erreur`.
+- CA : test automatisé avec un PDF dont l'arbre des pages annonce un nombre de pages faux (MuPDF n'y voit aucune page, pypdf les récupère) : statut `douteux`, motif `pdf_repare`, texte des pages présent dans le Markdown ; les PDF tronqués irrécupérables du jeu restent en `erreur`.
 - CA : tests automatisés avec un PDF chiffré, un PDF tronqué irrécupérable (`erreur`) et un PDF tronqué partiellement récupérable (`douteux`, motif `pdf_repare`, message du rapport conforme) ; À VÉRIFIER par Claude Code : la détection d'une signature avec PyMuPDF (champs de signature) ; à défaut, le message est omis et la limite est documentée dans le guide.
+
+**EX-83. Archives .zip** (décision du commanditaire, recette du 27/11/2026). Une archive .zip doit être extraite dans un dossier de travail temporaire du profil, jamais dans la source ni à côté d'elle, puis chacun de ses fichiers traité selon son type, comme un fichier ordinaire : ses sorties prennent place dans l'arborescence `_OCR`, sous un dossier portant le nom de l'archive (`_OCR/…/nom.zip/…`), et sa ligne du rapport porte le chemin `…/nom.zip/chemin dans l'archive`. Le dossier de travail est supprimé après le traitement de l'archive. La règle de relance (EX-52) compare les sorties à la date de l'archive. Pour une page douteuse d'un fichier d'archive, la commande de `_AVERTISSEMENTS.md` désigne l'archive. Garde-fous :
+- taille décompressée totale bornée par `archive_taille_max_mo` (2 048 Mo), contrôlée sur les tailles déclarées puis pendant l'extraction (une archive qui ment sur ses tailles est arrêtée et mise en `erreur`) ; au-delà : `non_pris_en_charge` ;
+- un seul niveau d'imbrication : une archive contenue dans une archive est extraite ; une archive contenue dans celle-ci ne l'est pas (`non_pris_en_charge`) ;
+- noms de fichiers sans l'indicateur UTF-8 : décodés en UTF-8 s'ils en forment, sinon en cp850 (archives de l'Explorateur de Windows en français) et non en cp437 ;
+- chemins absolus, remontées (« .. »), caractères interdits sous Windows, fichiers cachés et métadonnées du Finder (`__MACOSX`) neutralisés ou écartés ;
+- archive entièrement chiffrée : `non_pris_en_charge`, message « archive chiffrée par mot de passe : l'extraire avec son mot de passe, puis traiter le dossier extrait » ; fichier chiffré dans une archive qui ne l'est pas entièrement : sa propre ligne `non_pris_en_charge` ; méthode de compression non prise en charge : `non_pris_en_charge` ; archive illisible : `erreur` (« archive .zip endommagée »).
+Aucun fichier d'une archive n'est exécuté. Une archive extraite n'a pas de ligne propre dans le rapport ; une archive en erreur ou non prise en charge en a une (type `zip`).
+- CA : test automatisé sur le fichier 22 du jeu de test : source inchangée octet pour octet, sorties et lignes attendues, nom cp850 restitué, remontée et `__MACOSX` écartés, archive chiffrée, fichier chiffré et troisième niveau `non_pris_en_charge`, faux .zip en `erreur`, dossier de travail supprimé ; relance à jour puis retraitement après modification de l'archive ; archive dépassant la taille maximale ; archive mentant sur ses tailles.
 
 ### 4.4 Analyse des PDF page par page
 
@@ -343,7 +356,13 @@ Le PDF consultable d'un document reconnu par l'outil et de bonne qualité porte 
 - sur les deux plateformes, l'heuristique lexicale de EX-36 est appliquée en complément : une page est douteuse si l'un des deux contrôles le dit.
 Une page `image` pour laquelle le moteur ne renvoie aucun texte alors qu'elle n'est pas uniformément blanche (écart type des niveaux de gris supérieur à `page_blanche_ecart_type_max`) est marquée douteuse avec le motif `aucun_texte_reconnu`.
 
-**Qualité de l'image (`qualite_image`).** Pour chaque page reconnue par l'outil, l'image transmise au moteur est évaluée avant l'OCR, indépendamment du moteur, par quatre mesures calculées sur son histogramme de niveaux de gris (Pillow seul) : résolution effective de l'image d'origine de la page (pixels rapportés à la surface occupée, indépendante d'une rotation) ; netteté du trait (part du trait en gris intermédiaires : un trait net est surtout noir, un trait flou, pâle ou recouvert d'un tampon est surtout gris) ; contraste (niveau du papier moins niveau de l'encre) ; bruit (écart type des niveaux du fond). La page est douteuse avec le motif `image_faible_qualite` dès qu'une mesure franchit son seuil ; la cause est donnée en clair dans le message du rapport et au journal (« résolution 150 dpi », « image floue ou trait grisé », « contraste faible », « image bruitée »). Seuils par défaut (paramètres `image_resolution_min_dpi` 250, `image_part_gris_max` 0,50, `image_contraste_min` 183, `image_bruit_max` 3,75) : milieux des écarts mesurés sur le jeu de test entre les pages saines et les pages dégradées (fichiers 5 et 21) ; le contraste est limité à la dégradation grossière (écart avec la page illisible), les pages saines synthétiques ayant toutes un contraste maximal. La variance du laplacien, envisagée pour la netteté, ne sépare pas les pages du jeu (le bruit la gonfle et les pages peu encrées se confondent avec les pages floues) ; elle n'est pas retenue (décision du commanditaire du 27/11/2026 pour l'indicateur ; détail dans `docs/calibrage.md`). Les pages douteuses à ce titre portent le paragraphe B du bloc d'avertissement (section 11.3), qui mentionne le scan dégradé.
+**Qualité de l'image (`qualite_image`).** Pour chaque page reconnue par l'outil, l'image transmise au moteur est évaluée avant l'OCR, indépendamment du moteur, par quatre mesures calculées sur son histogramme de niveaux de gris (Pillow seul) : résolution effective de l'image d'origine de la page (pixels rapportés à la surface occupée, indépendante d'une rotation) ; netteté du trait (part du trait en gris intermédiaires : un trait net est surtout noir, un trait flou, pâle ou recouvert d'un tampon est surtout gris) ; contraste (niveau du papier moins niveau de l'encre) ; bruit (écart type des niveaux du fond). La variance du laplacien, envisagée pour la netteté, ne sépare pas les pages du jeu et n'est pas retenue (décision du commanditaire du 27/11/2026 ; détail dans `docs/calibrage.md`).
+
+Règle (décision du commanditaire, recette du 27/11/2026, après une recette sur 700 pages reconnues où l'image seule rendait douteuses 494 pages dont le profil lexical était celui des pages bonnes) :
+- l'image est **médiocre** dès qu'une mesure franchit son seuil : résolution inférieure à `image_resolution_min_dpi` (200 : les réglages courants des copieurs, 200 et 300 dpi, sont bons), part de gris supérieure à `image_part_gris_max` (0,50), contraste inférieur à `image_contraste_min` (183), bruit supérieur à `image_bruit_max` (3,75). Une image médiocre n'est qu'une **information secondaire** : champ `qualite_image` du front matter (section 11.1) et colonne `qualite_image` du rapport (EX-82), sans bloc d'avertissement ;
+- l'image seule ne rend la page douteuse (motif `image_faible_qualite`) qu'en cas de **dégradation sévère** : résolution inférieure à `image_resolution_severe_dpi` (120) ;
+- sinon, une image médiocre ne rend la page douteuse que si le **texte reconnu est aussi limite** : taux de mots inconnus supérieur à `mots_inconnus_limite_windows` (0,10) ou `mots_inconnus_limite_vision` (0,055) selon le moteur, sur une page d'au moins `mots_evaluables_min` mots évaluables (règle proposée par Claude Code, recette du 27/11/2026). Les seuils limites se placent entre les pages saines et les pages moyennement dégradées du jeu de test (fichier 21) ; sur ce jeu, la règle donne zéro erreur de verdict avec le moteur factice et `Windows.Media.Ocr`.
+Les causes sont données en clair au journal et, pour une page douteuse, dans le message du rapport (« résolution 100 dpi », « image floue ou trait grisé », « contraste faible », « image bruitée », « texte reconnu limite »). Les pages douteuses à ce titre portent le paragraphe B du bloc d'avertissement (section 11.3). Tous ces seuils sont à recalibrer sur la vérité terrain de la recette (TM-08), par le script `tests/recalibrage.py` (EX-76).
 - CA : avec le moteur factice renvoyant des confiances imposées, les verdicts suivent les seuils ; sur la page volontairement illisible du jeu de test (flou et bruit forts), le verdict est `douteuse` sur les deux plateformes.
 
 **EX-36. Heuristique de couche texte douteuse.** Pour chaque page `couche_existante` (et pour l'OCR de l'outil, voir EX-35), l'outil doit calculer les indicateurs suivants et déclarer la page douteuse dès qu'un indicateur franchit son seuil. Tous les seuils sont des paramètres du fichier de configuration ; les valeurs par défaut ci-dessous sont des valeurs de départ, à calibrer sur le jeu de test (EX-76), et non des valeurs validées.
@@ -584,7 +603,8 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 | 8 | .xlsx | écrit directement en XML : deux feuilles visibles, une masquée ; formule avec valeur en cache et formule sans valeur en cache, cellules fusionnées, pourcentages, valeurs à artefact de virgule flottante, date, booléen, erreur | `natif` |
 | 9 | .pptx | quatre diapositives, dont une masquée et une avec commentaires du présentateur ; formes groupées ; tableau à cellules fusionnées | `natif` |
 | 10 | Images | un JPEG (orientation EXIF 6), un PNG, un TIFF de 3 trames | `ocrise` |
-| 11 | Non pris en charge | .doc, .msg, .zip (fichiers factices) | `non_pris_en_charge` |
+| 8b | .xlsm | le classeur du fichier 8 enregistré avec macros (partie `vbaProject.bin` factice) (recette du 27/11/2026) | `natif`, macros absentes du Markdown |
+| 11 | Non pris en charge | .doc, .msg, .rar (fichiers factices) | `non_pris_en_charge` |
 | 12 | Chemin accentué | `Candidat Été & Fils (n° 2)/Mémoire d'été.pdf`, formes NFC et NFD | traité |
 | 13 | PDF corrompu et PDF chiffré | fichier tronqué ; fichier protégé par mot de passe | `erreur` |
 | 13b | PDF tronqué partiellement récupérable | fichier tronqué dont la réparation laisse au moins une page lisible et au moins une page perdue | `douteux`, motif `pdf_repare` |
@@ -593,6 +613,7 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 | 16 | Chemin long (Windows) | chemin de sortie de 300 caractères | traité |
 | 17 | PDF volumineux | 1 000 pages scannées simulées (généré à la demande, hors dépôt) | test de mémoire |
 | 18 | PDF scanné riche en ligatures, 2 pages | texte courant dense en « maître d'œuvre », « l'œuvre », « cœur », « sœur », « vœu », « Lætitia », « ex æquo », avec apostrophes typographiques | `ocrise`, aucune page douteuse, sous Apple Vision comme sous `Windows.Media.Ocr` |
+| 22 | Archives .zip (recette du 27/11/2026) | archive contenant deux PDF natifs (dont un nom codé en cp850 sans indicateur UTF-8), un .doc, un fichier chiffré, une remontée « ../ », des métadonnées `__MACOSX`, et une archive imbriquée contenant un PDF et une archive de troisième niveau ; archive entièrement chiffrée ; faux .zip | contenu traité dans `_OCR/…/nom.zip/…` ; chiffrés et troisième niveau `non_pris_en_charge` ; faux .zip en `erreur` |
 | 21 | PDF de 3 pages moyennement dégradées, lisibles en partie, avec montants : scan à 150 dpi légèrement flou, tampon superposé au texte, photocopie de photocopie (ajout du commanditaire du 27/11/2026, pour mesurer l'écart réel entre pages saines et dégradées de chaque moteur, EX-76) | `douteux`, pages 1 à 3 douteuses |
 
 - CA : `python tests/donnees/generer.py` produit le jeu complet et son manifeste sur les trois systèmes ; deux exécutions donnent des fichiers de même contenu textuel ; aucun document réel ni donnée personnelle dans le dépôt.
@@ -605,7 +626,7 @@ Lorsque le moteur OCR manque, l'outil ne bloque pas tout : il traite les fichier
 3. **tests d'installation** scriptés autant que possible (installation dans un profil temporaire, création et suppression des raccourcis).
 - CA : `uv run pytest` réussit sur macOS et sur Windows (niveaux 1 et 2) et sur Linux (niveau 1) ; `tests/TRACABILITE.md` ne laisse aucune exigence automatisable sans test ; les exigences vérifiées seulement par test manuel y sont marquées comme telles.
 
-**EX-76. Calibrage des seuils.** Claude Code doit fournir un script `tests/calibrage.py` qui calcule les indicateurs de EX-35 et EX-36 sur le jeu de test et produit un tableau (par page : indicateurs, verdict, vérité terrain). Les valeurs par défaut des seuils livrés doivent être celles qui donnent zéro erreur de verdict sur le jeu de test, avec la marge la plus large ; elles sont documentées dans le guide administrateur avec ce tableau. Le script doit pouvoir être relancé sur un dossier de documents réels par le référent, en local, pour ajuster les seuils en recette.
+**EX-76. Calibrage des seuils.** Claude Code doit fournir un script `tests/calibrage.py` qui calcule les indicateurs de EX-35 et EX-36 sur le jeu de test et produit un tableau (par page : indicateurs, verdict, vérité terrain). Les valeurs par défaut des seuils livrés doivent être celles qui donnent zéro erreur de verdict sur le jeu de test, avec la marge la plus large ; elles sont documentées dans le guide administrateur avec ce tableau. Le script doit pouvoir être relancé sur un dossier de documents réels par le référent, en local, pour ajuster les seuils en recette. En complément (recette du 27/11/2026), le script `tests/recalibrage.py` prépare un gabarit CSV de vérité terrain (fichier relatif, page, verdict du référent : « correct », « erreurs ponctuelles » ou « mauvais ») à partir du journal d'un dossier `_OCR`, puis recalcule les seuils de l'image et du texte qui minimisent les erreurs de verdict par rapport à ce gabarit, et les propose sous forme d'extrait de fichier de configuration.
 - CA : tableau de calibrage présent dans le guide administrateur ; le script s'exécute sur un dossier arbitraire et n'écrit que des nombres (aucun texte de document) dans sa sortie.
 
 ### 7.3 Critères d'acceptation globaux
@@ -639,7 +660,7 @@ Claude Code doit livrer ces tests sous forme de fiches à cocher (`docs/recette-
 
 ### 8.1 Version 1.0
 
-**Contenu** : toutes les exigences EX-01 à EX-82, à l'exception de EX-54, EX-55 et EX-56 ; moteur Markdown PyMuPDF4LLM ; OCR natif ; PDF consultable ; Markdown ; front matter et avertissements ; rapport ; installation, mise à jour, désinstallation.
+**Contenu** : toutes les exigences EX-01 à EX-83 (EX-83 ajoutée à la recette du 27/11/2026), à l'exception de EX-54, EX-55 et EX-56 ; moteur Markdown PyMuPDF4LLM ; OCR natif ; PDF consultable ; Markdown ; front matter et avertissements ; rapport ; installation, mise à jour, désinstallation.
 
 L'option `--qualite` existe dès la v1 dans l'interface, et renvoie le message « mode qualité disponible à partir de la version 1.1 » (code de retour 2).
 
@@ -850,6 +871,7 @@ Le front matter est un bloc YAML délimité par deux lignes `---`, en tête de f
 | `motifs_douteux` | liste de chaînes | non | présents si `qualite_texte: douteuse` : noms des indicateurs déclencheurs, par exemple `[taux_mots_inconnus, confiance_ocr_faible]` ; `image_faible_qualite` pour une page reconnue par l'outil dont l'image est de faible qualité (EX-35) ; `pdf_repare` pour un PDF réparé à l'ouverture (EX-21) |
 | `pages_recuperees` | entier | non | présent seulement avec le motif `pdf_repare` : nombre de pages ayant un contenu après réparation (décision du commanditaire du 26/11/2026) |
 | `pages_totales` | entier | non | présent seulement avec le motif `pdf_repare` : nombre de pages du document réparé (décision du commanditaire du 26/11/2026) |
+| `qualite_image` | chaîne | non | présent si l'outil a reconnu des pages : `mediocre` dès qu'une page reconnue a une image médiocre (EX-35), `bonne` sinon. Information secondaire, sans incidence sur `qualite_texte` ni bloc d'avertissement (décision du commanditaire, recette du 27/11/2026) |
 
 Règles de cohérence : `pages_douteuses` est inclus dans l'ensemble des pages du document ; `pages_ocr` et `pages_couche_existante` sont disjoints ; `qualite_texte: bonne` équivaut à `pages_douteuses: []`.
 
@@ -1007,13 +1029,14 @@ Lorsqu'une rubrique est vide, son tableau est remplacé par la phrase « Aucune.
 
 | Colonne | Contenu |
 |---|---|
-| `chemin_relatif` | identique au champ `source` |
-| `type` | `pdf`, `image`, `docx`, `xlsx`, `pptx`, `autre` |
+| `chemin_relatif` | identique au champ `source` ; pour un fichier contenu dans une archive, chemin de l'archive suivi du chemin dans l'archive (`Lot 1/pli.zip/DC1.pdf`, EX-83) |
+| `type` | `pdf`, `image`, `docx`, `xlsx`, `pptx`, `zip` (archive non extraite : en erreur ou non prise en charge), `autre` |
 | `pages` | nombre de pages, vide si sans objet |
 | `statut` | `natif`, `ocrise`, `mixte`, `couche_expediteur`, `douteux`, `non_pris_en_charge`, `erreur` |
 | `pages_ocr` | liste des pages reconnues par l'outil |
 | `pages_douteuses` | liste des pages douteuses |
 | `motif_douteux` | indicateurs déclencheurs, séparés par des espaces |
+| `qualite_image` | `bonne` ou `mediocre` si l'outil a reconnu des pages (`mediocre` dès qu'une page reconnue a une image médiocre, voir EX-35) ; vide sinon (décision du commanditaire, recette du 27/11/2026) |
 | `pages_texte_simple` | pages dont le Markdown a été repris en texte simple depuis le PDF consultable, faute d'une restitution correcte par la bibliothèque de conversion (repli de PV-05) ; vide sinon (ajout du commanditaire du 26/11/2026, pour mesurer la fréquence du repli en recette) |
 | `revisions_commentaires` | pour un .docx : `revisions` s'il contient des révisions non acceptées, `commentaires=N` s'il contient N commentaires, les deux séparés par une espace ; vide sinon (décision du commanditaire du 27/11/2026, voir EX-45) |
 | `origine_texte` | valeur de la section 11.2 |
@@ -1025,7 +1048,7 @@ Lorsqu'une rubrique est vide, son tableau est remplacé par la phrase « Aucune.
 | `version_outil` | version de l'outil ayant produit les sorties |
 
 Lors d'une relance portant sur une partie seulement des éléments d'un dossier parent, les lignes des fichiers non concernés sont conservées ; les lignes des fichiers concernés sont remplacées.
-- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 16 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
+- CA : le fichier s'ouvre par double-clic dans Excel en français avec les colonnes séparées et les accents corrects (TM-03) ; relu par le module `csv` de Python avec `delimiter=";"` et `encoding="utf-8-sig"`, il donne les 17 colonnes attendues ; un nom de fichier contenant un point-virgule et un guillemet est restitué intact ; les nombres de la fenêtre de fin se recalculent à partir de ses lignes.
 
 ### 11.7 Exemples complets
 

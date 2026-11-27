@@ -163,10 +163,25 @@ def convertir(chemin_pdf: str, *, tableaux: str = "auto", pages_ocr=(), pages_do
     return "\n\n".join(sortie) + "\n"
 
 
+def tableaux_natifs(page) -> list:
+    """Tableaux d'une page native par la détection classique de PyMuPDF (filets et alignements),
+    sans le modèle de mise en page : la bibliothèque vient de l'appliquer à la page pour le
+    Markdown, et `find_tables` le relançait (une seconde analyse par page à tableau, environ
+    40 % du temps d'un document riche en tableaux ; recette du 27/11/2026). Sur le jeu de
+    test, mêmes tableaux, mêmes dimensions et mêmes fusions, vingt fois plus vite. Le
+    traitement est séquentiel (un fichier à la fois) : le retrait temporaire est sans risque."""
+    modele = getattr(pymupdf, "_get_layout", None)
+    pymupdf._get_layout = None
+    try:
+        return page.find_tables().tables
+    finally:
+        pymupdf._get_layout = modele
+
+
 def _rendre_tableaux_natifs(page, texte, tableaux, chemin_pdf, index, adaptateur) -> str:
     """Règle de EX-44 pour une page native : HTML de l'outil pour toute la page dès qu'un
     tableau est complexe (ou si --tableaux html), Markdown sinon."""
-    trouves = page.find_tables().tables
+    trouves = tableaux_natifs(page)
     complexe = any(_fusions(t) for t in trouves)
     if tableaux == "auto" and not complexe:
         return texte

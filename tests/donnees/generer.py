@@ -74,6 +74,7 @@ class Generateur:
         self.fichiers = []
         self.ocr_factice = {}
         self.exclus = []
+        self.archives = {}
         self._prochain_id = 1
 
     # -------------------------------------------------------------- outils internes
@@ -582,6 +583,19 @@ class Generateur:
                                           "0,3", "12,345 %", "2026-11-26", "VRAI", "1234,56", "#DIV/0!",
                                           "Terrassements", "320"],
                          textes_absents=["Taux de TVA", "0,30000000000000004", "1234,5600000000002", "0,72"])
+        # Fichier 8b (recette du 27/11/2026) : le même classeur enregistré avec macros (.xlsm),
+        # lu comme un .xlsx, macros ignorées et jamais exécutées.
+        macros = dict(parties)
+        macros["[Content_Types].xml"] = parties["[Content_Types].xml"].replace(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml",
+            "application/vnd.ms-excel.sheet.macroEnabled.main+xml").replace(
+            "</Types>", '<Default Extension="bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>')
+        macros["xl/vbaProject.bin"] = "Attribute VB_Name = \"Module1\"\nSub Auto_Open()\nEnd Sub\n"
+        rel = "office/08b_macros.xlsm"
+        reecrire_zip(None, self.chemin(rel), {}, macros)
+        self.enregistrer(numero="8b", chemin=rel, type="xlsx", pages=None, statut="natif", origine=ORIGINE["natif"],
+                         textes_attendus=["Récapitulatif des lots", "Gros œuvre", "48500,1"],
+                         textes_absents=["Auto_Open", "VB_Name", "Taux de TVA"])
 
     def f09_pptx(self):
         from pptx import Presentation
@@ -666,11 +680,70 @@ class Generateur:
             self.chemin(rel).write_bytes(ole)
             self.enregistrer(numero="11", chemin=rel, type="autre", pages=None, statut="non_pris_en_charge",
                              message_attendu=message)
-        rel = "non_pris_en_charge/archive.zip"
-        with zipfile.ZipFile(self.chemin(rel), "w") as z:
-            z.writestr(zipfile.ZipInfo("lisez-moi.txt", date_time=(2026, 11, 26, 9, 0, 0)), "Archive fictive.")
+        # Les archives .zip sont désormais traitées (fichier 22) : l'archive non prise en charge
+        # est un .rar (recette du 27/11/2026).
+        rel = "non_pris_en_charge/archive.rar"
+        self.chemin(rel).write_bytes(b"Rar!\x1a\x07\x00" + b"\0" * 64)
         self.enregistrer(numero="11", chemin=rel, type="autre", pages=None, statut="non_pris_en_charge",
                          message_attendu="format non pris en charge")
+
+    def f22_archives(self):
+        """Fichier 22 (recette du 27/11/2026) : archives .zip. Le contenu attendu (chemins
+        relatifs, statuts) est au manifeste sous « archives », les membres n'existant pas
+        sur le disque."""
+        date = (2026, 11, 26, 9, 0, 0)
+
+        def pdf_natif(prefixe):
+            doc, _ = self.document_natif(1, prefixe)
+            return doc.tobytes(garbage=4, deflate=True, no_new_id=True)
+
+        def zip_octets(membres, chiffres=()):
+            tampon = io.BytesIO()
+            with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
+                for nom, donnees in membres:
+                    info = zipfile.ZipInfo(nom, date_time=date)
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    z.writestr(info, donnees)
+            octets = bytearray(tampon.getvalue())
+            # Membres annoncés chiffrés (bit 0 des indicateurs, en-tête local et répertoire
+            # central) : zipfile ne sait pas chiffrer, et l'outil ne doit pas les extraire.
+            with zipfile.ZipFile(io.BytesIO(bytes(octets))) as z:
+                for info in z.infolist():
+                    if info.filename in chiffres:
+                        octets[info.header_offset + 6] |= 0x1
+            i = octets.find(b"PK\x01\x02")
+            while i != -1:
+                n = int.from_bytes(octets[i + 28:i + 30], "little")
+                if bytes(octets[i + 46:i + 46 + n]).decode("utf-8") in chiffres:
+                    octets[i + 8] |= 0x1
+                i = octets.find(b"PK\x01\x02", i + 46 + n)
+            return bytes(octets)
+
+        profond = zip_octets([("trop_profond.pdf", pdf_natif("MOTPROFOND"))])
+        imbriquee = zip_octets([("Attestation.pdf", pdf_natif("MOTIMBRIQUE")), ("profonde.zip", profond)])
+        # Nom codé en cp850 sans l'indicateur UTF-8, comme l'Explorateur de Windows en français :
+        # écrit sous un nom ASCII de même longueur, puis les octets sont remplacés.
+        provisoire, voulu = "Pi?ces/M?moire.pdf", "Pièces/Mémoire.pdf"
+        octets = zip_octets([
+            (provisoire, pdf_natif("MOTCP850")), ("DC1.pdf", pdf_natif("MOTDC1")), ("ancien.doc", b"\xd0\xcf\x11\xe0"),
+            ("annexes.zip", imbriquee), ("__MACOSX/._DC1.pdf", b"\0"), ("../evasion.pdf", pdf_natif("MOTEVASION")),
+            ("secret.pdf", pdf_natif("MOTSECRET"))], chiffres=("secret.pdf",))
+        octets = octets.replace(provisoire.encode("ascii"), voulu.encode("cp850"))
+        rel = "archives/22_dossier.zip"
+        self.chemin(rel).write_bytes(octets)
+        chiffree = zip_octets([("a.pdf", pdf_natif("MOTCHIFFRE"))], chiffres=("a.pdf",))
+        self.chemin("archives/22_chiffree.zip").write_bytes(chiffree)
+        self.chemin("archives/22_faux.zip").write_bytes(b"ceci n'est pas une archive")
+        self.archives = {
+            "archives/22_dossier.zip/DC1.pdf": "natif",
+            "archives/22_dossier.zip/Pièces/Mémoire.pdf": "natif",
+            "archives/22_dossier.zip/ancien.doc": "non_pris_en_charge",
+            "archives/22_dossier.zip/secret.pdf": "non_pris_en_charge",
+            "archives/22_dossier.zip/annexes.zip/Attestation.pdf": "natif",
+            "archives/22_dossier.zip/annexes.zip/profonde.zip": "non_pris_en_charge",
+            "archives/22_chiffree.zip": "non_pris_en_charge",
+            "archives/22_faux.zip": "erreur",
+        }
 
     def f12_chemins_accentues(self):
         nom_dossier, nom_fichier = "Candidat Été & Fils (n° 2)", "Mémoire d'été.pdf"
@@ -796,14 +869,15 @@ class Generateur:
                   self.f06_tableaux, self.f07_docx, self.f08_xlsx, self.f09_pptx, self.f10_images,
                   self.f11_non_pris_en_charge, self.f12_chemins_accentues, self.f13_f14_erreurs, self.f15_lot,
                   self.f18_ligatures, self.f19_mention_plateforme, self.f20_couche_saine,
-                  self.f21_moyennement_degrade):
+                  self.f21_moyennement_degrade, self.f22_archives):
             f()
         if chemin_long:
             self.f16_chemin_long()
         if volumineux:
             self.f17_volumineux()
         manifeste = {"version": VERSION_MANIFESTE, "graine": self.graine, "dpi_scans": DPI,
-                     "fichiers": self.fichiers, "exclus": self.exclus, "ocr_factice": self.ocr_factice}
+                     "fichiers": self.fichiers, "exclus": self.exclus, "archives": self.archives,
+                     "ocr_factice": self.ocr_factice}
         (self.racine / "manifeste.json").write_text(json.dumps(manifeste, ensure_ascii=False, indent=1), encoding="utf-8")
         return manifeste
 
