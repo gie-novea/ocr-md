@@ -372,3 +372,7 @@ Fait :
 - source de distribution : archive zip du dépôt GitHub (`https://github.com/gie-novea/ocr-md/archive/refs/heads/main.zip`) plutôt que l'adresse Git (`git+https://...`), car uv a besoin du programme Git pour une adresse Git, absent des postes ordinaires ; même dépôt, paramètre en tête de script (ou `OCR_MD_SOURCE`). Une étiquette de version (`archive/refs/tags/v1.0.0.zip`) pourra remplacer `main` à la livraison.
 
 Reste à faire (recette) : TM-01 à TM-03 sur postes réels (clic droit, Windows 11 « Afficher d'autres options », Finder et Gatekeeper pour les `.command` téléchargés, icône dans le Dock), essai à 200 éléments (PV-02).
+
+CI du jalon 9 (run 45997091630, commit 56ca92a), verte sur les quatre plateformes : 215 tests réussis sous Windows, 219 sur chaque Mac, 201 sous Linux. Installation réelle depuis l'archive GitHub du commit, seconde installation sans doublon, mise à jour et désinstallation réussies sous Windows, macOS Apple Silicon et macOS Intel. Calibrage avec Vision : aucune erreur de verdict sur les deux Mac. Deux corrections en cours de CI : test de la fenêtre rendu indépendant des délais (Mac Intel lent) ; objets tkinter libérés dans le fil principal avant le lancement du fil de traitement (sinon plantage de Tcl quand plusieurs fenêtres se succèdent dans un même processus, cas des tests).
+
+Prochaine étape : jalon 10 (performance, guides, `LICENCES-TIERCES.md` et `TRACABILITE.md` générés, fiches de recette), puis arrêt obligatoire de fin de v1.
