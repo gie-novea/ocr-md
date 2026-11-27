@@ -59,22 +59,37 @@ jobs:
           [ "$(ls -d "$HOME/Library/Services/OCR - "*.workflow | wc -l | tr -d ' ')" = "3" ] || { echo "trois Actions rapides attendues"; exit 1; }
           bash /tmp/ocr-md-*/installation/desinstaller-macos.command oui oui
 
-      - name: Procédure du guide Windows
+      # Windows : archive téléchargée et extraite comme par un utilisateur, puis scripts lancés
+      # par cmd.exe, comme un double-clic depuis l'Explorateur (sans l'environnement de PowerShell 7).
+      - name: Téléchargement de l'archive de l'étiquette (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $archive = Join-Path $env:RUNNER_TEMP "ocr-md.zip"
           Invoke-WebRequest "https://github.com/${{ github.repository }}/archive/refs/tags/$env:ETIQUETTE.zip" -OutFile $archive
-          Expand-Archive $archive -DestinationPath $env:RUNNER_TEMP -Force
-          $dossier = Get-ChildItem $env:RUNNER_TEMP -Directory -Filter "ocr-md-*" | Select-Object -First 1
-          & (Join-Path $dossier.FullName "installation\installer-windows.cmd")
-          if ($LASTEXITCODE -ne 0) { throw "installation en échec" }
+          Expand-Archive $archive -DestinationPath (Join-Path $env:RUNNER_TEMP "archive") -Force
+          $dossier = Get-ChildItem (Join-Path $env:RUNNER_TEMP "archive") -Directory -Filter "ocr-md-*" | Select-Object -First 1
+          "DOSSIER_ARCHIVE=$($dossier.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Installation par double-clic simulé (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call "%DOSSIER_ARCHIVE%\installation\installer-windows.cmd"
+
+      - name: Vérification de l'installation (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
           $ocrmd = Join-Path $env:USERPROFILE ".local\bin\ocr-md.exe"
           if (-not (Test-Path $ocrmd)) { $ocrmd = (Get-Command ocr-md.exe).Source }
           $version = (& $ocrmd --version | Select-Object -First 1).Trim()
           $version
           if ($version -ne "ocr-md $env:ATTENDUE") { throw "version installée inattendue" }
           $lnk = @(Get-ChildItem (Join-Path $env:APPDATA "Microsoft\Windows\SendTo") -Filter "OCR - *.lnk")
+          $lnk.Name
           if ($lnk.Count -ne 3) { throw "trois raccourcis attendus" }
-          & (Join-Path $dossier.FullName "installation\desinstaller-windows.cmd") -SupprimerConfiguration oui -DesinstallerUv non
-          if ($LASTEXITCODE -ne 0) { throw "désinstallation en échec" }
+
+      - name: Désinstallation (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call "%DOSSIER_ARCHIVE%\installation\desinstaller-windows.cmd" -SupprimerConfiguration oui -DesinstallerUv oui
