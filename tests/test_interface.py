@@ -40,6 +40,10 @@ def tk_racine():
         racine.destroy()
     except tk.TclError:
         pass
+    # Libère les objets tkinter du test dans le fil principal : libérés plus tard par le
+    # ramasse-miettes dans le fil de traitement d'un autre test, ils feraient planter Tcl.
+    import gc
+    gc.collect()
 
 
 def ligne(statut="natif", action="traite"):

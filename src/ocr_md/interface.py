@@ -239,6 +239,11 @@ class Fenetre:
 def executer_avec_fenetre(options, parametres, bilan=None, avant=(), fermeture_auto_s=FERMETURE_AUTO_S) -> int:
     """Traitement avec fenêtre ; repli sans fenêtre si tkinter ou l'affichage manque."""
     bilan = bilan if bilan is not None else traitement.BilanLot()
+    # Objets tkinter éventuellement en attente de libération : libérés ici, dans le fil
+    # principal ; libérés par le ramasse-miettes dans le fil de traitement, ils feraient
+    # planter Tcl.
+    import gc
+    gc.collect()
     try:
         import tkinter as tk
         racine = tk.Tk()
